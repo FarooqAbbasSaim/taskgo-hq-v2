@@ -11,7 +11,7 @@
                                 <i data-lucide="sparkles" class="fs-md"></i>
                             </span>
                         </span>
-                        <span class="logo-text text-body fw-bold fs-xl">Simple</span>
+                        <span class="logo-text text-body fw-bold fs-xl">Taskgo HQ</span>
                     </span>
                 </a>
                 <a href="/" class="logo-light">
@@ -21,7 +21,7 @@
                                 <i data-lucide="sparkles" class="fs-md"></i>
                             </span>
                         </span>
-                        <span class="logo-text text-white fw-bold fs-xl">Simple</span>
+                        <span class="logo-text text-white fw-bold fs-xl">Taskgo HQ</span>
                     </span>
                 </a>
             </div>
@@ -503,7 +503,7 @@
                     <div class="dropdown-menu dropdown-menu-end">
                         <!-- Header -->
                         <div class="dropdown-header noti-title">
-                            <h6 class="text-overflow m-0">Welcome back!</h6>
+                            <h6 class="text-overflow m-0">Welcome back, {{ Auth::guard('hq')->user()->name ?? 'User' }}!</h6>
                         </div>
 
                         <!-- My Profile -->
@@ -521,7 +521,7 @@
                         <!-- Wallet -->
                         <a href="javascript:void(0);" class="dropdown-item">
                             <i class="ti ti-credit-card me-2 fs-17 align-middle"></i>
-                            <span class="align-middle">Balance: <span class="fw-semibold">$985.25</span></span>
+                            <span class="align-middle">Balance: <span class="fw-semibold">${{ number_format(Auth::guard('hq')->user()->total_credit ?? 0, 2) }}</span></span>
                         </a>
 
                         <!-- Settings -->
@@ -546,10 +546,13 @@
                         </a>
 
                         <!-- Logout -->
-                        <a href="javascript:void(0);" class="dropdown-item text-danger fw-semibold">
-                            <i class="ti ti-logout-2 me-2 fs-17 align-middle"></i>
-                            <span class="align-middle">Log Out</span>
-                        </a>
+                        <form method="POST" action="{{ route('logout') }}" class="d-inline">
+                            @csrf
+                            <button type="submit" class="dropdown-item text-danger fw-semibold border-0 bg-transparent w-100 text-start">
+                                <i class="ti ti-logout-2 me-2 fs-17 align-middle"></i>
+                                <span class="align-middle">Log Out</span>
+                            </button>
+                        </form>
                     </div>
 
                 </div>

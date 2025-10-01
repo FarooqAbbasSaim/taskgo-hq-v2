@@ -731,4 +731,23 @@
 
 @section('scripts')
     @vite(['resources/js/pages/dashboard.js'])
+    
+    <script>
+        // Prevent back button from showing cached pages
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                // Page was loaded from cache, reload it
+                window.location.reload();
+            }
+        });
+
+        // Clear any cached data when page loads
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                names.forEach(function(name) {
+                    caches.delete(name);
+                });
+            });
+        }
+    </script>
 @endsection

@@ -56,6 +56,14 @@ class LoginController extends Controller
             return redirect($this->redirectPath());
         }
 
+        // Clear any problematic intended URLs (like Chrome DevTools URLs)
+        if (session()->has('url.intended')) {
+            $intendedUrl = session('url.intended');
+            if (str_contains($intendedUrl, '.well-known/appspecific/com.chrome.devtools.json')) {
+                session()->forget('url.intended');
+            }
+        }
+
         $response = response()->view('auth.login');
         $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
         $response->headers->set('Pragma', 'no-cache');
@@ -82,6 +90,16 @@ class LoginController extends Controller
 
         if (Auth::guard('hq')->attempt($credentials, $remember)) {
             $request->session()->regenerate();
+            
+            // Clear any problematic intended URLs before proceeding
+            if (session()->has('url.intended')) {
+                $intendedUrl = session('url.intended');
+                if (str_contains($intendedUrl, '.well-known/appspecific/com.chrome.devtools.json')) {
+                    \Log::info('Clearing problematic intended URL', ['url' => $intendedUrl]);
+                    session()->forget('url.intended');
+                }
+            }
+            
             return $this->authenticated($request, Auth::guard('hq')->user());
         }
 
@@ -147,10 +165,13 @@ class LoginController extends Controller
 
             // Log out the user and redirect to 2FA form
             Auth::guard('hq')->logout();
-            return redirect()->route('2fa.form')->with('user_id', $user->id);
+            
+            // Use absolute URL to avoid browser redirect issues
+            $redirectUrl = url()->route('2fa.form');
+            return redirect($redirectUrl)->with('user_id', $user->id)->with('email', $user->email);
         }
 
-        return redirect()->intended($this->redirectPath());
+        return redirect($this->redirectPath());
     }
 
     public function show2faForm()
@@ -159,6 +180,14 @@ class LoginController extends Controller
         if (Auth::guard('hq')->check()) {
             return redirect($this->redirectPath());
         }
+        
+        // Debug: Log the request to help identify redirect issues
+        \Log::info('2FA Form Request', [
+            'url' => request()->url(),
+            'referer' => request()->header('referer'),
+            'user_agent' => request()->header('user-agent'),
+            'session_data' => session()->all()
+        ]);
         
         return view('auth.two_factor');
     }

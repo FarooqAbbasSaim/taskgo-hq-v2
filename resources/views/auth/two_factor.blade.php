@@ -9,22 +9,14 @@
                         <div class="card-body">
                             <div class="auth-brand mb-4">
                                 <a class="logo-dark" href="/">
-                                    <span class="d-flex align-items-center gap-1">
-                                        <span class="avatar avatar-xs rounded-circle text-bg-dark">
-                                            <span class="avatar-title">
-                                                <i class="fs-md" data-lucide="sparkles"></i>
-                                            </span>
-                                        </span>
+                                    <span class="d-flex align-items-center gap-2">
+                                        <img src="/images/taskgo_logo_square.png" alt="Taskgo Logo" class="avatar avatar-sm rounded">
                                         <span class="logo-text text-body fw-bold fs-xl">Taskgo HQ</span>
                                     </span>
                                 </a>
                                 <a class="logo-light" href="/">
-                                    <span class="d-flex align-items-center gap-1">
-                                        <span class="avatar avatar-xs rounded-circle text-bg-dark">
-                                            <span class="avatar-title">
-                                                <i class="fs-md" data-lucide="sparkles"></i>
-                                            </span>
-                                        </span>
+                                    <span class="d-flex align-items-center gap-2">
+                                        <img src="/images/taskgo_logo_square.png" alt="Taskgo Logo" class="avatar avatar-sm rounded">
                                         <span class="logo-text text-white fw-bold fs-xl">Taskgo HQ</span>
                                     </span>
                                 </a>
@@ -73,10 +65,14 @@
                                     </div>
                                     
                                     <div class="d-grid">
-                                        <button class="btn btn-primary fw-semibold py-2" type="submit">
-                                            <i class="ti ti-check me-1"></i>
-                                            Verify Code
-                                        </button>
+                                        <x-loading-button 
+                                            text="Verify Code" 
+                                            variant="primary" 
+                                            type="submit" 
+                                            loading-text="Please wait..." 
+                                            class="fw-semibold py-2"
+                                            id="verifyCodeBtn"
+                                        />
                                     </div>
                                 </form>
                                 
@@ -90,10 +86,7 @@
                         </div>
                     </div>
                     <p class="text-center text-muted mt-4 mb-0">
-                        ©
-                        <script>
-                            document.write(new Date().getFullYear())
-                        </script> Taskgo HQ — by <span class="fw-semibold">Taskgo Team</span>
+                        © 2025 Taskgo HQ
                     </p>
                 </div>
             </div>
@@ -101,4 +94,37 @@
     </div>
     <!-- end auth-fluid-->
 @endsection
+
+@push('scripts')
+<script>
+    // Handle 2FA form validation and loading button
+    document.addEventListener('DOMContentLoaded', function() {
+        const verifyForm = document.querySelector('form');
+        const verifyCodeBtn = document.getElementById('verifyCodeBtn');
+        
+        if (verifyForm && verifyCodeBtn) {
+            // Initialize loading button
+            const loadingButton = new LoadingButton(verifyCodeBtn);
+            
+            // Handle form submission
+            verifyForm.addEventListener('submit', function(e) {
+                // Check client-side validation first
+                if (!verifyForm.checkValidity()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    loadingButton.handleValidationError();
+                    verifyForm.classList.add('was-validated');
+                    return;
+                }
+                
+                // If client-side validation passes, show loading and let form submit
+                loadingButton.showLoadingImmediately();
+                
+                // Form will submit normally, loading state will be visible
+                // until the page redirects or reloads with validation errors
+            });
+        }
+    });
+</script>
+@endpush
 

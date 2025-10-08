@@ -22,6 +22,9 @@ import { Chart } from "chart.js/auto";
 
 import "simplebar";
 
+// Import custom components
+import "./components/LoadingButton.js";
+
 // Common
 class App {
     init() {
@@ -36,6 +39,7 @@ class App {
         this.initDismissible();
         this.initSidenav();
         this.initTitleTextAnimation();
+        this.initLoadingSpinners();
     }
 
     // Bootstrap Components
@@ -490,6 +494,60 @@ class App {
         // Start animation if tab is visible
         if (!document.hidden) {
             scrollTitle();
+        }
+    }
+
+    // Loading Spinner for Buttons (Legacy - now handled by LoadingButton component)
+    initLoadingSpinners() {
+        // This functionality is now handled by the LoadingButton component
+        // Keeping this method for backward compatibility but not executing the logic
+        return;
+
+        // Legacy code (commented out to avoid conflicts with LoadingButton component)
+        /*
+        document.querySelectorAll("form").forEach((form) => {
+            form.addEventListener("submit", (e) => {
+                const submitButton = form.querySelector(
+                    'button[type="submit"]'
+                );
+                if (submitButton && !submitButton.disabled) {
+                    // Prevent form submission temporarily to show spinner
+                    e.preventDefault();
+
+                    // Show loading spinner immediately
+                    this.showButtonLoading(submitButton);
+
+                    // Submit the form after a delay so you can see the spinner
+                    setTimeout(() => {
+                        // Remove the event listener to prevent infinite loop
+                        form.removeEventListener("submit", arguments.callee);
+                        // Submit the form
+                        form.submit();
+                    }, 2000); // 2 second delay so you can see the spinner
+                }
+            });
+        });
+        */
+    }
+
+    // Show loading spinner on button (Legacy method - use LoadingButton component for new implementations)
+    showButtonLoading(button, text = "Please wait...") {
+        if (button.dataset.originalText === undefined) {
+            button.dataset.originalText = button.innerHTML;
+        }
+
+        button.disabled = true;
+        button.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            ${text}
+        `;
+    }
+
+    // Hide loading spinner on button (Legacy method - use LoadingButton component for new implementations)
+    hideButtonLoading(button) {
+        if (button.dataset.originalText !== undefined) {
+            button.innerHTML = button.dataset.originalText;
+            button.disabled = false;
         }
     }
 }

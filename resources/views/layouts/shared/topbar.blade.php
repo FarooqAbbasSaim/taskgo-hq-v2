@@ -151,10 +151,10 @@
                 <div class="dropdown" data-dropdown="custom">
                     <button class="topbar-link  fw-semibold" data-bs-toggle="dropdown" data-bs-offset="0,19"
                             type="button" aria-haspopup="false" aria-expanded="false">
-                        <img data-trigger-img src="/images/themes/shadcn.svg" alt="user-image"
+                        <img data-trigger-img src="/images/themes/saas.svg" alt="user-image"
                              class="w-100 rounded me-2"
                              height="18">
-                        <span data-trigger-label class="text-nowrap"> Shadcn </span>
+                        <span data-trigger-label class="text-nowrap"> SaaS </span>
                         <span class="dot-blink" aria-label="live status indicator"></span>
                     </button>
                     <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end p-1">

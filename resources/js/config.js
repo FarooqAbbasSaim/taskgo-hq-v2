@@ -12,37 +12,48 @@
 
     // Default Configuration
     const defaultConfig = {
-        skin: "shadcn",               // Theme skin: default, two, three, four, five, six
-        monochrome: false,             // Enable monochrome mode
-        theme: "light",                // App theme: light or dark
+        skin: "saas", // Theme skin: default, two, three, four, five, six
+        monochrome: false, // Enable monochrome mode
+        theme: "light", // App theme: light or dark
         sidenav: {
-            size: "default",           // Sidebar size: default, collapse, or offcanvas
-            color: "light",            // Sidebar color: light, dark, or gray
-            user: true,                // Show user info in sidebar: true or false
+            size: "default", // Sidebar size: default, collapse, or offcanvas
+            color: "light", // Sidebar color: light, dark, or gray
+            user: true, // Show user info in sidebar: true or false
         },
         topbar: {
-            color: "light",            // Topbar color: light, dark, or gray
+            color: "light", // Topbar color: light, dark, or gray
         },
         layout: {
-            position: "fixed",         // Layout position: fixed or scrollable
+            position: "fixed", // Layout position: fixed or scrollable
         },
     };
 
     // Build config from HTML attributes
     const htmlConfig = {
         skin: html.getAttribute("data-skin") || defaultConfig.skin,
-        monochrome: html.classList.contains("monochrome") || defaultConfig.monochrome,
+        monochrome:
+            html.classList.contains("monochrome") || defaultConfig.monochrome,
         theme: html.getAttribute("data-bs-theme") || defaultConfig.theme,
         sidenav: {
-            color: html.getAttribute("data-sidenav-color") || defaultConfig.sidenav.color,
-            size: html.getAttribute("data-sidenav-size") || defaultConfig.sidenav.size,
-            user: html.hasAttribute("data-sidenav-user") || defaultConfig.sidenav.user,
+            color:
+                html.getAttribute("data-sidenav-color") ||
+                defaultConfig.sidenav.color,
+            size:
+                html.getAttribute("data-sidenav-size") ||
+                defaultConfig.sidenav.size,
+            user:
+                html.hasAttribute("data-sidenav-user") ||
+                defaultConfig.sidenav.user,
         },
         topbar: {
-            color: html.getAttribute("data-topbar-color") || defaultConfig.topbar.color,
+            color:
+                html.getAttribute("data-topbar-color") ||
+                defaultConfig.topbar.color,
         },
         layout: {
-            position: html.getAttribute("data-layout-position") || defaultConfig.layout.position,
+            position:
+                html.getAttribute("data-layout-position") ||
+                defaultConfig.layout.position,
         },
     };
 

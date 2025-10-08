@@ -490,7 +490,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                         enabled: true,
                         callbacks: {
                             label: function (ctx) {
-                                return `${ctx.label}: ${ctx.parsed}%`;
+                                const total = ctx.dataset.data.reduce(
+                                    (a, b) => a + b,
+                                    0
+                                );
+                                const percentage =
+                                    total > 0
+                                        ? Math.round((ctx.parsed / total) * 100)
+                                        : 0;
+                                return `${ctx.label}: ${ctx.parsed} (${percentage}%)`;
                             },
                         },
                     },

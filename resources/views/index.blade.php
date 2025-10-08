@@ -1,112 +1,102 @@
-@extends('layouts.vertical', ['title' => 'AI Dashboard'])
+@extends('layouts.vertical', ['title' => 'HQ Dashboard'])
 
 @section('content')
-
-    @include('layouts.shared.page-title', [
-        'title' => 'The Ultimate Admin & Dashboard Theme',
-        'subTitle' =>
-            'A premium collection of elegant, accessible components and a powerful codebase. Built for modern frameworks. Developer Friendly. Production Ready.',
-        'badgeIcon' => 'sparkles',
-        'badgeTitle' => 'Medium and Large Business',
-    ])
-
-    <div class="row row-cols-xxl-4 row-cols-md-2 row-cols-1">
-        <!-- Today's Prompts Widget -->
+    <div class="row row-cols-xxl-4 row-cols-md-2 row-cols-1 mt-4">
+        <!-- Appointments Widget -->
         <div class="col">
             <div class="card card-h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                            <h5 class="text-uppercase">Today's Prompts</h5>
+                            <h5 class="text-uppercase">Appointments</h5>
                         </div>
                         <div>
-                            <i class="text-muted fs-24 svg-sw-10" data-lucide="message-square"></i>
+                            <i class="text-muted fs-24 svg-sw-10" data-lucide="calendar"></i>
                         </div>
                     </div>
                     <div class="mb-3">
-                        <canvas height="60" id="promptsChart"></canvas>
+                        <canvas height="60" id="appointmentsChart"></canvas>
                     </div>
                     <div class="d-flex justify-content-between">
                         <div>
-                            <span class="text-muted">Today</span>
-                            <div class="fw-semibold"><span data-target="1,245">1,245</span> prompts</div>
+                            <span class="text-muted">Yesterday</span>
+                            <div class="fw-semibold"><span data-target="89">89</span></div>
                         </div>
                         <div class="text-end">
-                            <span class="text-muted">Yesterday</span>
-                            <div class="fw-semibold"><span data-target="1,110">1,110</span> <i class="ti ti-arrow-up"></i>
-                            </div>
+                            <span class="text-muted">Today</span>
+                            <div class="fw-semibold"><span data-target="124">124</span></div>
                         </div>
                     </div>
                 </div>
                 <div class="card-footer text-muted text-center">
-                    Prompt volume increased by <strong>12%</strong> today
+                    <strong>Confirmed appointments only</strong>
                 </div>
             </div>
         </div>
-        <!-- Active Users Widget -->
+        <!-- Rx Orders Widget -->
         <div class="col">
             <div class="card card-h-100">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                            <h5 class="text-uppercase mb-3">Active Users</h5>
-                            <h3 class="mb-0 fw-normal"><span data-target="342">342</span></h3>
-                            <p class="text-muted mb-2">In the last hour</p>
+                            <h5 class="text-uppercase">Rx Orders</h5>
+                            <p class="text-muted mb-2 fs-sm">This week from Mon to Sat</p>
+                        </div>
+                        <div>
+                            <i class="text-muted fs-24 svg-sw-10" data-lucide="package"></i>
+                        </div>
+                    </div>
+                    <div class="progress progress-lg mb-3">
+                        <div class="progress-bar bg-success" role="progressbar" id="processedProgressBar" style="width: 78%;"></div>
+                        <div class="progress-bar bg-warning" role="progressbar" id="pendingProgressBar" style="width: 22%;"></div>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <span class="text-muted">Processed</span>
+                            <h5 class="mb-0"><span data-target="78">78</span>%</h5>
+                        </div>
+                        <div class="text-end">
+                            <span class="text-muted">Pending</span>
+                            <h5 class="mb-0"><span data-target="22">22</span>%</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    <strong><span data-target="47">47</span> orders received today</strong>
+                </div>
+            </div>
+        </div>
+        <!-- Rx Users Widget -->
+        <div class="col">
+            <div class="card card-h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="text-uppercase">Rx Users</h5>
                         </div>
                         <div>
                             <i class="text-muted fs-24 svg-sw-10" data-lucide="users"></i>
                         </div>
                     </div>
-                    <div class="progress progress-lg mb-3">
-                        <div class="progress-bar" role="progressbar" style="width: 68%;"></div>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <span class="text-muted">Avg. Session Time</span>
-                            <h5 class="mb-0">4m 12s</h5>
-                        </div>
-                        <div class="text-end">
-                            <span class="text-muted">Returning Users</span>
-                            <h5 class="mb-0">54.9%</h5>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer text-muted text-center">
-                    52 new users joined today
-                </div>
-            </div>
-        </div>
-        <!-- Response Accuracy Widget -->
-        <div class="col">
-            <div class="card card-h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <h5 class="text-uppercase">Response Accuracy</h5>
-                        </div>
-                        <div>
-                            <i class="text-muted fs-24 svg-sw-10" data-lucide="activity"></i>
-                        </div>
-                    </div>
                     <div class="d-flex align-items-center justify-content-center">
-                        <canvas height="120" id="accuracyChart" width="120"></canvas>
+                        <canvas height="120" id="rxUsersChart" width="120"></canvas>
                     </div>
                 </div>
                 <div class="card-footer text-muted text-center">
-                    Current accuracy: <strong>94.3%</strong>
+                    <strong>Male: <span data-target="25">25</span>%, Female: <span data-target="75">75</span>%</strong>
                 </div>
             </div>
         </div>
-        <!-- Token Consumption Widget -->
+        <!-- OpenAI API Usage Widget -->
         <div class="col">
             <div class="card card-h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                            <h5 class="text-uppercase">Token Usage</h5>
+                            <h5 class="text-uppercase">OpenAI API Usage</h5>
                         </div>
                         <div>
-                            <i class="text-muted fs-24 svg-sw-10" data-lucide="cpu"></i>
+                            <i class="text-muted fs-24 svg-sw-10" data-lucide="brain"></i>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -115,17 +105,16 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <span class="text-muted">Today</span>
-                            <div class="fw-semibold"><span data-target="920,400">920,400</span> tokens</div>
+                            <div class="fw-semibold"><span data-target="2,847">2,847</span> requests</div>
                         </div>
                         <div class="text-end">
                             <span class="text-muted">Yesterday</span>
-                            <div class="fw-semibold"><span data-target="865,100">865,100</span> <i
-                                    class="ti ti-arrow-up"></i></div>
+                            <div class="fw-semibold"><span data-target="2,634">2,634</span> requests</div>
                         </div>
                     </div>
                 </div>
                 <div class="card-footer text-muted text-center">
-                    Token usage up <strong>6.4%</strong> from yesterday
+                    AI features usage up <strong>8.1%</strong> from yesterday
                 </div>
             </div>
         </div>
@@ -730,7 +719,7 @@
 @endsection
 
 @section('scripts')
-    @vite(['resources/js/pages/dashboard.js'])
+    {{-- Dashboard charts are now handled in analytics.js --}}
     
     <script>
         // Prevent back button from showing cached pages

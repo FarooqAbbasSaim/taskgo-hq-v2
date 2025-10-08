@@ -25,6 +25,9 @@ import "simplebar";
 // Import custom components
 import "./components/LoadingButton.js";
 
+// Import page-specific scripts
+import "./pages/analytics.js";
+
 // Common
 class App {
     init() {
@@ -199,6 +202,34 @@ class App {
     initCounter() {
         const counters = document.querySelectorAll("[data-target]");
 
+        // Filter out elements that are managed by our API
+        const filteredCounters = Array.from(counters).filter((counter) => {
+            const dataTarget = counter.getAttribute("data-target");
+            const cardTitle = counter
+                .closest(".card")
+                ?.querySelector("h5")?.textContent;
+
+            // Skip appointments elements (89 and 124 are the original values)
+            // Skip Rx Orders elements (78, 22, 47 are the original values)
+            // Skip Rx Users elements (25 and 75 are the original values)
+            // Skip OpenAI API Usage elements (2,847 and 2,634 are the original values)
+            return (
+                dataTarget !== "89" &&
+                dataTarget !== "124" &&
+                dataTarget !== "78" &&
+                dataTarget !== "22" &&
+                dataTarget !== "47" &&
+                dataTarget !== "25" &&
+                dataTarget !== "75" &&
+                dataTarget !== "2,847" &&
+                dataTarget !== "2,634" &&
+                !cardTitle?.includes("APPOINTMENTS") &&
+                !cardTitle?.includes("RX ORDERS") &&
+                !cardTitle?.includes("RX USERS") &&
+                !cardTitle?.includes("OPENAI API USAGE")
+            );
+        });
+
         const observer = new IntersectionObserver(
             (entries, observer) => {
                 entries.forEach((entry) => {
@@ -259,7 +290,7 @@ class App {
             }
         );
 
-        counters.forEach((counter) => observer.observe(counter));
+        filteredCounters.forEach((counter) => observer.observe(counter));
     }
 
     // Toggle logic based on data attributes
@@ -463,38 +494,11 @@ class App {
         }
     }
 
-    // Title Text Animation
+    // Title Text Animation - DISABLED
     initTitleTextAnimation() {
-        const originalTitle = document.title;
-        const fullTitle = originalTitle + " — By Coderthemes — ";
-        let scrollIndex = 0;
-        let animationId;
-
-        function scrollTitle() {
-            if (!document.hidden) {
-                document.title =
-                    fullTitle.slice(scrollIndex) +
-                    fullTitle.slice(0, scrollIndex);
-                scrollIndex = (scrollIndex + 1) % fullTitle.length;
-                animationId = setTimeout(scrollTitle, 100);
-            }
-        }
-
-        function handleVisibilityChange() {
-            if (document.hidden) {
-                clearTimeout(animationId);
-                document.title = originalTitle; // Restore full title
-            } else {
-                scrollTitle(); // Restart animation
-            }
-        }
-
-        document.addEventListener("visibilitychange", handleVisibilityChange);
-
-        // Start animation if tab is visible
-        if (!document.hidden) {
-            scrollTitle();
-        }
+        // Animation disabled - keeping static title
+        // The title will remain as set in the HTML templates
+        return;
     }
 
     // Loading Spinner for Buttons (Legacy - now handled by LoadingButton component)

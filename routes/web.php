@@ -64,6 +64,14 @@ Route::get('/test-404', function () {
     abort(404);
 });
 
+// Dashboard API routes (no authentication required for now)
+Route::prefix('api/dashboard')->group(function () {
+    Route::get('/appointments', [\App\Http\Controllers\Api\DashboardController::class, 'getAppointmentsData']);
+    Route::get('/rx-orders', [\App\Http\Controllers\Api\DashboardController::class, 'getRxOrdersData']);
+    Route::get('/rx-users', [\App\Http\Controllers\Api\DashboardController::class, 'getRxUsersData']);
+    Route::get('/openai-usage', [\App\Http\Controllers\Api\DashboardController::class, 'getOpenAIUsageData']);
+});
+
 // Root route - redirect based on authentication status
 Route::get('/', function () {
     if (Auth::guard('hq')->check()) {

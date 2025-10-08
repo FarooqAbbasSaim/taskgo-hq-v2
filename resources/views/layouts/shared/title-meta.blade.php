@@ -6,4 +6,7 @@
 <meta name="author" content="Adam Esa">
 
 <!-- App favicon -->
-<link rel="shortcut icon" href="/images/favicon.ico">
+<link rel="shortcut icon" href="/images/favicon.ico?v={{ time() }}">
+<link rel="icon" type="image/png" href="/images/favicon.png?v={{ time() }}">
+<link rel="icon" type="image/x-icon" href="/images/favicon.ico?v={{ time() }}">
+<link rel="apple-touch-icon" href="/images/favicon.png?v={{ time() }}">

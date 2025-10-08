@@ -5,23 +5,15 @@
             <!-- Topbar Brand Logo -->
             <div class="logo-topbar">
                 <a href="/" class="logo-dark">
-                    <span class="d-flex align-items-center gap-1">
-                        <span class="avatar avatar-xs rounded-circle text-bg-dark">
-                            <span class="avatar-title">
-                                <i data-lucide="sparkles" class="fs-md"></i>
-                            </span>
-                        </span>
-                        <span class="logo-text text-body fw-bold fs-xl">Taskgo HQ</span>
+                    <span class="d-flex align-items-center gap-2">
+                        <img src="/images/taskgo_logo_square.png" alt="Taskgo HQ" class="logo-img" style="height: 64px; width: 64px;">
+                        <!-- <span class="logo-text text-body fw-bold fs-xl">Taskgo HQ</span> -->
                     </span>
                 </a>
                 <a href="/" class="logo-light">
-                    <span class="d-flex align-items-center gap-1">
-                        <span class="avatar avatar-xs rounded-circle text-bg-dark">
-                            <span class="avatar-title">
-                                <i data-lucide="sparkles" class="fs-md"></i>
-                            </span>
-                        </span>
-                        <span class="logo-text text-white fw-bold fs-xl">Taskgo HQ</span>
+                    <span class="d-flex align-items-center gap-2">
+                        <img src="/images/taskgo_logo_square.png" alt="Taskgo HQ" class="logo-img" style="height: 64px; width: 64px;">
+                        <!-- <span class="logo-text text-white fw-bold fs-xl">Taskgo HQ</span> -->
                     </span>
                 </a>
             </div>

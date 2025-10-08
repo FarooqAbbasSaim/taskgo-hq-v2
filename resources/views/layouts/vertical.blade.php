@@ -3,16 +3,18 @@
 
 <head>
     <meta charset="utf-8">
-    <title>{{ $title }} | Simple - Responsive Bootstrap 5 Admin Dashboard</title>
+    <title>{{ $title }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description"
-        content="admin dashboard template on Themeforest. Perfect for building CRM, CMS, project management tools, and custom web apps with clean UI, responsive design, and powerful features.">
-    <meta name="keywords"
-        content="Simple, Admin dashboard, Themeforest, HTML template,Shadcn, Bootstrap admin, CRM template, CMS template, responsive admin, web app UI, admin theme, best admin template">
-    <meta name="author" content="Coderthemes">
+    <meta name="description" content="Admin Dashboard for Taskgo HQ Users">
+    <meta name="keywords" content="taskgo, hq, dashboard, ai, dashboard, ai dashboards">
+    <meta name="author" content="Adam Esa">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- App favicon -->
-    <link rel="shortcut icon" href="/images/favicon.ico">
+    <link rel="shortcut icon" href="/images/favicon.ico?v={{ time() }}">
+    <link rel="icon" type="image/png" href="/images/favicon.png?v={{ time() }}">
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico?v={{ time() }}">
+    <link rel="apple-touch-icon" href="/images/favicon.png?v={{ time() }}">
 
     @yield('styles')
 

@@ -10,13 +10,13 @@
                             <div class="auth-brand mb-4">
                                 <a class="logo-dark" href="/">
                                     <span class="d-flex align-items-center gap-2">
-                                        <img src="/images/taskgo_logo_square.png" alt="Taskgo Logo" class="avatar avatar-sm rounded">
+                                        <img src="/images/taskgo_logo_favicon.png" alt="Taskgo Logo" class="avatar avatar-sm rounded">
                                         <span class="logo-text text-body fw-bold fs-xl">Taskgo HQ</span>
                                     </span>
                                 </a>
                                 <a class="logo-light" href="/">
                                     <span class="d-flex align-items-center gap-2">
-                                        <img src="/images/taskgo_logo_square.png" alt="Taskgo Logo" class="avatar avatar-sm rounded">
+                                        <img src="/images/taskgo_logo_favicon.png" alt="Taskgo Logo" class="avatar avatar-sm rounded">
                                         <span class="logo-text text-white fw-bold fs-xl">Taskgo HQ</span>
                                     </span>
                                 </a>
@@ -79,6 +79,29 @@
     </div>
 @endsection
 
+@push('styles')
+<style>
+    /* Ensure button doesn't disappear during loading */
+    .btn.loading {
+        opacity: 1 !important;
+        visibility: visible !important;
+        display: inline-block !important;
+    }
+    
+    /* Loading button styles */
+    .btn.loading .spinner-border {
+        width: 1rem;
+        height: 1rem;
+        border-width: 0.1em;
+    }
+    
+    /* Prevent button from being hidden during form submission */
+    #signInBtn {
+        transition: none !important;
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script>
     // Prevent back button from showing cached pages
@@ -104,8 +127,27 @@
         const signInBtn = document.getElementById('signInBtn');
         
         if (loginForm && signInBtn) {
-            // Initialize loading button
-            const loadingButton = new LoadingButton(signInBtn);
+            // Initialize loading button with error handling
+            let loadingButton;
+            try {
+                loadingButton = new LoadingButton(signInBtn);
+                console.log('LoadingButton initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize LoadingButton:', error);
+                // Fallback: manual loading state
+                loadingButton = {
+                    showLoadingImmediately: function() {
+                        signInBtn.disabled = true;
+                        signInBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Please wait...';
+                        signInBtn.classList.add('loading');
+                    },
+                    handleValidationError: function() {
+                        signInBtn.disabled = false;
+                        signInBtn.innerHTML = 'Sign In';
+                        signInBtn.classList.remove('loading');
+                    }
+                };
+            }
             
             // Handle form submission
             loginForm.addEventListener('submit', function(e) {
@@ -123,6 +165,16 @@
                 
                 // Form will submit normally, loading state will be visible
                 // until the page redirects or reloads with server validation errors
+            });
+            
+            // Also handle button click directly as a fallback
+            signInBtn.addEventListener('click', function(e) {
+                // Small delay to ensure the loading state is visible
+                setTimeout(() => {
+                    if (loginForm.checkValidity()) {
+                        loadingButton.showLoadingImmediately();
+                    }
+                }, 10);
             });
         }
     });

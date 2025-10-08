@@ -10,13 +10,13 @@
                             <div class="auth-brand mb-4">
                                 <a class="logo-dark" href="/">
                                     <span class="d-flex align-items-center gap-2">
-                                        <img src="/images/taskgo_logo_square.png" alt="Taskgo Logo" class="avatar avatar-sm rounded">
+                                        <img src="/images/taskgo_logo_favicon.png" alt="Taskgo Logo" class="avatar avatar-sm rounded">
                                         <span class="logo-text text-body fw-bold fs-xl">Taskgo HQ</span>
                                     </span>
                                 </a>
                                 <a class="logo-light" href="/">
                                     <span class="d-flex align-items-center gap-2">
-                                        <img src="/images/taskgo_logo_square.png" alt="Taskgo Logo" class="avatar avatar-sm rounded">
+                                        <img src="/images/taskgo_logo_favicon.png" alt="Taskgo Logo" class="avatar avatar-sm rounded">
                                         <span class="logo-text text-white fw-bold fs-xl">Taskgo HQ</span>
                                     </span>
                                 </a>

@@ -31,6 +31,7 @@
                 </a>
             </li>
 
+            @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a href="{{ route('second', ['ton', 'ton-ai'])}}" class="side-nav-link">
                     <span class="menu-icon"><i data-lucide="sparkles"></i></span>
@@ -38,7 +39,9 @@
                     <span class="badge text-bg-primary">Hot</span>
                 </a>
             </li>
+            @endif
 
+            @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a href="{{ route('second', ['calendar', 'index'])}}" class="side-nav-link">
                     <span class="menu-icon"><i data-lucide="calendar"></i></span>
@@ -54,7 +57,9 @@
             </li>
 
             <li class="side-nav-title mt-2" data-lang="pages-title">Custom Pages</li>
+            @endif
 
+            @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a data-bs-toggle="collapse" href="#sidebarPages" aria-expanded="false" aria-controls="sidebarPages"
                    class="side-nav-link">
@@ -92,7 +97,9 @@
                     </ul>
                 </div>
             </li>
+            @endif
 
+            @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a data-bs-toggle="collapse" href="#sidebarPagesAuth" aria-expanded="false"
                    aria-controls="sidebarPagesAuth" class="side-nav-link">
@@ -140,7 +147,9 @@
                     </ul>
                 </div>
             </li>
+            @endif
 
+            @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a data-bs-toggle="collapse" href="#sidebarBaseUI" aria-expanded="false" aria-controls="sidebarBaseUI"
                    class="side-nav-link">
@@ -178,14 +187,18 @@
                     </ul>
                 </div>
             </li>
+            @endif
 
+            @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a href="{{ route('second', ['charts', 'index'])}}" class="side-nav-link">
                     <span class="menu-icon"><i data-lucide="chart-pie"></i></span>
                     <span class="menu-text" data-lang="charts"> Charts </span>
                 </a>
             </li>
+            @endif
 
+            @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a data-bs-toggle="collapse" href="#sidebarForms" aria-expanded="false" aria-controls="sidebarForms"
                    class="side-nav-link">
@@ -228,7 +241,9 @@
                     </ul>
                 </div>
             </li>
+            @endif
 
+            @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a data-bs-toggle="collapse" href="#sidebarTables" aria-expanded="false" aria-controls="sidebarTables"
                    class="side-nav-link">
@@ -303,7 +318,9 @@
                     </ul>
                 </div>
             </li>
+            @endif
 
+            @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a data-bs-toggle="collapse" href="#sidebarIcons" aria-expanded="false" aria-controls="sidebarIcons"
                    class="side-nav-link">
@@ -331,7 +348,9 @@
                     </ul>
                 </div>
             </li>
+            @endif
 
+            @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a data-bs-toggle="collapse" href="#sidebarMaps" aria-expanded="false" aria-controls="sidebarMaps"
                    class="side-nav-link">
@@ -432,6 +451,7 @@
                     <span class="menu-text" data-lang="disabled-menu"> Disabled Menu </span>
                 </a>
             </li>
+            @endif
         </ul>
     </div>
 

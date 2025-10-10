@@ -22,6 +22,9 @@ import { Chart } from "chart.js/auto";
 
 import "simplebar";
 
+import Swal from "sweetalert2";
+window.Swal = Swal;
+
 // Import custom components
 import "./components/LoadingButton.js";
 

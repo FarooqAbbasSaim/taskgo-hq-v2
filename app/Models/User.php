@@ -45,4 +45,20 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    /**
+     * Get the user's permissions
+     */
+    public function permissions()
+    {
+        return $this->belongsToMany(Permission::class, 'user_permissions');
+    }
+
+    /**
+     * Get the user's subscription
+     */
+    public function subscription()
+    {
+        return $this->hasOne(PharmacySubscription::class, 'user_id', 'id');
+    }
 }

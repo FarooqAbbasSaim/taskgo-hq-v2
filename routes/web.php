@@ -77,6 +77,14 @@ Route::prefix('api/customers')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomersData']);
     Route::get('/archived', [\App\Http\Controllers\Api\CustomerController::class, 'getArchivedCustomersData']);
     Route::post('/change-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeCustomerStatus']);
+    Route::post('/add-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'addPackagePlan']);
+    Route::post('/update-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'updatePackagePlan']);
+    Route::post('/change-subscription-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeSubscriptionStatus']);
+});
+
+// Customer permission routes
+Route::prefix('api/customer-permissions')->group(function () {
+    Route::post('/access-change', [\App\Http\Controllers\Api\CustomerPermissionController::class, 'assignAllPermissionsToCustomer']);
 });
 
 // Root route - redirect based on authentication status

@@ -44,7 +44,9 @@ class CustomerController extends Controller
                     'users.total_credit',
                     'users.openai_cost',
                     'users.sms_cost',
+                    'pharmacy_subscriptions.registration_number',
                     'pharmacy_subscriptions.pharmacy_name',
+                    'pharmacy_subscriptions.status as subscription_status',
                     'pharmacy_subscriptions.start_date',
                     'pharmacy_subscriptions.expiry_date'
                 )
@@ -55,6 +57,7 @@ class CustomerController extends Controller
             $formattedCustomers = $customers->map(function ($customer) {
                 return [
                     'id' => $customer->id,
+                    'registration_number' => $customer->registration_number ?? null,
                     'name' => $customer->name,
                     'email' => $customer->email,
                     'phone' => $customer->phone,
@@ -62,6 +65,7 @@ class CustomerController extends Controller
                     'credits' => $customer->total_credit ?? 0,
                     'openai_cost' => $customer->openai_cost ?? 0,
                     'sms_cost' => $customer->sms_cost ?? 0,
+                    'subscription_status' => $customer->subscription_status ?? 'N/A',
                     'status' => $customer->status,
                     'email_verified' => !is_null($customer->email_verified_at),
                     'last_login' => $customer->last_login_at,
@@ -111,7 +115,9 @@ class CustomerController extends Controller
                     'users.total_credit',
                     'users.openai_cost',
                     'users.sms_cost',
+                    'pharmacy_subscriptions.registration_number',
                     'pharmacy_subscriptions.pharmacy_name',
+                    'pharmacy_subscriptions.status as subscription_status',
                     'pharmacy_subscriptions.start_date',
                     'pharmacy_subscriptions.expiry_date'
                 )
@@ -122,6 +128,7 @@ class CustomerController extends Controller
             $formattedCustomers = $customers->map(function ($customer) {
                 return [
                     'id' => $customer->id,
+                    'registration_number' => $customer->registration_number ?? null,
                     'name' => $customer->name,
                     'email' => $customer->email,
                     'phone' => $customer->phone,
@@ -129,6 +136,7 @@ class CustomerController extends Controller
                     'credits' => $customer->total_credit ?? 0,
                     'openai_cost' => $customer->openai_cost ?? 0,
                     'sms_cost' => $customer->sms_cost ?? 0,
+                    'subscription_status' => $customer->subscription_status ?? 'N/A',
                     'status' => $customer->status,
                     'email_verified' => !is_null($customer->email_verified_at),
                     'last_login' => $customer->last_login_at,
@@ -190,6 +198,148 @@ class CustomerController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update customer status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Add package plan to customer
+     */
+    public function addPackagePlan(Request $request, $customerId)
+    {
+        try {
+            $request->validate([
+                'total_credit' => 'required|numeric|min:0',
+                'openai_cost' => 'required|numeric|min:0',
+                'sms_cost' => 'required|numeric|min:0',
+            ]);
+
+            $customer = DB::table('users')
+                ->where('id', $customerId)
+                ->where('user_type', 'admin')
+                ->first();
+
+            if (!$customer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer not found'
+                ], 404);
+            }
+
+            DB::table('users')
+                ->where('id', $customerId)
+                ->update([
+                    'total_credit' => $request->total_credit,
+                    'openai_cost' => $request->openai_cost,
+                    'sms_cost' => $request->sms_cost,
+                    'updated_at' => now()
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Package plan added successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error adding package plan: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add package plan',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update package plan for customer
+     */
+    public function updatePackagePlan(Request $request, $customerId)
+    {
+        try {
+            $request->validate([
+                'total_credit' => 'required|numeric|min:0',
+                'openai_cost' => 'required|numeric|min:0',
+                'sms_cost' => 'required|numeric|min:0',
+            ]);
+
+            $customer = DB::table('users')
+                ->where('id', $customerId)
+                ->where('user_type', 'admin')
+                ->first();
+
+            if (!$customer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer not found'
+                ], 404);
+            }
+
+            DB::table('users')
+                ->where('id', $customerId)
+                ->update([
+                    'total_credit' => $request->total_credit,
+                    'openai_cost' => $request->openai_cost,
+                    'sms_cost' => $request->sms_cost,
+                    'updated_at' => now()
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Package plan updated successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error updating package plan: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update package plan',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Change subscription status
+     */
+    public function changeSubscriptionStatus(Request $request)
+    {
+        try {
+            $request->validate([
+                'customer_id' => 'required|integer',
+                'status' => 'required|string|in:active,deactive',
+            ]);
+
+            $customer = DB::table('users')
+                ->where('id', $request->customer_id)
+                ->where('user_type', 'admin')
+                ->first();
+
+            if (!$customer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer not found'
+                ], 404);
+            }
+
+            // Update the subscription status in pharmacy_subscriptions table
+            DB::table('pharmacy_subscriptions')
+                ->where('id', $customer->pharmacy_subscription_id)
+                ->update([
+                    'status' => $request->status,
+                    'updated_at' => now()
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Subscription status updated successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error updating subscription status: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update subscription status',
                 'error' => $e->getMessage()
             ], 500);
         }

@@ -25,6 +25,13 @@
             </li>
 
             <li class="side-nav-item">
+                <a href="{{ route('admin.customers') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="users"></i></span>
+                    <span class="menu-text">Customers</span>
+                </a>
+            </li>
+
+            <li class="side-nav-item">
                 <a href="{{ route('second', ['ton', 'ton-ai'])}}" class="side-nav-link">
                     <span class="menu-icon"><i data-lucide="sparkles"></i></span>
                     <span class="menu-text"> Ton AI </span>

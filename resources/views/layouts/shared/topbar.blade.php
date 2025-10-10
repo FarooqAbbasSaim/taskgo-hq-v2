@@ -1,6 +1,6 @@
 <!-- Topbar Start -->
 <header class="app-topbar">
-    <div class="container-fluid topbar-menu">
+    <div class="container-fluid topbar-menu mb-2">
         <div class="d-flex align-items-center justify-content-center gap-2">
             <!-- Topbar Brand Logo -->
             <div class="logo-topbar">

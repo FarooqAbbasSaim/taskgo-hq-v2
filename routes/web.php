@@ -72,6 +72,13 @@ Route::prefix('api/dashboard')->group(function () {
     Route::get('/openai-usage', [\App\Http\Controllers\Api\DashboardController::class, 'getOpenAIUsageData']);
 });
 
+// Customers API routes
+Route::prefix('api/customers')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomersData']);
+    Route::get('/archived', [\App\Http\Controllers\Api\CustomerController::class, 'getArchivedCustomersData']);
+    Route::post('/change-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeCustomerStatus']);
+});
+
 // Root route - redirect based on authentication status
 Route::get('/', function () {
     if (Auth::guard('hq')->check()) {
@@ -92,6 +99,9 @@ Route::post('2fa', [LoginController::class, 'verify2fa'])->name('2fa.verify');
 // Protected admin routes
 Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [RoutingController::class, 'index'])->name('admin.dashboard');
+    Route::get('/customers', function() {
+        return view('customers');
+    })->name('admin.customers');
 });
 
 // Protected dynamic routes for new UI pages (fallback)

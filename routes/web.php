@@ -76,6 +76,7 @@ Route::prefix('api/dashboard')->group(function () {
 Route::prefix('api/customers')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomersData']);
     Route::get('/archived', [\App\Http\Controllers\Api\CustomerController::class, 'getArchivedCustomersData']);
+    Route::get('/frozen', [\App\Http\Controllers\Api\CustomerController::class, 'getFrozenCustomersData']);
     Route::post('/change-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeCustomerStatus']);
     Route::post('/add-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'addPackagePlan']);
     Route::post('/update-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'updatePackagePlan']);

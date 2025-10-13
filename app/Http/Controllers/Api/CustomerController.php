@@ -162,6 +162,76 @@ class CustomerController extends Controller
     }
 
     /**
+     * Get frozen customers data
+     */
+    public function getFrozenCustomersData()
+    {
+        try {
+            // Get frozen customers from the database
+            $customers = DB::table('users')
+                ->where('users.user_type', 'admin')
+                ->whereNotNull('users.pharmacy_subscription_id')
+                ->where('users.status', 'freeze')
+                ->leftJoin('pharmacy_subscriptions', 'users.pharmacy_subscription_id', '=', 'pharmacy_subscriptions.id')
+                ->select(
+                    'users.id',
+                    'users.name',
+                    'users.email',
+                    'users.phone',
+                    'users.status',
+                    'users.email_verified_at',
+                    'users.last_login_at',
+                    'users.created_at',
+                    'users.total_credit',
+                    'users.openai_cost',
+                    'users.sms_cost',
+                    'pharmacy_subscriptions.registration_number',
+                    'pharmacy_subscriptions.pharmacy_name',
+                    'pharmacy_subscriptions.status as subscription_status',
+                    'pharmacy_subscriptions.start_date',
+                    'pharmacy_subscriptions.expiry_date'
+                )
+                ->orderBy('users.created_at', 'desc')
+                ->get();
+
+            // Format the data for the frontend
+            $formattedCustomers = $customers->map(function ($customer) {
+                return [
+                    'id' => $customer->id,
+                    'registration_number' => $customer->registration_number ?? null,
+                    'name' => $customer->name,
+                    'email' => $customer->email,
+                    'phone' => $customer->phone,
+                    'pharmacy_name' => $customer->pharmacy_name,
+                    'credits' => $customer->total_credit ?? 0,
+                    'openai_cost' => $customer->openai_cost ?? 0,
+                    'sms_cost' => $customer->sms_cost ?? 0,
+                    'subscription_status' => $customer->subscription_status ?? 'N/A',
+                    'status' => $customer->status,
+                    'email_verified' => !is_null($customer->email_verified_at),
+                    'last_login' => $customer->last_login_at,
+                    'start_date' => $customer->start_date,
+                    'expiry_date' => $customer->expiry_date,
+                    'created_at' => $customer->created_at,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $formattedCustomers
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error fetching frozen customers data: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch frozen customers data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Change customer status
      */
     public function changeCustomerStatus(Request $request)
@@ -169,7 +239,7 @@ class CustomerController extends Controller
         try {
             $request->validate([
                 'customer_id' => 'required|integer',
-                'status' => 'required|string|in:active,deactive',
+                'status' => 'required|string|in:active,deactive,freeze',
             ]);
 
             $customer = DB::table('users')
@@ -307,7 +377,7 @@ class CustomerController extends Controller
         try {
             $request->validate([
                 'customer_id' => 'required|integer',
-                'status' => 'required|string|in:active,deactive',
+                'status' => 'required|string|in:active,deactive,freeze',
             ]);
 
             $customer = DB::table('users')

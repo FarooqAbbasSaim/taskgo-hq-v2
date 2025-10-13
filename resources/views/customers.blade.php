@@ -17,25 +17,27 @@
                 </div>
                 <div class="card-body">
                     <!-- Filter and Search -->
-                    <div class="row mb-3">
-                        <div class="col-md-6">
+                    <div class="row mb-3 justify-content-between">
+                        <div class="col-md-4">
                             <div class="input-group">
                                 <span class="input-group-text"><i class="ti ti-search"></i></span>
                                 <input type="text" class="form-control" id="searchCustomers" placeholder="Search customers...">
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <select class="form-select" id="statusFilter">
-                                <option value="">All Status</option>
-                                <option value="active">Active</option>
-                                <option value="deactive">Inactive</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <div class="btn-group w-100" role="group">
+                                <!-- <input type="radio" class="btn-check" name="viewType" id="allView" value="" checked>
+                                <label class="btn btn-outline-primary" for="allView">All</label> -->
+                                
                                 <input type="radio" class="btn-check" name="viewType" id="activeView" value="active" checked>
                                 <label class="btn btn-outline-primary" for="activeView">Active</label>
-                                
+
+                                <input type="radio" class="btn-check" name="viewType" id="inactiveView" value="deactive">
+                                <label class="btn btn-outline-primary" for="inactiveView">Inactive</label>
+
+                                <input type="radio" class="btn-check" name="viewType" id="frozenView" value="frozen">
+                                <label class="btn btn-outline-primary" for="frozenView">Frozen</label>
+
                                 <input type="radio" class="btn-check" name="viewType" id="archivedView" value="archived">
                                 <label class="btn btn-outline-primary" for="archivedView">Archived</label>
                             </div>
@@ -55,15 +57,12 @@
                         <table class="table table-centered table-custom table-sm table-nowrap table-hover mb-0" id="customersTable">
                             <thead class="bg-light-subtle">
                                 <tr>
-                                    <th>Reg #</th>
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
                                     <th>Pharmacy</th>
                                     <th>Credits</th>
-                                    <th>OpenAI Cost</th>
-                                    <th>SMS Cost</th>
-                                    <th>Subscription</th>
+                                    <th>Plan</th>
                                     <th>Status</th>
                                     <th>Last Login</th>
                                     <th>Start Date</th>
@@ -113,8 +112,8 @@
                         <div class="mb-3">
                             <i class="ti ti-alert-triangle text-warning" style="font-size: 3rem;"></i>
                         </div>
-                        <h5 class="mb-3" id="freezeModalTitle">Are you sure?</h5>
-                        <p class="text-muted mb-0" id="freezeModalMessage">This action will change the customer status.</p>
+                        <h3 class="mb-1" id="freezeModalTitle">Freeze Customer?</h3>
+                        <p class="text-muted mb-0" id="freezeModalMessage">They won't be able to access their account.</p>
                     </div>
                 </div>
                 <div class="modal-footer justify-content-center">
@@ -138,8 +137,8 @@
                         <div class="mb-3">
                             <i class="ti ti-alert-triangle text-warning" style="font-size: 3rem;"></i>
                         </div>
-                        <h5 class="mb-3" id="archiveModalTitle">Are you sure?</h5>
-                        <p class="text-muted mb-0" id="archiveModalMessage">This action will change the customer status.</p>
+                        <h3 class="mb-1" id="archiveModalTitle">Archive Customer?</h3>
+                        <p class="text-muted mb-0" id="archiveModalMessage">They won't be able to access their account.</p>
                     </div>
                 </div>
                 <div class="modal-footer justify-content-center">
@@ -186,6 +185,7 @@ class CustomersManager {
         this.currentView = 'active';
         this.currentCustomerId = null;
         this.pendingAction = null;
+        this.statusFilter = ''; // Initialize status filter
         
         this.init();
     }
@@ -209,9 +209,28 @@ class CustomersManager {
             this.filterCustomers();
         });
 
-        // Status filter
-        document.getElementById('statusFilter').addEventListener('change', (e) => {
-            this.filterCustomers();
+        // Status filter radio buttons
+        document.querySelectorAll('input[name="viewType"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const selectedValue = e.target.value;
+                
+                if (selectedValue === 'archived') {
+                    // For archived view, switch to archived endpoint
+                    this.currentView = 'archived';
+                    this.statusFilter = ''; // Clear status filter for archived view
+                    this.loadCustomers(); // Reload from archived endpoint
+                } else if (selectedValue === 'frozen') {
+                    // For frozen view, switch to frozen endpoint
+                    this.currentView = 'frozen';
+                    this.statusFilter = ''; // Clear status filter for frozen view
+                    this.loadCustomers(); // Reload from frozen endpoint
+                } else {
+                    // For other views (active, inactive), use regular endpoint
+                    this.currentView = 'active';
+                    this.statusFilter = selectedValue;
+                    this.loadCustomers(); // Reload from regular endpoint
+                }
+            });
         });
 
         // Refresh button
@@ -247,7 +266,13 @@ class CustomersManager {
         this.showLoading(true);
         
         try {
-            const endpoint = this.currentView === 'archived' ? '/api/customers/archived' : '/api/customers';
+            let endpoint = '/api/customers';
+            if (this.currentView === 'archived') {
+                endpoint = '/api/customers/archived';
+            } else if (this.currentView === 'frozen') {
+                endpoint = '/api/customers/frozen';
+            }
+            
             const response = await fetch(endpoint);
             const data = await response.json();
             
@@ -267,7 +292,7 @@ class CustomersManager {
 
     filterCustomers() {
         const searchTerm = document.getElementById('searchCustomers').value.toLowerCase();
-        const statusFilter = document.getElementById('statusFilter').value;
+        const statusFilter = this.statusFilter;
         
         this.filteredCustomers = this.customers.filter(customer => {
             const matchesSearch = !searchTerm || 
@@ -276,12 +301,25 @@ class CustomersManager {
                 customer.phone?.toLowerCase().includes(searchTerm) ||
                 customer.pharmacy_name?.toLowerCase().includes(searchTerm);
             
-            const matchesStatus = !statusFilter || customer.status === statusFilter;
+            // For archived and frozen views, don't apply additional status filtering since endpoint already filters
+            // For other views, apply status filtering
+            const matchesStatus = (this.currentView === 'archived' || this.currentView === 'frozen') || !statusFilter || customer.status === statusFilter;
             
             return matchesSearch && matchesStatus;
         });
         
         this.renderCustomers();
+        
+        // Initialize popovers
+        this.initializePopovers();
+    }
+    
+    initializePopovers() {
+        // Initialize all popovers
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
     }
 
     renderCustomers() {
@@ -301,15 +339,14 @@ class CustomersManager {
         
         tbody.innerHTML = this.filteredCustomers.map(customer => `
             <tr>
-                <td>${customer.registration_number || customer.id}</td>
                 <td>
                     <div class="d-flex align-items-center">
                         <div class="avatar-sm bg-primary-subtle rounded-circle me-2 d-flex align-items-center justify-content-center">
                             <span class="text-primary fw-semibold">${customer.name.charAt(0).toUpperCase()}</span>
                         </div>
                         <div>
-                            <h6 class="mb-0">${customer.name}</h6>
-                            <small class="text-muted">Reg #: ${customer.registration_number || customer.id}</small>
+                            <h6 class="mt-2 mb-0">${customer.name}</h6>
+                            <h6 class="text-muted">${customer.registration_number || customer.id}</h6>
                         </div>
                     </div>
                 </td>
@@ -319,13 +356,31 @@ class CustomersManager {
                 </td>
                 <td>${customer.phone || 'N/A'}</td>
                 <td>${customer.pharmacy_name || 'N/A'}</td>
-                <td><span class="badge bg-info-subtle text-info">${customer.credits}</span></td>
-                <td><span class="text-success">$${customer.openai_cost}</span></td>
-                <td><span class="text-warning">$${customer.sms_cost}</span></td>
                 <td>
-                    <span class="badge ${customer.subscription_status === 'active' ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'}">
-                        ${customer.subscription_status === 'active' ? 'Active' : (customer.subscription_status || 'N/A')}
+                    <span class="d-flex align-items-center gap-1">
+                        ${customer.credits}
+                        <i class="ti ti-info-circle text-muted" 
+                           data-bs-toggle="popover" 
+                           data-bs-trigger="hover" 
+                           data-bs-content="OpenAI cost: <strong>$${customer.openai_cost}/request</strong><br>SMS cost: <strong>$${customer.sms_cost}/sms</strong>"
+                           data-bs-html="true"
+                           tabindex="0"
+                           style="cursor: pointer;">
+                        </i>
                     </span>
+                </td>
+                <td>
+                    <div class="d-flex flex-column mb-1">
+                        <span class="badge ${customer.subscription_status === 'active' ? 'bg-success text-white' : 'bg-primary text-white'}">
+                        ${customer.subscription_status === 'active' ? 'Pro' : 'Free'}
+                        </span>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input status-toggle" type="checkbox" id="statusToggle${customer.id}" 
+                            data-customer-id="${customer.id}" ${customer.subscription_status === 'active' ? 'checked' : ''}
+                            onchange="customersManager.handleSubscriptionToggle(${customer.id}, this.checked)">
+                        <label class="form-check-label" for="statusToggle${customer.id}"></label>
+                    </div>
                 </td>
                 <td>
                     <span class="badge ${customer.status === 'active' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}">
@@ -333,22 +388,18 @@ class CustomersManager {
                     </span>
                 </td>
                 <td>
-                    ${customer.last_login ? new Date(customer.last_login).toLocaleString() : 'Never'}
+                    ${customer.last_login ? this.formatDateTime(customer.last_login) : 'Never'}
                 </td>
                 <td>${customer.start_date ? new Date(customer.start_date).toLocaleDateString() : 'N/A'}</td>
                 <td>${customer.expiry_date ? new Date(customer.expiry_date).toLocaleDateString() : 'N/A'}</td>
                 <td>
-                    <div class="d-flex flex-wrap gap-1">
-                        ${this.getActionButtons(customer)}
-                    </div>
-                    
-                    <div class="mt-2">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input status-toggle" type="checkbox" id="statusToggle${customer.id}" 
-                                data-customer-id="${customer.id}" ${customer.subscription_status === 'active' ? 'checked' : ''}
-                                onchange="customersManager.handleSubscriptionToggle(${customer.id}, this.checked)">
-                            <label class="form-check-label" for="statusToggle${customer.id}"></label>
-                        </div>
+                    <div class="dropdown">
+                        <button class="btn btn-link text-muted p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="ti ti-dots-vertical fs-5"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            ${this.getActionButtons(customer)}
+                        </ul>
                     </div>
                 </td>
             </tr>
@@ -357,60 +408,72 @@ class CustomersManager {
 
     // Get action buttons based on current view and customer status
     getActionButtons(customer) {
-        // If viewing archived customers, only show unarchive button
+        let menuItems = '';
+        
+        // If viewing archived customers, only show unarchive option
         if (this.currentView === 'archived') {
             return `
-                <button class="btn btn-sm btn-success text-white archive-btn" onclick="customersManager.handleArchiveAction(${customer.id}, '${customer.status}')" title="Unarchive">
-                    <i class="fas fa-undo"></i> Unarchive
-                </button>
+                <li><a class="dropdown-item" href="#" onclick="customersManager.handleArchiveAction(${customer.id}, '${customer.status}', '${customer.name}')">
+                    <i class="ti ti-undo me-2"></i>Unarchive
+                </a></li>
             `;
         }
         
-        // For active customers, show all buttons based on status
-        let buttons = '';
-        
-        // Freeze/Unfreeze button
+        // Freeze/Unfreeze option
         if (customer.status === 'freeze') {
-            buttons += `
-                <button class="btn btn-sm btn-success text-white freeze-btn" onclick="customersManager.handleFreezeAction(${customer.id}, '${customer.status}')" title="Unfreeze">
-                    <i class="fas fa-lock-open"></i> Unfreeze
-                </button>
+            menuItems += `
+                <li><a class="dropdown-item" href="#" onclick="customersManager.handleFreezeAction(${customer.id}, '${customer.status}', '${customer.name}')">
+                    <i class="ti ti-lock-open me-2"></i>Unfreeze
+                </a></li>
             `;
         } else {
-            buttons += `
-                <button class="btn btn-sm btn-info text-white freeze-btn" onclick="customersManager.handleFreezeAction(${customer.id}, '${customer.status}')" title="Freeze">
-                    <i class="fas fa-lock"></i> Freeze
-                </button>
+            menuItems += `
+                <li><a class="dropdown-item" href="#" onclick="customersManager.handleFreezeAction(${customer.id}, '${customer.status}', '${customer.name}')">
+                    <i class="ti ti-lock me-2"></i>Freeze
+                </a></li>
             `;
         }
         
-        // Archive button (only for non-archived customers)
+        // Archive option (only for non-archived customers)
         if (customer.status !== 'deactive') {
-            buttons += `
-                <button class="btn btn-sm btn-danger text-white archive-btn" onclick="customersManager.handleArchiveAction(${customer.id}, '${customer.status}')" title="Archive">
-                    <i class="fas fa-ban"></i> Archive
-                </button>
+            menuItems += `
+                <li><a class="dropdown-item" href="#" onclick="customersManager.handleArchiveAction(${customer.id}, '${customer.status}', '${customer.name}')">
+                    <i class="ti ti-ban me-2"></i>Archive
+                </a></li>
             `;
         }
         
-        // Credit buttons (only for active customers)
+        // Credit options (only for active customers)
         if (customer.status === 'active') {
-            buttons += `
-                <button class="btn btn-sm btn-success text-white credit-btn" onclick="customersManager.handleAddCredits(${customer.id})" title="Add Credits">
-                    <i class="fas fa-dollar-sign"></i> Add Credits
-                </button>
-                
-                <button class="btn btn-sm btn-warning text-white update-credit-btn" onclick="customersManager.handleUpdateCredits(${customer.id}, ${customer.credits}, ${customer.sms_cost}, ${customer.openai_cost})" title="Update Credits">
-                    <i class="fas fa-dollar-sign"></i> Update Credits
-                </button>
-            `;
+            // Show Add Credits only when credits are zero
+            if (customer.credits === 0) {
+                menuItems += `
+                    <li><a class="dropdown-item" href="#" onclick="customersManager.handleAddCredits(${customer.id})">
+                        <i class="ti ti-plus me-2"></i>Add Credits
+                    </a></li>
+                `;
+            } else {
+                // Show Update Credits when credits exist
+                menuItems += `
+                    <li><a class="dropdown-item" href="#" onclick="customersManager.handleUpdateCredits(${customer.id}, ${customer.credits}, ${customer.sms_cost}, ${customer.openai_cost})">
+                        <i class="ti ti-edit me-2"></i>Update Credits
+                    </a></li>
+                `;
+            }
         }
         
-        return buttons;
+        // Copy Rx Link option (for all customers)
+        menuItems += `
+            <li><a class="dropdown-item" href="#" onclick="customersManager.copyRxLink('${customer.registration_number || customer.id}')">
+                <i class="ti ti-link me-2"></i>Copy Rx Link
+            </a></li>
+        `;
+        
+        return menuItems;
     }
 
     // Handle freeze/unfreeze button click
-    handleFreezeAction(customerId, currentStatus) {
+    handleFreezeAction(customerId, currentStatus, customerName) {
         const action = currentStatus === 'freeze' ? 'unfreeze' : 'freeze';
         const newStatus = currentStatus === 'freeze' ? 'active' : 'freeze';
         
@@ -422,8 +485,13 @@ class CustomersManager {
         };
         
         // Update modal content
-        document.getElementById('freezeModalTitle').textContent = `Are you sure you want to ${action} this customer?`;
-        document.getElementById('freezeModalMessage').textContent = `This will ${action} the customer and change their status.`;
+        if (action === 'freeze') {
+            document.getElementById('freezeModalTitle').innerHTML = `Freeze <strong>${customerName}</strong>?`;
+            document.getElementById('freezeModalMessage').textContent = `They won't be able to access their account.`;
+        } else {
+            document.getElementById('freezeModalTitle').innerHTML = `Unfreeze <strong>${customerName}</strong>?`;
+            document.getElementById('freezeModalMessage').textContent = `They will be able to access their account again.`;
+        }
         
         // Show the modal
         const modal = new bootstrap.Modal(document.getElementById('freezeModal'));
@@ -431,7 +499,7 @@ class CustomersManager {
     }
 
     // Handle archive/unarchive button click
-    handleArchiveAction(customerId, currentStatus) {
+    handleArchiveAction(customerId, currentStatus, customerName) {
         const action = currentStatus === 'deactive' ? 'unarchive' : 'archive';
         const newStatus = currentStatus === 'deactive' ? 'active' : 'deactive';
         
@@ -443,8 +511,13 @@ class CustomersManager {
         };
         
         // Update modal content
-        document.getElementById('archiveModalTitle').textContent = `Are you sure you want to ${action} this customer?`;
-        document.getElementById('archiveModalMessage').textContent = `This will ${action} the customer and change their status.`;
+        if (action === 'archive') {
+            document.getElementById('archiveModalTitle').innerHTML = `Archive <strong>${customerName}</strong>?`;
+            document.getElementById('archiveModalMessage').textContent = `They won't be able to access their account.`;
+        } else {
+            document.getElementById('archiveModalTitle').innerHTML = `Unarchive <strong>${customerName}</strong>?`;
+            document.getElementById('archiveModalMessage').textContent = `They will be able to access their account again.`;
+        }
         
         // Show the modal
         const modal = new bootstrap.Modal(document.getElementById('archiveModal'));
@@ -745,21 +818,18 @@ class CustomersManager {
     }
 
     generateCSV() {
-        const headers = ['Reg #', 'Name', 'Email', 'Phone', 'Pharmacy', 'Credits', 'OpenAI Cost', 'SMS Cost', 'Subscription', 'Status', 'Last Login', 'Start Date', 'Expiry Date'];
+        const headers = ['Name', 'Email', 'Phone', 'Pharmacy', 'Credits', 'Plan', 'Status', 'Last Login', 'Start Date', 'Expiry Date'];
         const rows = this.filteredCustomers.map(customer => [
-            customer.registration_number || customer.id,
             customer.name,
             customer.email,
             customer.phone || '',
             customer.pharmacy_name || '',
             customer.credits,
-            customer.openai_cost,
-            customer.sms_cost,
-            customer.subscription_status || 'N/A',
+            customer.subscription_status === 'active' ? 'Pro' : 'Trial',
             customer.status,
-            customer.last_login ? new Date(customer.last_login).toLocaleString() : '',
-            customer.start_date ? new Date(customer.start_date).toLocaleDateString() : '',
-            customer.expiry_date ? new Date(customer.expiry_date).toLocaleDateString() : ''
+            customer.last_login ? this.formatDateTime(customer.last_login) : '',
+            customer.start_date ? this.formatDateTime(customer.start_date) : '',
+            customer.expiry_date ? this.formatDateTime(customer.expiry_date) : ''
         ]);
         
         return [headers, ...rows].map(row => row.map(field => `"${field}"`).join(',')).join('\n');
@@ -786,6 +856,45 @@ class CustomersManager {
         toastBody.textContent = message;
         const bsToast = new bootstrap.Toast(toast);
         bsToast.show();
+    }
+
+    formatDateTime(dateString) {
+        const date = new Date(dateString);
+        const day = date.getDate();
+        const month = date.toLocaleDateString('en-US', { month: 'long' });
+        const year = date.getFullYear();
+        const hour = date.getHours();
+        const minute = date.getMinutes().toString().padStart(2, '0');
+        const ampm = hour >= 12 ? 'pm' : 'am';
+        const displayHour = hour % 12 || 12;
+        
+        return `${day} ${month} ${year}, ${displayHour}:${minute} ${ampm}`;
+    }
+
+    // Copy Rx Link functionality
+    copyRxLink(registrationNumber) {
+        const rxLink = `{{ env('APP_URL') }}/register?reg_no=${registrationNumber}`;
+        
+        // Copy to clipboard
+        navigator.clipboard.writeText(rxLink).then(() => {
+            // Show success toast
+            this.showSuccess('Rx link copied successfully.');
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            this.showError('Failed to copy Rx link.');
+        });
+    }
+
+    // Show success toast
+    showSuccess(message) {
+        const toastBody = document.getElementById('successToastBody');
+        const toast = document.getElementById('successToast');
+        
+        if (toastBody && toast) {
+            toastBody.textContent = message;
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
     }
 }
 

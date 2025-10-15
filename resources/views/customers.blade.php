@@ -60,7 +60,7 @@
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
-                                    <th>Pharmacy</th>
+                                    <th>Organisation</th>
                                     <th>Credits</th>
                                     <th>Plan</th>
                                     <th>Status</th>
@@ -185,7 +185,6 @@ class CustomersManager {
         this.currentView = 'active';
         this.currentCustomerId = null;
         this.pendingAction = null;
-        this.statusFilter = ''; // Initialize status filter
         
         this.init();
     }
@@ -217,17 +216,18 @@ class CustomersManager {
                 if (selectedValue === 'archived') {
                     // For archived view, switch to archived endpoint
                     this.currentView = 'archived';
-                    this.statusFilter = ''; // Clear status filter for archived view
                     this.loadCustomers(); // Reload from archived endpoint
                 } else if (selectedValue === 'frozen') {
                     // For frozen view, switch to frozen endpoint
                     this.currentView = 'frozen';
-                    this.statusFilter = ''; // Clear status filter for frozen view
                     this.loadCustomers(); // Reload from frozen endpoint
+                } else if (selectedValue === 'deactive') {
+                    // For inactive view, switch to inactive endpoint
+                    this.currentView = 'inactive';
+                    this.loadCustomers(); // Reload from inactive endpoint
                 } else {
-                    // For other views (active, inactive), use regular endpoint
+                    // For active view, use regular endpoint
                     this.currentView = 'active';
-                    this.statusFilter = selectedValue;
                     this.loadCustomers(); // Reload from regular endpoint
                 }
             });
@@ -271,6 +271,8 @@ class CustomersManager {
                 endpoint = '/api/customers/archived';
             } else if (this.currentView === 'frozen') {
                 endpoint = '/api/customers/frozen';
+            } else if (this.currentView === 'inactive') {
+                endpoint = '/api/customers/inactive';
             }
             
             const response = await fetch(endpoint);
@@ -292,7 +294,6 @@ class CustomersManager {
 
     filterCustomers() {
         const searchTerm = document.getElementById('searchCustomers').value.toLowerCase();
-        const statusFilter = this.statusFilter;
         
         this.filteredCustomers = this.customers.filter(customer => {
             const matchesSearch = !searchTerm || 
@@ -301,17 +302,46 @@ class CustomersManager {
                 customer.phone?.toLowerCase().includes(searchTerm) ||
                 customer.pharmacy_name?.toLowerCase().includes(searchTerm);
             
-            // For archived and frozen views, don't apply additional status filtering since endpoint already filters
-            // For other views, apply status filtering
-            const matchesStatus = (this.currentView === 'archived' || this.currentView === 'frozen') || !statusFilter || customer.status === statusFilter;
-            
-            return matchesSearch && matchesStatus;
+            // Since we're using separate endpoints for each status, no need for additional status filtering
+            return matchesSearch;
         });
         
         this.renderCustomers();
         
         // Initialize popovers
         this.initializePopovers();
+    }
+    
+    updateTableHeaders() {
+        const thead = document.querySelector('#customersTable thead tr');
+        
+        if (this.currentView === 'inactive') {
+            // For inactive view, show only specific columns
+            thead.innerHTML = `
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Organisation</th>
+                <th>Status</th>
+                <th>Last Login</th>
+                <th>Actions</th>
+            `;
+        } else {
+            // For other views, show all columns
+            thead.innerHTML = `
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Organisation</th>
+                <th>Credits</th>
+                <th>Plan</th>
+                <th>Status</th>
+                <th>Last Login</th>
+                <th>Start Date</th>
+                <th>Expiry Date</th>
+                <th>Actions</th>
+            `;
+        }
     }
     
     initializePopovers() {
@@ -337,6 +367,9 @@ class CustomersManager {
         noDataMessage.style.display = 'none';
         showingCount.textContent = this.filteredCustomers.length;
         
+        // Update table headers based on current view
+        this.updateTableHeaders();
+        
         tbody.innerHTML = this.filteredCustomers.map(customer => `
             <tr>
                 <td>
@@ -345,18 +378,27 @@ class CustomersManager {
                             <span class="text-primary fw-semibold">${customer.name.charAt(0).toUpperCase()}</span>
                         </div>
                         <div>
-                            <h6 class="mt-2 mb-0">${customer.name}</h6>
+                            <h6 class="mt-2 mb-0">
+                                <a href="/admin/customers/${customer.id}" class="text-decoration-none text-body">
+                                    ${customer.name}
+                                </a>
+                            </h6>
                             <h6 class="text-muted">${customer.registration_number || customer.id}</h6>
                         </div>
                     </div>
                 </td>
                 <td>
-                    <span class="text-body">${customer.email}</span>
-                    ${customer.email_verified ? '<i class="ti ti-check-circle text-success ms-1" title="Email Verified"></i>' : '<i class="ti ti-alert-circle text-warning ms-1" title="Email Not Verified"></i>'}
+                    <span class="d-flex align-items-center gap-1">
+                        <span class="text-body">${customer.email}</span>
+                        ${customer.email_verified ? 
+                            '<i class="ti ti-check-circle text-success" data-bs-toggle="popover" data-bs-trigger="hover" data-bs-content="Email Verified" tabindex="0" style="cursor: pointer;"></i>' : 
+                            '<i class="ti ti-alert-circle text-warning" data-bs-toggle="popover" data-bs-trigger="hover" data-bs-content="Email is not verified yet" tabindex="0" style="cursor: pointer;"></i>'
+                        }
+                    </span>
                 </td>
                 <td>${customer.phone || 'N/A'}</td>
                 <td>${customer.pharmacy_name || 'N/A'}</td>
-                <td>
+                ${this.currentView !== 'inactive' ? `<td class="credits-column">
                     <span class="d-flex align-items-center gap-1">
                         ${customer.credits}
                         <i class="ti ti-info-circle text-muted" 
@@ -368,8 +410,8 @@ class CustomersManager {
                            style="cursor: pointer;">
                         </i>
                     </span>
-                </td>
-                <td>
+                </td>` : ''}
+                ${this.currentView !== 'inactive' ? `<td class="plan-column">
                     <div class="d-flex flex-column mb-1">
                         <span class="badge ${customer.subscription_status === 'active' ? 'bg-success text-white' : 'bg-primary text-white'}">
                         ${customer.subscription_status === 'active' ? 'Pro' : 'Free'}
@@ -378,10 +420,10 @@ class CustomersManager {
                     <div class="form-check form-switch">
                         <input class="form-check-input status-toggle" type="checkbox" id="statusToggle${customer.id}" 
                             data-customer-id="${customer.id}" ${customer.subscription_status === 'active' ? 'checked' : ''}
-                            onchange="customersManager.handleSubscriptionToggle(${customer.id}, this.checked)">
+                            onchange="customersManager.handleSubscriptionToggle(${customer.id}, this.checked, '${customer.name}')">
                         <label class="form-check-label" for="statusToggle${customer.id}"></label>
                     </div>
-                </td>
+                </td>` : ''}
                 <td>
                     <span class="badge ${customer.status === 'active' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}">
                         ${customer.status === 'active' ? 'Active' : 'Inactive'}
@@ -390,8 +432,8 @@ class CustomersManager {
                 <td>
                     ${customer.last_login ? this.formatDateTime(customer.last_login) : 'Never'}
                 </td>
-                <td>${customer.start_date ? new Date(customer.start_date).toLocaleDateString() : 'N/A'}</td>
-                <td>${customer.expiry_date ? new Date(customer.expiry_date).toLocaleDateString() : 'N/A'}</td>
+                ${this.currentView !== 'inactive' ? `<td class="start-date-column">${customer.start_date ? new Date(customer.start_date).toLocaleDateString() : 'N/A'}</td>` : ''}
+                ${this.currentView !== 'inactive' ? `<td class="expiry-date-column">${customer.expiry_date ? new Date(customer.expiry_date).toLocaleDateString() : 'N/A'}</td>` : ''}
                 <td>
                     <div class="dropdown">
                         <button class="btn btn-link text-muted p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -623,19 +665,35 @@ class CustomersManager {
     }
 
     // Handle subscription toggle
-    handleSubscriptionToggle(customerId, isActive) {
+    handleSubscriptionToggle(customerId, isActive, customerName) {
         const newStatus = isActive ? 'active' : 'trial';
-        const action = isActive ? 'give full access' : 'remove full access';
         const $toggle = document.getElementById(`statusToggle${customerId}`);
         
+        // Determine if this is an upgrade or downgrade
+        const isUpgrade = isActive; // true when giving access, false when removing
+        
+        let title, text, confirmText, icon;
+        
+        if (isUpgrade) {
+            title = `Upgrade ${customerName}?`;
+            text = 'They will get access to all the Pro features.';
+            confirmText = 'Yes, upgrade';
+            icon = 'question';
+        } else {
+            title = `Remove Pro Access from ${customerName}?`;
+            text = 'They will lose access to Pro features and be moved to Free plan.';
+            confirmText = 'Yes, remove access';
+            icon = 'warning';
+        }
+        
         Swal.fire({
-            title: 'Confirm Access Change',
-            text: `Are you sure you want to ${action} to this customer?`,
-            icon: 'question',
+            title: title,
+            text: text,
+            icon: icon,
             showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: `Yes, ${action}`,
+            confirmButtonColor: isUpgrade ? '#3085d6' : '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: confirmText,
             cancelButtonText: 'Cancel'
         }).then((result) => {
             if (result.value) {
@@ -818,19 +876,35 @@ class CustomersManager {
     }
 
     generateCSV() {
-        const headers = ['Name', 'Email', 'Phone', 'Pharmacy', 'Credits', 'Plan', 'Status', 'Last Login', 'Start Date', 'Expiry Date'];
-        const rows = this.filteredCustomers.map(customer => [
-            customer.name,
-            customer.email,
-            customer.phone || '',
-            customer.pharmacy_name || '',
-            customer.credits,
-            customer.subscription_status === 'active' ? 'Pro' : 'Trial',
-            customer.status,
-            customer.last_login ? this.formatDateTime(customer.last_login) : '',
-            customer.start_date ? this.formatDateTime(customer.start_date) : '',
-            customer.expiry_date ? this.formatDateTime(customer.expiry_date) : ''
-        ]);
+        let headers, rows;
+        
+        if (this.currentView === 'inactive') {
+            // For inactive customers, exclude credits, plan, start date, and expiry date
+            headers = ['Name', 'Email', 'Phone', 'Organisation', 'Status', 'Last Login'];
+            rows = this.filteredCustomers.map(customer => [
+                customer.name,
+                customer.email,
+                customer.phone || '',
+                customer.pharmacy_name || '',
+                customer.status,
+                customer.last_login ? this.formatDateTime(customer.last_login) : ''
+            ]);
+        } else {
+            // For other views, include all columns
+            headers = ['Name', 'Email', 'Phone', 'Organisation', 'Credits', 'Plan', 'Status', 'Last Login', 'Start Date', 'Expiry Date'];
+            rows = this.filteredCustomers.map(customer => [
+                customer.name,
+                customer.email,
+                customer.phone || '',
+                customer.pharmacy_name || '',
+                customer.credits,
+                customer.subscription_status === 'active' ? 'Pro' : 'Trial',
+                customer.status,
+                customer.last_login ? this.formatDateTime(customer.last_login) : '',
+                customer.start_date ? this.formatDateTime(customer.start_date) : '',
+                customer.expiry_date ? this.formatDateTime(customer.expiry_date) : ''
+            ]);
+        }
         
         return [headers, ...rows].map(row => row.map(field => `"${field}"`).join(',')).join('\n');
     }

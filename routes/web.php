@@ -75,12 +75,14 @@ Route::prefix('api/dashboard')->group(function () {
 // Customers API routes
 Route::prefix('api/customers')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomersData']);
+    Route::get('/inactive', [\App\Http\Controllers\Api\CustomerController::class, 'getInactiveCustomersData']);
     Route::get('/archived', [\App\Http\Controllers\Api\CustomerController::class, 'getArchivedCustomersData']);
     Route::get('/frozen', [\App\Http\Controllers\Api\CustomerController::class, 'getFrozenCustomersData']);
     Route::post('/change-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeCustomerStatus']);
     Route::post('/add-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'addPackagePlan']);
     Route::post('/update-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'updatePackagePlan']);
     Route::post('/change-subscription-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeSubscriptionStatus']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomerData']);
 });
 
 // Customer permission routes
@@ -111,6 +113,10 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     Route::get('/customers', function() {
         return view('customers');
     })->name('admin.customers');
+    
+    Route::get('/customers/{id}', function($id) {
+        return view('customer-view', compact('id'));
+    })->name('admin.customer.view');
 });
 
 // Protected dynamic routes for new UI pages (fallback)

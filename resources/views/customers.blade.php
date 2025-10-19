@@ -29,16 +29,16 @@
                                 <!-- <input type="radio" class="btn-check" name="viewType" id="allView" value="" checked>
                                 <label class="btn btn-outline-primary" for="allView">All</label> -->
                                 
-                                <input type="radio" class="btn-check" name="viewType" id="activeView" value="active" checked>
+                                <input type="radio" class="btn-check" name="viewType" id="activeView" value="active" {{ ($status ?? 'active') === 'active' ? 'checked' : '' }}>
                                 <label class="btn btn-outline-primary" for="activeView">Active</label>
 
-                                <input type="radio" class="btn-check" name="viewType" id="inactiveView" value="deactive">
+                                <input type="radio" class="btn-check" name="viewType" id="inactiveView" value="deactive" {{ ($status ?? '') === 'inactive' ? 'checked' : '' }}>
                                 <label class="btn btn-outline-primary" for="inactiveView">Inactive</label>
 
-                                <input type="radio" class="btn-check" name="viewType" id="frozenView" value="frozen">
+                                <input type="radio" class="btn-check" name="viewType" id="frozenView" value="frozen" {{ ($status ?? '') === 'frozen' ? 'checked' : '' }}>
                                 <label class="btn btn-outline-primary" for="frozenView">Frozen</label>
 
-                                <input type="radio" class="btn-check" name="viewType" id="archivedView" value="archived">
+                                <input type="radio" class="btn-check" name="viewType" id="archivedView" value="archived" {{ ($status ?? '') === 'archived' ? 'checked' : '' }}>
                                 <label class="btn btn-outline-primary" for="archivedView">Archived</label>
                             </div>
                         </div>
@@ -182,7 +182,8 @@ class CustomersManager {
     constructor() {
         this.customers = [];
         this.filteredCustomers = [];
-        this.currentView = 'active';
+        // Get initial view from route parameter or default to 'active'
+        this.currentView = '{{ $status ?? "active" }}';
         this.currentCustomerId = null;
         this.pendingAction = null;
         
@@ -216,18 +217,22 @@ class CustomersManager {
                 if (selectedValue === 'archived') {
                     // For archived view, switch to archived endpoint
                     this.currentView = 'archived';
+                    this.updateURL('archived');
                     this.loadCustomers(); // Reload from archived endpoint
                 } else if (selectedValue === 'frozen') {
                     // For frozen view, switch to frozen endpoint
                     this.currentView = 'frozen';
+                    this.updateURL('frozen');
                     this.loadCustomers(); // Reload from frozen endpoint
                 } else if (selectedValue === 'deactive') {
                     // For inactive view, switch to inactive endpoint
                     this.currentView = 'inactive';
+                    this.updateURL('inactive');
                     this.loadCustomers(); // Reload from inactive endpoint
                 } else {
                     // For active view, use regular endpoint
                     this.currentView = 'active';
+                    this.updateURL('active');
                     this.loadCustomers(); // Reload from regular endpoint
                 }
             });
@@ -420,6 +425,7 @@ class CustomersManager {
                     <div class="form-check form-switch">
                         <input class="form-check-input status-toggle" type="checkbox" id="statusToggle${customer.id}" 
                             data-customer-id="${customer.id}" ${customer.subscription_status === 'active' ? 'checked' : ''}
+                            ${this.shouldDisableSubscriptionToggle(customer) ? 'disabled' : ''}
                             onchange="customersManager.handleSubscriptionToggle(${customer.id}, this.checked, '${customer.name}')">
                         <label class="form-check-label" for="statusToggle${customer.id}"></label>
                     </div>
@@ -446,6 +452,27 @@ class CustomersManager {
                 </td>
             </tr>
         `).join('');
+    }
+
+    // Update URL to reflect current view
+    updateURL(status) {
+        const baseUrl = '/admin/customers';
+        let newUrl;
+        
+        if (status === 'active') {
+            newUrl = baseUrl;
+        } else {
+            newUrl = `${baseUrl}/${status}`;
+        }
+        
+        // Update URL without page reload
+        window.history.pushState({}, '', newUrl);
+    }
+
+    // Check if subscription toggle should be disabled
+    shouldDisableSubscriptionToggle(customer) {
+        // Disable toggle for inactive, frozen, and archived users
+        return customer.status === 'deactive' || customer.status === 'freeze' || this.currentView === 'archived';
     }
 
     // Get action buttons based on current view and customer status
@@ -666,8 +693,17 @@ class CustomersManager {
 
     // Handle subscription toggle
     handleSubscriptionToggle(customerId, isActive, customerName) {
-        const newStatus = isActive ? 'active' : 'trial';
         const $toggle = document.getElementById(`statusToggle${customerId}`);
+        
+        // Check if toggle is disabled
+        if ($toggle.disabled) {
+            // Revert the toggle if it's disabled
+            $toggle.checked = !$toggle.checked;
+            this.showError('Cannot change subscription status for inactive, frozen, or archived users.');
+            return;
+        }
+        
+        const newStatus = isActive ? 'active' : 'trial';
         
         // Determine if this is an upgrade or downgrade
         const isUpgrade = isActive; // true when giving access, false when removing

@@ -213,8 +213,8 @@ class App {
                 ?.querySelector("h5")?.textContent;
 
             // Skip appointments elements (89 and 124 are the original values)
-            // Skip Rx Orders elements (78, 22, 47 are the original values)
-            // Skip Rx Users elements (25 and 75 are the original values)
+            // Skip Rx Orders elements (78, 22, 47, 2389 are the original values)
+            // Skip Rx Users elements (25, 75, 2000, 90, 10 are the original values)
             // Skip OpenAI API Usage elements (2,847 and 2,634 are the original values)
             return (
                 dataTarget !== "89" &&
@@ -222,13 +222,19 @@ class App {
                 dataTarget !== "78" &&
                 dataTarget !== "22" &&
                 dataTarget !== "47" &&
+                dataTarget !== "2389" &&
                 dataTarget !== "25" &&
                 dataTarget !== "75" &&
+                dataTarget !== "2000" &&
+                dataTarget !== "90" &&
+                dataTarget !== "10" &&
                 dataTarget !== "2,847" &&
                 dataTarget !== "2,634" &&
                 !cardTitle?.includes("APPOINTMENTS") &&
                 !cardTitle?.includes("RX ORDERS") &&
+                !cardTitle?.includes("MEDICATION ORDERS") &&
                 !cardTitle?.includes("RX USERS") &&
+                !cardTitle?.includes("TASKGO RX USERS") &&
                 !cardTitle?.includes("OPENAI API USAGE")
             );
         });

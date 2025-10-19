@@ -114,6 +114,22 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
         return view('customers');
     })->name('admin.customers');
     
+    Route::get('/customers/active', function() {
+        return view('customers', ['status' => 'active']);
+    })->name('admin.customers.active');
+    
+    Route::get('/customers/inactive', function() {
+        return view('customers', ['status' => 'inactive']);
+    })->name('admin.customers.inactive');
+    
+    Route::get('/customers/frozen', function() {
+        return view('customers', ['status' => 'frozen']);
+    })->name('admin.customers.frozen');
+    
+    Route::get('/customers/archived', function() {
+        return view('customers', ['status' => 'archived']);
+    })->name('admin.customers.archived');
+    
     Route::get('/customers/{id}', function($id) {
         return view('customer-view', compact('id'));
     })->name('admin.customer.view');

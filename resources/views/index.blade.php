@@ -14,41 +14,40 @@
                             <i class="text-muted fs-24 svg-sw-10" data-lucide="calendar"></i>
                         </div>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3" style="height: 60px; overflow: hidden;">
                         <canvas height="60" id="appointmentsChart"></canvas>
                     </div>
                     <div class="d-flex justify-content-between">
                         <div>
-                            <span class="text-muted">Yesterday</span>
-                            <div class="fw-semibold"><span data-target="89">89</span></div>
+                            <span class="text-muted">Last month</span>
+                            <div class="fw-semibold"><span data-target="8">8</span></div>
                         </div>
                         <div class="text-end">
-                            <span class="text-muted">Today</span>
-                            <div class="fw-semibold"><span data-target="124">124</span></div>
+                            <span class="text-muted">This month</span>
+                            <div class="fw-semibold"><span data-target="2">2</span></div>
                         </div>
                     </div>
                 </div>
                 <div class="card-footer text-muted text-center">
-                    <strong>Confirmed appointments only</strong>
+                    <strong>This month's revenue is <span data-target="-72.6">-72.6</span>% from last month</strong>
                 </div>
             </div>
         </div>
-        <!-- Rx Orders Widget -->
+        <!-- Medication Orders Widget -->
         <div class="col">
             <div class="card card-h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                            <h5 class="text-uppercase">Rx Orders</h5>
-                            <p class="text-muted mb-2 fs-sm">This week from Mon to Sat</p>
+                            <h5 class="text-uppercase mb-5">Medication Orders</h5>
                         </div>
                         <div>
                             <i class="text-muted fs-24 svg-sw-10" data-lucide="package"></i>
                         </div>
                     </div>
                     <div class="progress progress-lg mb-3">
-                        <div class="progress-bar bg-success" role="progressbar" id="processedProgressBar" style="width: 78%;"></div>
-                        <div class="progress-bar bg-warning" role="progressbar" id="pendingProgressBar" style="width: 22%;"></div>
+                        <div class="progress-bar bg-success" role="progressbar" id="processedProgressBar" style="width: 0%;"></div>
+                        <div class="progress-bar bg-warning" role="progressbar" id="pendingProgressBar" style="width: 0%;"></div>
                     </div>
                     <div class="d-flex justify-content-between">
                         <div>
@@ -62,7 +61,7 @@
                     </div>
                 </div>
                 <div class="card-footer text-muted text-center">
-                    <strong><span data-target="47">47</span> orders received today</strong>
+                    <strong>Pharmacies have received <span data-target="2389">2,389</span> orders this month</strong>
                 </div>
             </div>
         </div>
@@ -83,7 +82,7 @@
                     </div>
                 </div>
                 <div class="card-footer text-muted text-center">
-                    <strong>Male: <span data-target="25">25</span>%, Female: <span data-target="75">75</span>%</strong>
+                    <span>Total users: <strong data-target="2000">2,000</strong><br/> Male: <strong data-target="90">90</strong>%, Female: <strong data-target="10">10</strong>%</span>
                 </div>
             </div>
         </div>

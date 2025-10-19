@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Chart Test</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+            }
+            .chart-container {
+                width: 400px;
+                height: 200px;
+                margin: 20px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Chart Test - 12 Months Data</h1>
+
+        <div class="chart-container">
+            <canvas id="testChart"></canvas>
+        </div>
+
+        <div id="debug"></div>
+
+        <script>
+            // Test data with 12 months
+            const testData = {
+                labels: [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                ],
+                data: [
+                    1200, 1900, 3000, 5000, 2000, 3000, 4500, 3200, 2800, 4000,
+                    3500, 4200,
+                ],
+            };
+
+            console.log("Creating test chart with 12 months of data");
+            console.log("Labels:", testData.labels);
+            console.log("Data:", testData.data);
+            console.log("Labels length:", testData.labels.length);
+            console.log("Data length:", testData.data.length);
+
+            const ctx = document.getElementById("testChart").getContext("2d");
+            const chart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: testData.labels,
+                    datasets: [
+                        {
+                            data: testData.data,
+                            backgroundColor: "#3b82f6",
+                            borderRadius: 4,
+                            borderSkipped: false,
+                        },
+                    ],
+                },
+                options: {
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            callbacks: {
+                                title: function (context) {
+                                    return (
+                                        testData.labels[context[0].dataIndex] +
+                                        " 2025"
+                                    );
+                                },
+                                label: function (context) {
+                                    return `Revenue: €${context.parsed.y.toLocaleString()}`;
+                                },
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            display: false,
+                            grid: { display: false },
+                        },
+                        y: {
+                            display: false,
+                            grid: { display: false },
+                        },
+                    },
+                },
+            });
+
+            // Debug info
+            document.getElementById("debug").innerHTML = `
+            <p><strong>Chart created successfully!</strong></p>
+            <p>Labels: ${testData.labels.length} months</p>
+            <p>Data points: ${testData.data.length}</p>
+            <p>Chart type: ${chart.config.type}</p>
+            <p>Dataset count: ${chart.data.datasets.length}</p>
+        `;
+        </script>
+    </body>
+</html>

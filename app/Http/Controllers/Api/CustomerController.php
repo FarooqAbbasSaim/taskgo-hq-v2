@@ -94,6 +94,7 @@ class CustomerController extends Controller
     {
         try {
             // Get archived customers from the database
+            // Archived users should have status 'deactive' AND be email verified (meaning they were active before)
             $customers = DB::table('users')
                 ->where('users.user_type', 'admin')
                 ->whereNotNull('users.pharmacy_subscription_id')
@@ -165,9 +166,11 @@ class CustomerController extends Controller
     {
         try {
             // Get inactive customers from the database
+            // Inactive users should have status 'deactive' AND NOT be email verified (meaning they never activated)
             $customers = DB::table('users')
                 ->where('users.user_type', 'admin')
                 ->whereNotNull('users.pharmacy_subscription_id')
+                ->whereNull('users.email_verified_at')
                 ->where('users.status', 'deactive')
                 ->leftJoin('pharmacy_subscriptions', 'users.pharmacy_subscription_id', '=', 'pharmacy_subscriptions.id')
                 ->select(

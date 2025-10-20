@@ -149,6 +149,31 @@
         </div>
     </div>
 
+    <!-- Upgrade/Downgrade Center Modal -->
+    <div class="modal fade" id="upgradeModal" tabindex="-1" aria-labelledby="upgradeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="upgradeModalLabel">Confirm Action</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <div class="mb-3">
+                            <i class="ti ti-crown text-primary" style="font-size: 3rem;"></i>
+                        </div>
+                        <h3 class="mb-1" id="upgradeModalTitle">Upgrade Customer?</h3>
+                        <p class="text-muted mb-0" id="upgradeModalMessage">They will get access to all the Pro features.</p>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmUpgradeAction">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
         <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
@@ -261,6 +286,23 @@ class CustomersManager {
             if (this.pendingAction) {
                 this.changeCustomerStatus(this.pendingAction.customerId, this.pendingAction.newStatus);
                 bootstrap.Modal.getInstance(document.getElementById('archiveModal')).hide();
+                this.pendingAction = null;
+            }
+        });
+
+        document.getElementById('confirmUpgradeAction').addEventListener('click', () => {
+            if (this.pendingAction) {
+                this.changeCustomerAccess(this.pendingAction.customerId, this.pendingAction.newStatus);
+                bootstrap.Modal.getInstance(document.getElementById('upgradeModal')).hide();
+                this.pendingAction = null;
+            }
+        });
+
+        // Handle modal cancel (when user clicks outside or presses escape)
+        document.getElementById('upgradeModal').addEventListener('hidden.bs.modal', () => {
+            if (this.pendingAction && this.pendingAction.action) {
+                // Revert the toggle if the user cancelled the modal
+                this.revertToggle(this.pendingAction.customerId);
                 this.pendingAction = null;
             }
         });
@@ -708,37 +750,29 @@ class CustomersManager {
         // Determine if this is an upgrade or downgrade
         const isUpgrade = isActive; // true when giving access, false when removing
         
-        let title, text, confirmText, icon;
+        // Store the action data for the modal
+        this.pendingAction = {
+            customerId: customerId,
+            newStatus: newStatus,
+            action: isUpgrade ? 'upgrade' : 'downgrade',
+            customerName: customerName,
+            isUpgrade: isUpgrade
+        };
         
+        // Update modal content
         if (isUpgrade) {
-            title = `Upgrade ${customerName}?`;
-            text = 'They will get access to all the Pro features.';
-            confirmText = 'Yes, upgrade';
-            icon = 'question';
+            document.getElementById('upgradeModalTitle').innerHTML = `Upgrade <strong>${customerName}</strong>?`;
+            document.getElementById('upgradeModalMessage').textContent = 'They will get access to all the Pro features.';
+            document.querySelector('#upgradeModal .ti-crown').className = 'ti ti-crown text-primary';
         } else {
-            title = `Remove Pro Access from ${customerName}?`;
-            text = 'They will lose access to Pro features and be moved to Free plan.';
-            confirmText = 'Yes, remove access';
-            icon = 'warning';
+            document.getElementById('upgradeModalTitle').innerHTML = `Remove Pro Access from <strong>${customerName}</strong>?`;
+            document.getElementById('upgradeModalMessage').textContent = 'They will lose access to Pro features and be moved to Free plan.';
+            document.querySelector('#upgradeModal .ti-crown').className = 'ti ti-crown text-warning';
         }
         
-        Swal.fire({
-            title: title,
-            text: text,
-            icon: icon,
-            showCancelButton: true,
-            confirmButtonColor: isUpgrade ? '#3085d6' : '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: confirmText,
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.value) {
-                this.changeCustomerAccess(customerId, newStatus);
-            } else {
-                // Revert the toggle if the user cancels
-                $toggle.checked = !$toggle.checked;
-            }
-        });
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('upgradeModal'));
+        modal.show();
     }
 
     async changeCustomerAccess(customerId, newStatus) {
@@ -759,29 +793,26 @@ class CustomersManager {
             
             if (data.success) {
                 const action = newStatus === 'active' ? 'given full access' : 'removed full access';
-                Swal.fire(
-                    'Success!',
-                    `The customer has been ${action}.`,
-                    'success'
-                ).then((result) => {
-                    if (result.value) {
-                        this.loadCustomers();
-                    }
-                });
+                this.showSuccess(`The customer has been ${action}.`);
+                this.loadCustomers();
             } else {
-                Swal.fire(
-                    'Error!',
-                    'There was an error changing the access.',
-                    'error'
-                );
+                this.showError('There was an error changing the access.');
+                // Revert the toggle if there was an error
+                this.revertToggle(customerId);
             }
         } catch (error) {
             console.error('Error changing customer access:', error);
-            Swal.fire(
-                'Error!',
-                'There was an error changing the access.',
-                'error'
-            );
+            this.showError('There was an error changing the access.');
+            // Revert the toggle if there was an error
+            this.revertToggle(customerId);
+        }
+    }
+
+    // Helper method to revert toggle state
+    revertToggle(customerId) {
+        const $toggle = document.getElementById(`statusToggle${customerId}`);
+        if ($toggle) {
+            $toggle.checked = !$toggle.checked;
         }
     }
 

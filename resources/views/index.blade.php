@@ -89,6 +89,17 @@
         <!-- OpenAI API Usage Widget -->
         <div class="col">
             <div class="card card-h-100">
+                <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
+                    <div class="mb-3">
+                        <i class="text-muted fs-48 svg-sw-10" data-lucide="clock"></i>
+                    </div>
+                    <h5 class="text-uppercase text-muted mb-2">Coming Soon</h5>
+                    <p class="text-muted mb-0">New features and analytics are being developed</p>
+                </div>
+            </div>
+            
+            <!-- Hidden OpenAI API Usage Widget - Keep for future use -->
+            <div class="card card-h-100" style="display: none;">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>

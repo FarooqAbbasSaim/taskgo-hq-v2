@@ -90,6 +90,16 @@ Route::prefix('api/customer-permissions')->group(function () {
     Route::post('/access-change', [\App\Http\Controllers\Api\CustomerPermissionController::class, 'assignAllPermissionsToCustomer']);
 });
 
+// Rx Users API routes
+Route::prefix('api/rx-users')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUsersData']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserData']);
+    Route::get('/{id}/orders', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserOrders']);
+    Route::get('/{id}/bookings', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserBookings']);
+    Route::get('/orders/{orderId}', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderDetails']);
+    Route::get('/bookings/{bookingId}', [\App\Http\Controllers\Api\RxUserController::class, 'getBookingDetails']);
+});
+
 // Root route - redirect based on authentication status
 Route::get('/', function () {
     if (Auth::guard('hq')->check()) {
@@ -133,6 +143,14 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     Route::get('/customers/{id}', function($id) {
         return view('customer-view', compact('id'));
     })->name('admin.customer.view');
+    
+    Route::get('/rx-users', function() {
+        return view('rx-users');
+    })->name('admin.rx-users');
+    
+    Route::get('/rx-users/{id}', function($id) {
+        return view('rx-user-view', compact('id'));
+    })->name('admin.rx-user.view');
 });
 
 // Protected dynamic routes for new UI pages (fallback)

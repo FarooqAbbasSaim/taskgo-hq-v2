@@ -221,14 +221,6 @@ class CustomersManager {
     }
 
     bindEvents() {
-        // View type toggle
-        document.querySelectorAll('input[name="viewType"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                this.currentView = e.target.value;
-                this.loadCustomers();
-            });
-        });
-
         // Search functionality
         document.getElementById('searchCustomers').addEventListener('input', (e) => {
             this.filterCustomers();

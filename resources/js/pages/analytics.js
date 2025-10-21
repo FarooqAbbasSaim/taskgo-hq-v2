@@ -5,6 +5,9 @@ import { Chart } from "chart.js";
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("Analytics script loaded");
 
+    // Add a small delay to ensure DOM is fully ready
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     // Get CSRF token once for all API calls
     const csrfToken = document
         .querySelector('meta[name="csrf-token"]')
@@ -37,25 +40,70 @@ document.addEventListener("DOMContentLoaded", async () => {
             appointmentsData = result.data;
             console.log("Appointments data loaded:", appointmentsData);
 
-            // Update the display values
-            const thisMonthElement =
-                document.querySelector('[data-target="2"]');
-            const lastMonthElement =
-                document.querySelector('[data-target="8"]');
-            const revenuePercentageElement = document.querySelector(
-                '[data-target="-72.6"]'
+            // Update the display values - use more flexible selectors
+            const thisMonthElement = document.querySelector(
+                ".card-body .text-end .fw-semibold span"
             );
+            const lastMonthElement = document.querySelector(
+                ".card-body .d-flex > div:first-child .fw-semibold span"
+            );
+            const revenuePercentageElement = document.querySelector(
+                ".card-footer strong span"
+            );
+
+            console.log("Updating DOM elements with data:", {
+                this_month: result.data.this_month,
+                last_month: result.data.last_month,
+                revenue_change_percentage:
+                    result.data.revenue_change_percentage,
+            });
 
             if (thisMonthElement) {
                 thisMonthElement.textContent = result.data.this_month;
+                console.log("Updated this month element:", thisMonthElement);
+            } else {
+                console.error("This month element not found");
             }
             if (lastMonthElement) {
                 lastMonthElement.textContent = result.data.last_month;
+                console.log("Updated last month element:", lastMonthElement);
+            } else {
+                console.error("Last month element not found");
             }
             if (revenuePercentageElement) {
                 revenuePercentageElement.textContent =
                     result.data.revenue_change_percentage;
+                console.log(
+                    "Updated revenue percentage element:",
+                    revenuePercentageElement
+                );
+            } else {
+                console.error("Revenue percentage element not found");
             }
+
+            // Fallback: Try to update any remaining elements with data-target attributes
+            const fallbackElements = document.querySelectorAll("[data-target]");
+            fallbackElements.forEach((element) => {
+                const targetValue = element.getAttribute("data-target");
+                if (
+                    targetValue === "2" ||
+                    targetValue === "8" ||
+                    targetValue === "-72.6"
+                ) {
+                    console.log(
+                        "Found fallback element with data-target:",
+                        targetValue
+                    );
+                    if (targetValue === "2") {
+                        element.textContent = result.data.this_month;
+                    } else if (targetValue === "8") {
+                        element.textContent = result.data.last_month;
+                    } else if (targetValue === "-72.6") {
+                        element.textContent =
+                            result.data.revenue_change_percentage;
+                    }
+                }
+            });
 
             // Create the chart
             createAppointmentsChart(appointmentsData);

@@ -20,16 +20,16 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <span class="text-muted">Last month</span>
-                            <div class="fw-semibold"><span data-target="8">8</span></div>
+                            <div class="fw-semibold"><span>Loading...</span></div>
                         </div>
                         <div class="text-end">
                             <span class="text-muted">This month</span>
-                            <div class="fw-semibold"><span data-target="2">2</span></div>
+                            <div class="fw-semibold"><span>Loading...</span></div>
                         </div>
                     </div>
                 </div>
                 <div class="card-footer text-muted text-center">
-                    <strong>This month's revenue is <span data-target="-72.6">-72.6</span>% from last month</strong>
+                    <span>This month's revenue is <strong><span>Loading...</span>%</strong> from last month</span>
                 </div>
             </div>
         </div>
@@ -61,7 +61,7 @@
                     </div>
                 </div>
                 <div class="card-footer text-muted text-center">
-                    <strong>Pharmacies have received <span data-target="2389">2,389</span> orders this month</strong>
+                    <span>Pharmacies have received <strong><span data-target="2389">2,389</span></strong> orders this month</span>
                 </div>
             </div>
         </div>

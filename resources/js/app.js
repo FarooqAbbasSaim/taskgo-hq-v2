@@ -216,6 +216,7 @@ class App {
             // Skip Rx Orders elements (78, 22, 47, 2389 are the original values)
             // Skip Rx Users elements (25, 75, 2000, 90, 10 are the original values)
             // Skip OpenAI API Usage elements (2,847 and 2,634 are the original values)
+            // Skip our current data-target values (2, 8, -72.6)
             return (
                 dataTarget !== "89" &&
                 dataTarget !== "124" &&
@@ -230,6 +231,9 @@ class App {
                 dataTarget !== "10" &&
                 dataTarget !== "2,847" &&
                 dataTarget !== "2,634" &&
+                dataTarget !== "2" &&
+                dataTarget !== "8" &&
+                dataTarget !== "-72.6" &&
                 !cardTitle?.includes("APPOINTMENTS") &&
                 !cardTitle?.includes("RX ORDERS") &&
                 !cardTitle?.includes("MEDICATION ORDERS") &&

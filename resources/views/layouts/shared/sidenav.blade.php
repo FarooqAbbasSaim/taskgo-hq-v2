@@ -38,6 +38,13 @@
                 </a>
             </li>
 
+            <li class="side-nav-item">
+                <a href="{{ route('admin.announcements') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="megaphone"></i></span>
+                    <span class="menu-text">Announcements</span>
+                </a>
+            </li>
+
             @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a href="{{ route('second', ['ton', 'ton-ai'])}}" class="side-nav-link">

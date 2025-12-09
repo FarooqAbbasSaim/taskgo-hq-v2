@@ -100,6 +100,9 @@ Route::prefix('api/rx-users')->group(function () {
     Route::get('/bookings/{bookingId}', [\App\Http\Controllers\Api\RxUserController::class, 'getBookingDetails']);
 });
 
+// Announcement API route (for taskgo-rx to fetch announcements)
+Route::get('/api/announcements', [\App\Http\Controllers\Admin\AnnouncementController::class, 'getAnnouncement']);
+
 // Root route - redirect based on authentication status
 Route::get('/', function () {
     if (Auth::guard('hq')->check()) {
@@ -123,6 +126,10 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     Route::get('/customers', function() {
         return view('customers');
     })->name('admin.customers');
+    
+    // Announcement routes
+    Route::get('/announcements', [\App\Http\Controllers\Admin\AnnouncementController::class, 'index'])->name('admin.announcements');
+    Route::put('/announcements', [\App\Http\Controllers\Admin\AnnouncementController::class, 'update'])->name('admin.announcements.update');
     
     Route::get('/customers/active', function() {
         return view('customers', ['status' => 'active']);

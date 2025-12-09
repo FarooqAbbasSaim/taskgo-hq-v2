@@ -129,6 +129,7 @@
             </div>
         </div>
     </div> <!-- end row-->
+    @if(env('RUNNING_LOCALLY', false))
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -725,6 +726,7 @@
             </div>
         </div>
     </div><!-- end row-->
+    @endif
 
 @endsection
 

@@ -36,7 +36,9 @@
                 @yield('content')
             </div>
 
-            @include('layouts.shared/footer')
+            @if(env('RUNNING_LOCALLY', false))
+                @include('layouts.shared/footer')
+            @endif
 
         </div>
     </div>

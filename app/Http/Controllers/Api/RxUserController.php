@@ -12,7 +12,7 @@ class RxUserController extends Controller
     public function getRxUsersData()
     {
         try {
-            $users = DB::connection('mysql_crm')->table('rx_users')
+            $users = DB::table('rx_users')
                 ->select([
                     'id',
                     'first_name',
@@ -32,7 +32,7 @@ class RxUserController extends Controller
             $pharmacies = [];
             
             if ($pharmacyIds->isNotEmpty()) {
-                $pharmacies = DB::connection('mysql_crm')->table('pharmacies')
+                $pharmacies = DB::table('pharmacies')
                     ->whereIn('id', $pharmacyIds)
                     ->pluck('pharmacy_name', 'id')
                     ->toArray();
@@ -83,7 +83,7 @@ class RxUserController extends Controller
     public function getRxUserData($id)
     {
         try {
-            $user = DB::connection('mysql_crm')->table('rx_users')
+            $user = DB::table('rx_users')
                 ->select([
                     'id',
                     'first_name',
@@ -108,7 +108,7 @@ class RxUserController extends Controller
             // Get pharmacy name
             $nominatedPharmacy = null;
             if ($user->nominated_pharmacy_id) {
-                $pharmacy = DB::connection('mysql_crm')->table('pharmacies')
+                $pharmacy = DB::table('pharmacies')
                     ->where('id', $user->nominated_pharmacy_id)
                     ->first();
                 $nominatedPharmacy = $pharmacy ? $pharmacy->pharmacy_name : 'Unknown Pharmacy';
@@ -154,7 +154,7 @@ class RxUserController extends Controller
     public function getRxUserOrders($id)
     {
         try {
-            $orders = DB::connection('mysql_crm')->table('rx_orders')
+            $orders = DB::table('rx_orders')
                 ->select([
                     'id',
                     'created_at',
@@ -170,7 +170,7 @@ class RxUserController extends Controller
             $orderIds = $orders->pluck('id');
             $itemCounts = [];
             if ($orderIds->isNotEmpty()) {
-                $itemCounts = DB::connection('mysql_crm')->table('order_medicines')
+                $itemCounts = DB::table('order_medicines')
                     ->select('order_id', DB::raw('COUNT(*) as cnt'))
                     ->whereIn('order_id', $orderIds)
                     ->groupBy('order_id')
@@ -206,7 +206,7 @@ class RxUserController extends Controller
     public function getRxUserBookings($id)
     {
         try {
-            $bookings = DB::connection('mysql_crm')->table('appointments')
+            $bookings = DB::table('appointments')
                 ->select([
                     'id',
                     'service_id',
@@ -225,7 +225,7 @@ class RxUserController extends Controller
             $services = [];
             
             if ($serviceIds->isNotEmpty()) {
-                $services = DB::connection('mysql_crm')->table('services')
+                $services = DB::table('services')
                     ->whereIn('id', $serviceIds)
                     ->pluck('name', 'id')
                     ->toArray();
@@ -266,7 +266,7 @@ class RxUserController extends Controller
     public function getOrderDetails($orderId)
     {
         try {
-            $order = DB::connection('mysql_crm')->table('rx_orders')
+            $order = DB::table('rx_orders')
                 ->select([
                     'id',
                     'user_id',
@@ -289,13 +289,13 @@ class RxUserController extends Controller
             }
 
             // Get order items from order_medicines
-            $orderItems = DB::connection('mysql_crm')->table('order_medicines')
+            $orderItems = DB::table('order_medicines')
                 ->select(['id', 'name', 'quantity'])
                 ->where('order_id', $orderId)
                 ->get();
 
             // Get user name
-            $user = DB::connection('mysql_crm')->table('rx_users')
+            $user = DB::table('rx_users')
                 ->select(['first_name', 'last_name'])
                 ->where('id', $order->user_id)
                 ->first();
@@ -303,7 +303,7 @@ class RxUserController extends Controller
             // Get pharmacy name
             $pharmacyName = $order->nominated_pharmacy;
             if ($order->nominated_pharmacy_id) {
-                $pharmacy = DB::connection('mysql_crm')->table('pharmacies')
+                $pharmacy = DB::table('pharmacies')
                     ->select(['pharmacy_name'])
                     ->where('id', $order->nominated_pharmacy_id)
                     ->first();
@@ -349,7 +349,7 @@ class RxUserController extends Controller
     public function getBookingDetails($bookingId)
     {
         try {
-            $booking = DB::connection('mysql_crm')->table('appointments')
+            $booking = DB::table('appointments')
                 ->select([
                     'id',
                     'user_id',
@@ -371,13 +371,13 @@ class RxUserController extends Controller
             }
 
             // Get service details
-            $service = DB::connection('mysql_crm')->table('services')
+            $service = DB::table('services')
                 ->select(['name', 'description', 'duration', 'price'])
                 ->where('id', $booking->service_id)
                 ->first();
 
             // Get user name
-            $user = DB::connection('mysql_crm')->table('rx_users')
+            $user = DB::table('rx_users')
                 ->select(['first_name', 'last_name'])
                 ->where('id', $booking->user_id)
                 ->first();

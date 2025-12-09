@@ -344,9 +344,8 @@ class CustomerController extends Controller
                 ], 404);
             }
 
-            // Get pharmacies from taskgo-crm database
-            $pharmacies = DB::connection('mysql_crm')
-                ->table('pharmacies')
+            // Get pharmacies from database
+            $pharmacies = DB::table('pharmacies')
                 ->leftJoin('users', 'pharmacies.id', '=', 'users.user_pharmacy')
                 ->select(
                     'pharmacies.id',

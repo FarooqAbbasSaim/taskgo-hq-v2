@@ -19,8 +19,8 @@ class DashboardController extends Controller
             $startDate = Carbon::now()->subMonths(11)->startOfMonth();
             $endDate = Carbon::now()->endOfMonth();
             
-            // Get monthly appointment data with revenue from services using CRM database
-            $monthlyData = DB::connection('mysql_crm')->table('appointments')
+            // Get monthly appointment data with revenue from services
+            $monthlyData = DB::table('appointments')
                 ->join('services', 'appointments.service_id', '=', 'services.id')
                 ->select(
                     DB::raw('YEAR(appointments.date) as year'),
@@ -39,27 +39,27 @@ class DashboardController extends Controller
             $lastMonth = Carbon::now()->subMonth();
             $thisMonth = Carbon::now();
             
-            $lastMonthCount = DB::connection('mysql_crm')->table('appointments')
+            $lastMonthCount = DB::table('appointments')
                 ->whereIn('status', ['confirmed', 'attended'])
                 ->whereYear('date', $lastMonth->year)
                 ->whereMonth('date', $lastMonth->month)
                 ->count();
 
-            $thisMonthCount = DB::connection('mysql_crm')->table('appointments')
+            $thisMonthCount = DB::table('appointments')
                 ->whereIn('status', ['confirmed', 'attended'])
                 ->whereYear('date', $thisMonth->year)
                 ->whereMonth('date', $thisMonth->month)
                 ->count();
 
             // Get last month and this month revenue for percentage calculation
-            $lastMonthRevenue = DB::connection('mysql_crm')->table('appointments')
+            $lastMonthRevenue = DB::table('appointments')
                 ->join('services', 'appointments.service_id', '=', 'services.id')
                 ->whereIn('appointments.status', ['confirmed', 'attended'])
                 ->whereYear('appointments.date', $lastMonth->year)
                 ->whereMonth('appointments.date', $lastMonth->month)
                 ->sum('services.revenue');
 
-            $thisMonthRevenue = DB::connection('mysql_crm')->table('appointments')
+            $thisMonthRevenue = DB::table('appointments')
                 ->join('services', 'appointments.service_id', '=', 'services.id')
                 ->whereIn('appointments.status', ['confirmed', 'attended'])
                 ->whereYear('appointments.date', $thisMonth->year)
@@ -154,7 +154,7 @@ class DashboardController extends Controller
     {
         try {
             // Get the most recent month that has data
-            $latestOrder = DB::connection('mysql_crm')->table('rx_orders')
+            $latestOrder = DB::table('rx_orders')
                 ->orderBy('created_at', 'desc')
                 ->first();
             
@@ -177,19 +177,19 @@ class DashboardController extends Controller
             $endOfMonth = $latestDate->copy()->endOfMonth();
             
             // Get processed orders (completed + rejected) for this month
-            $processedOrders = DB::connection('mysql_crm')->table('rx_orders')
+            $processedOrders = DB::table('rx_orders')
                 ->whereIn('status', ['complete', 'reject'])
                 ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
                 ->count();
             
             // Get pending orders for this month
-            $pendingOrders = DB::connection('mysql_crm')->table('rx_orders')
+            $pendingOrders = DB::table('rx_orders')
                 ->where('status', 'pending')
                 ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
                 ->count();
             
             // Get total orders for this month
-            $totalOrdersThisMonth = DB::connection('mysql_crm')->table('rx_orders')
+            $totalOrdersThisMonth = DB::table('rx_orders')
                 ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
                 ->count();
             
@@ -236,7 +236,7 @@ class DashboardController extends Controller
     {
         try {
             // Get all users with valid DOB data
-            $users = DB::connection('mysql_crm')->table('rx_users')
+            $users = DB::table('rx_users')
                 ->select('dob')
                 ->whereNotNull('dob')
                 ->where('dob', '!=', '0000-00-00')
@@ -283,10 +283,10 @@ class DashboardController extends Controller
             }
 
             // Get total user count (including those without DOB)
-            $totalUsers = DB::connection('mysql_crm')->table('rx_users')->count();
+            $totalUsers = DB::table('rx_users')->count();
 
             // Get gender data for footnote
-            $genderData = DB::connection('mysql_crm')->table('rx_users')
+            $genderData = DB::table('rx_users')
                 ->select('gender', DB::raw('COUNT(*) as count'))
                 ->whereNotNull('gender')
                 ->groupBy('gender')

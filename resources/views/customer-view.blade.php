@@ -35,57 +35,9 @@
 
     <!-- Customer Details -->
     <div id="customerDetails" style="display: none;">
-        <div class="row">
-            <!-- Left Column - Customer Profile (4 columns, no background) -->
-            <div class="col-lg-4 mb-4">
-                <div>
-                    <!-- Profile Picture -->
-                    <div class="mb-3">
-                        <div class="avatar-xxl bg-primary-subtle rounded-circle d-flex align-items-center justify-content-center">
-                            <span class="text-primary fw-bold fs-2" id="customerInitial">J</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Customer Info -->
-                    <p class="mb-1 fw-semibold fs-4" id="customerEmail">johndoe@email.com</p>
-                    
-                    <!-- Last Sign In -->
-                    <p class="text-muted mb-3 fs-5">
-                        <i class="ti ti-clock"></i>
-                        Last sign in <span id="lastSignIn">4 minutes ago</span>
-                    </p>
-                    
-                    <!-- Rx Link -->
-                    <div class="mb-5">
-                        <label class="form-label">Rx Link</label>
-                        <div class="input-group" style="max-width: 400px;">
-                            <input type="text" class="form-control form-control-sm" id="rxLink" readonly>
-                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="copyRxLink()">
-                                <i class="ti ti-copy"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Action Buttons -->
-                    <div class="d-grid gap-2 justify-content-start">
-                        <button class="btn btn-outline-primary btn-sm" onclick="impersonateUser()">
-                            <i class="ti ti-user-check me-2"></i>Impersonate User
-                        </button>
-                        <button class="btn btn-outline-warning btn-sm" onclick="changePassword()">
-                            <i class="ti ti-key me-2"></i>Change Password
-                        </button>
-                        <button class="btn btn-outline-danger btn-sm" onclick="freezeUser()">
-                            <i class="ti ti-lock me-2"></i>Freeze User
-                        </button>
-                        <button class="btn btn-outline-danger btn-sm" onclick="archiveUser()">
-                            <i class="ti ti-ban me-2"></i>Archive User
-                        </button>
-                    </div>
-                </div>
-            </div>
-
+        <div class="row">        
             <!-- Right Column - All Other Cards (8 columns, 1 card per row) -->
-            <div class="col-lg-8">
+            <div class="col-lg-12">
                 <!-- Customer Information Card -->
                 <div class="card mb-4">
                     <div class="card-header">
@@ -165,6 +117,56 @@
                 </div>
 
             </div>
+        </div>
+
+        <div class="row">
+            <!-- Left Column - Customer Profile (4 columns, no background) -->
+            <div class="col-lg-4 mb-4">
+                <div>
+                    <!-- Profile Picture -->
+                    <div class="mb-3">
+                        <div class="avatar-xxl bg-primary-subtle rounded-circle d-flex align-items-center justify-content-center">
+                            <span class="text-primary fw-bold fs-2" id="customerInitial">J</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Customer Info -->
+                    <p class="mb-1 fw-semibold fs-4" id="customerEmail">johndoe@email.com</p>
+                    
+                    <!-- Last Sign In -->
+                    <p class="text-muted mb-3 fs-5">
+                        <i class="ti ti-clock"></i>
+                        Last sign in <span id="lastSignIn">4 minutes ago</span>
+                    </p>
+                    
+                    <!-- Rx Link -->
+                    <div class="mb-5">
+                        <label class="form-label">Rx Link</label>
+                        <div class="input-group" style="max-width: 400px;">
+                            <input type="text" class="form-control form-control-sm" id="rxLink" readonly>
+                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="copyRxLink()">
+                                <i class="ti ti-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2 justify-content-start">
+                        <button class="btn btn-outline-primary btn-sm" onclick="impersonateUser()">
+                            <i class="ti ti-user-check me-2"></i>Impersonate User
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm" onclick="changePassword()">
+                            <i class="ti ti-key me-2"></i>Change Password
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="freezeUser()">
+                            <i class="ti ti-lock me-2"></i>Freeze User
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="archiveUser()">
+                            <i class="ti ti-ban me-2"></i>Archive User
+                        </button>
+                    </div>
+                </div>
+            </div>            
         </div>
     </div>
 </div>

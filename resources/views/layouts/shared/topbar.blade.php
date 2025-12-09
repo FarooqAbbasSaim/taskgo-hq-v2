@@ -30,16 +30,21 @@
             </button>
 
             <!-- Topbar Link Item -->
+            @if(env('RUNNING_LOCALLY', false))
             <div class="topbar-item d-none d-lg-flex">
                 <a href="#!" class="topbar-link btn shadow-none btn-link px-2 disabled"> v1.0.0</a>
             </div>
+            @endif
 
             <!-- Topbar Link Item -->
+            @if(env('RUNNING_LOCALLY', false))
             <div class="topbar-item d-none d-lg-flex">
                 <a href="#!" class="topbar-link btn shadow-none btn-link px-2"> Components</a>
             </div>
+            @endif
 
             <!-- Dropdown -->
+            @if(env('RUNNING_LOCALLY', false))
             <div class="topbar-item">
                 <div class="dropdown">
                     <a href="#!" class="topbar-link btn shadow-none btn-link dropdown-toggle drop-arrow-none px-2"
@@ -59,8 +64,10 @@
                     </div> <!-- end dropdown-menu-->
                 </div> <!-- end dropdown-->
             </div> <!-- end topbar item-->
+            @endif
 
             <!-- Mega Menu Dropdown -->
+            @if(env('RUNNING_LOCALLY', false))
             <div class="topbar-item d-none d-md-flex">
                 <div class="dropdown">
                     <button class="topbar-link btn shadow-none btn-link px-2 dropdown-toggle drop-arrow-none"
@@ -128,17 +135,20 @@
                     </div> <!-- .dropdown-menu-->
                 </div> <!-- .dropdown-->
             </div> <!-- end topbar-item -->
+            @endif
         </div> <!-- .d-flex-->
 
         <div class="d-flex align-items-center gap-2">
             <!-- Search -->
+            @if(env('RUNNING_LOCALLY', false))
             <div class="app-search d-none d-xl-flex me-xl-2">
                 <input type="search" class="form-control topbar-search" name="search"
                        placeholder="Search for something...">
                 <i data-lucide="search" class="app-search-icon text-muted"></i>
             </div>
-
+            @endif
             <!-- Theme Dropdown -->
+            @if(env('RUNNING_LOCALLY', false))
             <div class="topbar-item me-2">
                 <div class="dropdown" data-dropdown="custom">
                     <button class="topbar-link  fw-semibold" data-bs-toggle="dropdown" data-bs-offset="0,19"
@@ -248,8 +258,9 @@
 
                 </div> <!-- end dropdown-->
             </div> <!-- end topbar item-->
-
+            @endif
             <!-- Language Dropdown -->
+            @if(env('RUNNING_LOCALLY', false))
             <div class="topbar-item">
                 <div class="dropdown">
                     <button class="topbar-link fw-semibold" data-bs-toggle="dropdown" data-bs-offset="0,19"
@@ -292,8 +303,9 @@
                     </div> <!-- end dropdown-menu-->
                 </div> <!-- end dropdown-->
             </div> <!-- end topbar item-->
-
+            @endif      
             <!-- Notification Dropdown -->
+            @if(env('RUNNING_LOCALLY', false))
             <div class="topbar-item">
                 <div class="dropdown">
                     <button class="topbar-link dropdown-toggle drop-arrow-none" data-bs-toggle="dropdown"
@@ -460,7 +472,7 @@
                     </div>
                 </div>
             </div>
-
+            @endif
             <!-- Button Trigger Customizer Offcanvas -->
             <div class="topbar-item d-none d-sm-flex">
                 <button class="topbar-link" data-bs-toggle="offcanvas" data-bs-target="#theme-settings-offcanvas"
@@ -468,7 +480,6 @@
                     <i data-lucide="settings" class="fs-xxl"></i>
                 </button>
             </div>
-
             <!-- Light/Dark Mode Button -->
             <div class="topbar-item d-none d-sm-flex">
                 <button class="topbar-link" id="light-dark-mode" type="button">
@@ -476,14 +487,12 @@
                     <i data-lucide="sun" class="fs-xxl mode-light-sun"></i>
                 </button>
             </div>
-
             <!-- Monochrome Mode Button -->
             <div class="topbar-item d-none d-sm-flex">
                 <button class="topbar-link" id="monochrome-mode" type="button">
                     <i data-lucide="palette" class="fs-xxl mode-light-moon"></i>
                 </button>
             </div>
-
             <!-- User Dropdown -->
             <div class="topbar-item nav-user">
                 <div class="dropdown">

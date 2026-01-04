@@ -473,6 +473,7 @@
                 </div>
             </div>
             @endif
+            @if(env('RUNNING_LOCALLY', false))
             <!-- Button Trigger Customizer Offcanvas -->
             <div class="topbar-item d-none d-sm-flex">
                 <button class="topbar-link" data-bs-toggle="offcanvas" data-bs-target="#theme-settings-offcanvas"
@@ -480,6 +481,7 @@
                     <i data-lucide="settings" class="fs-xxl"></i>
                 </button>
             </div>
+            @endif
             <!-- Light/Dark Mode Button -->
             <div class="topbar-item d-none d-sm-flex">
                 <button class="topbar-link" id="light-dark-mode" type="button">
@@ -487,12 +489,14 @@
                     <i data-lucide="sun" class="fs-xxl mode-light-sun"></i>
                 </button>
             </div>
+            @if(env('RUNNING_LOCALLY', false))
             <!-- Monochrome Mode Button -->
             <div class="topbar-item d-none d-sm-flex">
                 <button class="topbar-link" id="monochrome-mode" type="button">
                     <i data-lucide="palette" class="fs-xxl mode-light-moon"></i>
                 </button>
             </div>
+            @endif
             <!-- User Dropdown -->
             <div class="topbar-item nav-user">
                 <div class="dropdown">
@@ -507,6 +511,7 @@
                             <h6 class="text-overflow m-0">Welcome back, {{ Auth::guard('hq')->user()->name ?? 'User' }}!</h6>
                         </div>
 
+                        @if(env('RUNNING_LOCALLY', false))
                         <!-- My Profile -->
                         <a href="#!" class="dropdown-item">
                             <i class="ti ti-user-circle me-2 fs-17 align-middle"></i>
@@ -545,6 +550,7 @@
                             <i class="ti ti-lock me-2 fs-17 align-middle"></i>
                             <span class="align-middle">Lock Screen</span>
                         </a>
+                        @endif
 
                         <!-- Logout -->
                         <form method="POST" action="{{ route('logout') }}" class="d-inline">

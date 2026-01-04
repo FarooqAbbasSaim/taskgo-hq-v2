@@ -2,7 +2,8 @@
 <div class="sidenav-menu">
     <div class="scrollbar" data-simplebar>
 
-        <!-- User -->
+        @if(env('RUNNING_LOCALLY', false))
+        <!-- User -->         
         <div class="sidenav-user text-nowrap border border-dashed rounded-3">
             <a href="#!" class="sidenav-user-name d-flex align-items-center">
                 <img src="/images/users/user-2.jpg" width="36" class="rounded-circle me-2 d-flex"
@@ -13,7 +14,7 @@
                 </span>
             </a>
         </div>
-
+        @endif
         <!--- Sidenav Menu -->
         <ul class="side-nav">
 
@@ -35,6 +36,13 @@
                 <a href="{{ route('admin.rx-users') }}" class="side-nav-link">
                     <span class="menu-icon"><i data-lucide="users"></i></span>
                     <span class="menu-text">Rx Users</span>
+                </a>
+            </li>
+
+            <li class="side-nav-item">
+                <a href="{{ route('admin.announcements') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="megaphone"></i></span>
+                    <span class="menu-text">Announcements</span>
                 </a>
             </li>
 

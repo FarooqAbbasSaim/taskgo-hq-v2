@@ -458,9 +458,11 @@ class CustomersManager {
                     </div>
                     <div class="form-check form-switch">
                         <input class="form-check-input status-toggle" type="checkbox" id="statusToggle${customer.id}" 
-                            data-customer-id="${customer.id}" ${customer.subscription_status === 'active' ? 'checked' : ''}
+                            data-customer-id="${customer.id}" 
+                            data-customer-name="${JSON.stringify(customer.name).slice(1, -1)}" 
+                            ${customer.subscription_status === 'active' ? 'checked' : ''}
                             ${this.shouldDisableSubscriptionToggle(customer) ? 'disabled' : ''}
-                            onchange="customersManager.handleSubscriptionToggle(${customer.id}, this.checked, '${customer.name}')">
+                            onchange="customersManager.handleSubscriptionToggle(${customer.id}, this.checked, this.getAttribute('data-customer-name'))">
                         <label class="form-check-label" for="statusToggle${customer.id}"></label>
                     </div>
                 </td>` : ''}

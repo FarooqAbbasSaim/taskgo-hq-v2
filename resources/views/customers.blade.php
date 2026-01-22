@@ -1008,7 +1008,7 @@ class CustomersManager {
 
     // Copy Rx Link functionality
     copyRxLink(registrationNumber) {
-        const rxLink = `{{ env('APP_URL') }}/register?reg_no=${registrationNumber}`;
+        const rxLink = `{{ env('APP_URL') }}/?reg_no=${registrationNumber}`;
         
         // Copy to clipboard
         navigator.clipboard.writeText(rxLink).then(() => {

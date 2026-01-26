@@ -239,7 +239,7 @@ class CustomerViewManager {
         document.getElementById('lastSignIn').textContent = lastSignIn;
         
         // Rx Link
-        const rxLink = `{{ env('APP_URL') }}/register?reg_no=${this.customer.registration_number || this.customer.id}`;
+        const rxLink = `{{ env('APP_URL') }}/?reg_no=${this.customer.registration_number || this.customer.id}`;
         document.getElementById('rxLink').value = rxLink;
         
         // Customer Information

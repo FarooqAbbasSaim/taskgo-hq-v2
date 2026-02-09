@@ -310,6 +310,10 @@ class RxUserController extends Controller
                 $pharmacyName = $pharmacy ? $pharmacy->pharmacy_name : $order->nominated_pharmacy;
             }
 
+            // Check if order has prescription image (without loading the blob)
+            $prescriptionImageLength = (int) DB::table('rx_orders')->where('id', $orderId)->value(DB::raw('LENGTH(prescription_image)'));
+            $hasPrescriptionImage = $prescriptionImageLength > 0;
+
             $orderData = [
                 'id' => $order->id,
                 'order_no' => 'RX-' . $order->id,
@@ -320,6 +324,8 @@ class RxUserController extends Controller
                 'additional_info' => $order->additional_info ?: 'No additional information',
                 'created_at' => Carbon::parse($order->created_at)->format('j F Y g:i A'),
                 'updated_at' => Carbon::parse($order->updated_at)->format('j F Y g:i A'),
+                'has_prescription_image' => $hasPrescriptionImage,
+                'prescription_image_url' => $hasPrescriptionImage ? url("/api/rx-users/orders/{$orderId}/prescription-image") : null,
                 'items' => $orderItems->map(function ($item) {
                     return [
                         'id' => $item->id,
@@ -344,6 +350,64 @@ class RxUserController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Stream the prescription image for an order (from rx_orders.prescription_image LONGTEXT).
+     */
+    public function getOrderPrescriptionImage($orderId)
+    {
+        $totalLen = (int) DB::table('rx_orders')->where('id', $orderId)->value(DB::raw('LENGTH(prescription_image)'));
+        if ($totalLen === 0) {
+            abort(404);
+        }
+
+        $chunkSize = 1048576; // 1MB
+        $dataUri = '';
+        for ($offset = 1; $offset <= $totalLen; $offset += $chunkSize) {
+            $chunk = DB::table('rx_orders')->where('id', $orderId)->value(DB::raw("SUBSTRING(prescription_image, {$offset}, {$chunkSize})"));
+            $dataUri .= $chunk ?? '';
+        }
+
+        if (strpos($dataUri, 'base64,') === false) {
+            abort(404);
+        }
+
+        $base64 = substr($dataUri, strpos($dataUri, 'base64,') + 7);
+        $base64 = preg_replace('/\s+/', '', $base64);
+        $binary = base64_decode($base64, true);
+        if ($binary === false) {
+            $binary = base64_decode($base64, false);
+            if ($binary === false || $binary === '') {
+                abort(404);
+            }
+        }
+
+        $mime = 'image/jpeg';
+        if (preg_match('#^data:([^;]+);#', $dataUri, $m)) {
+            $mime = trim($m[1]);
+        }
+
+        $headers = [
+            'Content-Type' => $mime,
+            'Cache-Control' => 'private, max-age=3600',
+            'Content-Length' => strlen($binary),
+        ];
+
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+
+        return response()->stream(function () use ($binary) {
+            $chunkSize = 8192;
+            $len = strlen($binary);
+            for ($i = 0; $i < $len; $i += $chunkSize) {
+                echo substr($binary, $i, $chunkSize);
+                if (function_exists('flush')) {
+                    flush();
+                }
+            }
+        }, 200, $headers);
     }
 
     public function getBookingDetails($bookingId)

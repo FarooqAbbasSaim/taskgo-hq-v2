@@ -96,6 +96,7 @@ Route::prefix('api/rx-users')->group(function () {
     Route::get('/{id}', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserData']);
     Route::get('/{id}/orders', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserOrders']);
     Route::get('/{id}/bookings', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserBookings']);
+    Route::get('/orders/{orderId}/prescription-image', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderPrescriptionImage']);
     Route::get('/orders/{orderId}', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderDetails']);
     Route::get('/bookings/{bookingId}', [\App\Http\Controllers\Api\RxUserController::class, 'getBookingDetails']);
 });

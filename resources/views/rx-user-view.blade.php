@@ -609,6 +609,37 @@ async function showOrderDetails(orderId) {
                 ? 'N/A'
                 : `€${order.total_amount}`;
 
+            const hasPrescriptionImage = order.has_prescription_image === true && order.prescription_image_url;
+            const items = Array.isArray(order.items) ? order.items : [];
+
+            const rightColumnContent = hasPrescriptionImage
+                ? `
+                <h6>Prescription Image</h6>
+                <div class="border rounded p-2 bg-light text-center">
+                    <img src="${order.prescription_image_url}" alt="Prescription Image" class="img-fluid" style="max-height: 400px; object-fit: contain;" />
+                </div>
+                `
+                : `
+                <h6>Order Items</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Medication</th>
+                                <th>Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.length ? items.map(item => `
+                                <tr>
+                                    <td>${item.medication_name || 'N/A'}</td>
+                                    <td>${item.quantity ?? 'N/A'}</td>
+                                </tr>`).join('') : '<tr><td colspan="2" class="text-muted">No medications listed</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+                `;
+
             modalBody.innerHTML = `
                 <div class="row">
                     <div class="col-md-6">
@@ -624,28 +655,7 @@ async function showOrderDetails(orderId) {
                         </table>
                     </div>
                     <div class="col-md-6">
-                        <h6>Order Items</h6>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Medication</th>
-                                        <th>Quantity</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${order.items.map(item => {
-                                        const unit = (item.unit_price === null || item.unit_price === undefined || item.unit_price === 'N/A') ? 'N/A' : `€${item.unit_price}`;
-                                        const total = (item.total_price === null || item.total_price === undefined || item.total_price === 'N/A') ? 'N/A' : `€${item.total_price}`;
-                                        return `
-                                        <tr>
-                                            <td>${item.medication_name}</td>
-                                            <td>${item.quantity}</td>
-                                        </tr>`;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        </div>
+                        ${rightColumnContent}
                     </div>
                 </div>
             `;

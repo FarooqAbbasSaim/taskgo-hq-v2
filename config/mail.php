@@ -53,6 +53,25 @@ return [
             'transport' => 'ses',
         ],
 
+        'mailjet' => [
+            'transport' => 'smtp',
+            'host' => env('MAILJET_HOST', 'in-v3.mailjet.com'),
+            'port' => env('MAILJET_PORT', 587),
+            'encryption' => env('MAILJET_ENCRYPTION', 'tls'),
+            'username' => env('MAILJET_API_KEY'),
+            'password' => env('MAILJET_SECRET_KEY'),
+            'timeout' => null,
+        ],
+
+        'failover' => [
+            'transport' => 'failover',
+            'mailers' => [
+                'ses',
+                'mailjet',
+            ],
+            'retry_after' => 60,
+        ],
+
         'postmark' => [
             'transport' => 'postmark',
             // 'message_stream_id' => env('POSTMARK_MESSAGE_STREAM_ID'),
@@ -77,15 +96,6 @@ return [
 
         'array' => [
             'transport' => 'array',
-        ],
-
-        'failover' => [
-            'transport' => 'failover',
-            'mailers' => [
-                'smtp',
-                'log',
-            ],
-            'retry_after' => 60,
         ],
 
         'roundrobin' => [

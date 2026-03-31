@@ -46,6 +46,13 @@
                 </a>
             </li>
 
+            <li class="side-nav-item">
+                <a href="{{ route('admin.system-settings') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="settings"></i></span>
+                    <span class="menu-text">System Settings</span>
+                </a>
+            </li>
+
             @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a href="{{ route('second', ['ton', 'ton-ai'])}}" class="side-nav-link">

@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'my_vaccine_portal' => [
+        'url' => env('MY_VACCINE_PORTAL_URL', 'https://myvaccineportal.taskgo.ie'),
+    ],
+
 ];

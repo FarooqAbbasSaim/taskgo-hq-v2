@@ -47,6 +47,13 @@
             </li>
 
             <li class="side-nav-item">
+                <a href="{{ route('admin.corporate-registrations') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="building-2"></i></span>
+                    <span class="menu-text">Corporate Registrations</span>
+                </a>
+            </li>
+
+            <li class="side-nav-item">
                 <a href="{{ route('admin.system-settings') }}" class="side-nav-link">
                     <span class="menu-icon"><i data-lucide="settings"></i></span>
                     <span class="menu-text">System Settings</span>

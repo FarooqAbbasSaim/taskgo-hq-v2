@@ -70,6 +70,7 @@ Route::prefix('api/dashboard')->group(function () {
     Route::get('/appointments', [\App\Http\Controllers\Api\DashboardController::class, 'getAppointmentsData']);
     Route::get('/rx-orders', [\App\Http\Controllers\Api\DashboardController::class, 'getRxOrdersData']);
     Route::get('/rx-users', [\App\Http\Controllers\Api\DashboardController::class, 'getRxUsersData']);
+    Route::get('/total-pharmacies', [\App\Http\Controllers\Api\DashboardController::class, 'getTotalPharmaciesData']);
     Route::get('/openai-usage', [\App\Http\Controllers\Api\DashboardController::class, 'getOpenAIUsageData']);
 });
 

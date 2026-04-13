@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\RoutingController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Admin\SystemSettingsController;
 
 // Test route
 Route::get('/test', function () {
@@ -159,6 +160,9 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     Route::get('/rx-users/{id}', function($id) {
         return view('rx-user-view', compact('id'));
     })->name('admin.rx-user.view');
+
+    Route::get('/system-settings', [SystemSettingsController::class, 'index'])->name('admin.system-settings');
+    Route::post('/system-settings', [SystemSettingsController::class, 'update'])->name('admin.system-settings.update');
 });
 
 // Protected dynamic routes for new UI pages (fallback)

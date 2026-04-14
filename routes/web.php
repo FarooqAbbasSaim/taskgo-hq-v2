@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\RoutingController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\SystemSettingsController;
+use App\Http\Controllers\Admin\CorporateRegistrationsController;
 
 // Test route
 Route::get('/test', function () {
@@ -163,6 +164,9 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
 
     Route::get('/system-settings', [SystemSettingsController::class, 'index'])->name('admin.system-settings');
     Route::post('/system-settings', [SystemSettingsController::class, 'update'])->name('admin.system-settings.update');
+
+    Route::get('/corporate-registrations', [CorporateRegistrationsController::class, 'index'])->name('admin.corporate-registrations');
+    Route::post('/corporate-registrations/{id}/approve', [CorporateRegistrationsController::class, 'approve'])->name('admin.corporate-registrations.approve');
 });
 
 // Protected dynamic routes for new UI pages (fallback)

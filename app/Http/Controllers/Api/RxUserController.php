@@ -4,11 +4,89 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class RxUserController extends Controller
 {
+    private function formatRxUserData(object $user, ?object $pharmacy = null): array
+    {
+        $fullName = trim($user->first_name . ' ' . $user->last_name);
+        $gender = property_exists($user, 'gender') ? $user->gender : null;
+        $homeAddress = property_exists($user, 'home_address') ? $user->home_address : null;
+        $notResidingInIreland = property_exists($user, 'not_residing_in_ireland') ? (bool) $user->not_residing_in_ireland : false;
+        $consentToTransfer = property_exists($user, 'consent_to_transfer_prescriptions') ? (bool) $user->consent_to_transfer_prescriptions : false;
+        $updatesOffers = property_exists($user, 'updates_offers') ? (bool) $user->updates_offers : false;
+        $privacyPolicy = property_exists($user, 'privacy_policy') ? (bool) $user->privacy_policy : false;
+
+        $dobFormatted = null;
+        if ($user->dob && $user->dob !== '0000-00-00') {
+            try {
+                $dobFormatted = Carbon::parse($user->dob)->format('j F Y');
+            } catch (\Exception $e) {
+                $dobFormatted = 'Invalid Date';
+            }
+        }
+
+        return [
+            'id' => $user->id,
+            'full_name' => $fullName,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'gender' => $gender,
+            'email' => $user->email,
+            'pending_email' => property_exists($user, 'pending_email') ? $user->pending_email : null,
+            'pending_email_verification_expires_at' => property_exists($user, 'pending_email_verification_expires_at') && $user->pending_email_verification_expires_at
+                ? Carbon::parse($user->pending_email_verification_expires_at)->toIso8601String()
+                : null,
+            'phone' => $user->mobile_number,
+            'phone_raw' => $user->mobile_number,
+            'pps_no' => $user->pps_number,
+            'pps_number' => $user->pps_number,
+            'dob' => $dobFormatted,
+            'dob_raw' => $user->dob && $user->dob !== '0000-00-00' ? $user->dob : null,
+            'home_address' => $homeAddress,
+            'not_residing_in_ireland' => $notResidingInIreland,
+            'nominated_pharmacy' => $pharmacy ? $pharmacy->pharmacy_name : null,
+            'nominated_pharmacy_id' => $user->nominated_pharmacy_id,
+            'consent_to_transfer_prescriptions' => $consentToTransfer,
+            'updates_offers' => $updatesOffers,
+            'privacy_policy' => $privacyPolicy,
+            'created_at' => $user->created_at,
+        ];
+    }
+
+    public function getActivePharmacies()
+    {
+        try {
+            $pharmacies = DB::table('pharmacies')
+                ->select(['id', 'pharmacy_name'])
+                ->where(function ($query) {
+                    $query->whereNull('status')
+                        ->orWhere('status', '!=', 'archived');
+                })
+                ->orderBy('pharmacy_name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $pharmacies,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching active pharmacies: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch active pharmacies',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function getRxUsersData()
     {
         try {
@@ -39,11 +117,10 @@ class RxUserController extends Controller
             }
 
             $usersData = $users->map(function ($user) use ($pharmacies) {
-                $fullName = trim($user->first_name . ' ' . $user->last_name);
                 $nominatedPharmacy = $user->nominated_pharmacy_id ? 
                     ($pharmacies[$user->nominated_pharmacy_id] ?? 'Unknown Pharmacy') : 
                     'Not Set';
-                
+
                 $dobFormatted = null;
                 if ($user->dob && $user->dob !== '0000-00-00') {
                     try {
@@ -55,7 +132,7 @@ class RxUserController extends Controller
 
                 return [
                     'id' => $user->id,
-                    'full_name' => $fullName,
+                    'full_name' => trim($user->first_name . ' ' . $user->last_name),
                     'email' => $user->email,
                     'phone' => $user->mobile_number,
                     'pps_no' => $user->pps_number,
@@ -88,11 +165,19 @@ class RxUserController extends Controller
                     'id',
                     'first_name',
                     'last_name',
+                    'gender',
                     'email',
+                    'pending_email',
+                    'pending_email_verification_expires_at',
                     'mobile_number',
                     'pps_number',
                     'dob',
+                    'home_address',
+                    'not_residing_in_ireland',
                     'nominated_pharmacy_id',
+                    'consent_to_transfer_prescriptions',
+                    'updates_offers',
+                    'privacy_policy',
                     'created_at'
                 ])
                 ->where('id', $id)
@@ -105,40 +190,17 @@ class RxUserController extends Controller
                 ], 404);
             }
 
-            // Get pharmacy name
-            $nominatedPharmacy = null;
+            $pharmacy = null;
             if ($user->nominated_pharmacy_id) {
                 $pharmacy = DB::table('pharmacies')
+                    ->select(['id', 'pharmacy_name', 'status'])
                     ->where('id', $user->nominated_pharmacy_id)
                     ->first();
-                $nominatedPharmacy = $pharmacy ? $pharmacy->pharmacy_name : 'Unknown Pharmacy';
             }
-
-            $fullName = trim($user->first_name . ' ' . $user->last_name);
-            
-            $dobFormatted = null;
-            if ($user->dob && $user->dob !== '0000-00-00') {
-                try {
-                    $dobFormatted = Carbon::parse($user->dob)->format('j F Y');
-                } catch (\Exception $e) {
-                    $dobFormatted = 'Invalid Date';
-                }
-            }
-
-            $userData = [
-                'id' => $user->id,
-                'full_name' => $fullName,
-                'email' => $user->email,
-                'phone' => $user->mobile_number,
-                'pps_no' => $user->pps_number,
-                'dob' => $dobFormatted,
-                'nominated_pharmacy' => $nominatedPharmacy,
-                'created_at' => $user->created_at
-            ];
 
             return response()->json([
                 'success' => true,
-                'data' => $userData
+                'data' => $this->formatRxUserData($user, $pharmacy)
             ]);
 
         } catch (\Exception $e) {
@@ -148,6 +210,277 @@ class RxUserController extends Controller
                 'message' => 'Failed to fetch Rx user data',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function updateRxUser(Request $request, $id)
+    {
+        try {
+            $user = DB::table('rx_users')
+                ->where('id', $id)
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rx user not found'
+                ], 404);
+            }
+
+            $validated = $request->validate([
+                'first_name' => ['required', 'string', 'max:50'],
+                'last_name' => ['required', 'string', 'max:50'],
+                'gender' => ['required', 'string', 'max:10'],
+                'dob' => ['required', 'date', 'before_or_equal:today'],
+                'email' => ['required', 'email', 'max:100', Rule::unique('rx_users', 'email')->ignore($id)],
+                'mobile_number' => ['required', 'string', 'max:20'],
+                'pps_number' => ['nullable', 'string', 'max:255'],
+                'home_address' => ['required', 'string'],
+                'not_residing_in_ireland' => ['required', 'boolean'],
+                'nominated_pharmacy_id' => ['nullable', 'integer'],
+                'consent_to_transfer_prescriptions' => ['required', 'boolean'],
+                'updates_offers' => ['required', 'boolean'],
+                'privacy_policy' => ['required', 'boolean'],
+            ]);
+
+            $selectedPharmacy = null;
+            if (!empty($validated['nominated_pharmacy_id'])) {
+                $selectedPharmacy = DB::table('pharmacies')
+                    ->select(['id', 'pharmacy_name', 'status'])
+                    ->where('id', $validated['nominated_pharmacy_id'])
+                    ->where(function ($query) {
+                        $query->whereNull('status')
+                            ->orWhere('status', '!=', 'archived');
+                    })
+                    ->first();
+
+                if (!$selectedPharmacy) {
+                    if ((string) $validated['nominated_pharmacy_id'] === (string) $user->nominated_pharmacy_id) {
+                        $selectedPharmacy = DB::table('pharmacies')
+                            ->select(['id', 'pharmacy_name', 'status'])
+                            ->where('id', $validated['nominated_pharmacy_id'])
+                            ->first();
+                    } else {
+                        throw ValidationException::withMessages([
+                            'nominated_pharmacy_id' => ['Please select an active nominated pharmacy.'],
+                        ]);
+                    }
+                }
+            }
+
+            $currentEmail = strtolower(trim((string) $user->email));
+            $requestedEmail = strtolower(trim($validated['email']));
+            $emailChanged = $requestedEmail !== $currentEmail;
+
+            $emailPayload = [
+                'email' => $currentEmail ?: $user->email,
+            ];
+
+            $responseMessage = 'Patient profile updated successfully.';
+
+            if ($emailChanged) {
+                $plainToken = Str::random(64);
+                $emailPayload['pending_email'] = $requestedEmail;
+                $emailPayload['pending_email_verification_token'] = hash('sha256', $plainToken);
+                $emailPayload['pending_email_verification_expires_at'] = now()->addHours(24);
+                $responseMessage = 'Patient profile updated. A verification link has been sent to the new email address and must be confirmed within 24 hours.';
+            }
+
+            $payload = [
+                'first_name' => trim($validated['first_name']),
+                'last_name' => trim($validated['last_name']),
+                'gender' => trim($validated['gender']),
+                'dob' => $validated['dob'],
+                'mobile_number' => trim($validated['mobile_number']),
+                'pps_number' => filled($validated['pps_number'] ?? null) ? trim($validated['pps_number']) : null,
+                'home_address' => trim($validated['home_address']),
+                'not_residing_in_ireland' => (int) $validated['not_residing_in_ireland'],
+                'nominated_pharmacy_id' => $selectedPharmacy?->id,
+                'nominated_pharmacy' => $selectedPharmacy?->pharmacy_name,
+                'consent_to_transfer_prescriptions' => (int) $validated['consent_to_transfer_prescriptions'],
+                'updates_offers' => (int) $validated['updates_offers'],
+                'privacy_policy' => (int) $validated['privacy_policy'],
+                'updated_at' => now(),
+            ];
+
+            $payload = array_merge($payload, $emailPayload);
+
+            DB::table('rx_users')
+                ->where('id', $id)
+                ->update($payload);
+
+            if ($emailChanged) {
+                $emailSent = $this->sendPendingEmailVerification(
+                    userId: (int) $id,
+                    firstName: trim($validated['first_name']),
+                    currentEmail: $currentEmail,
+                    newEmail: $requestedEmail,
+                    plainToken: $plainToken
+                );
+
+                if (!$emailSent) {
+                    DB::table('rx_users')
+                        ->where('id', $id)
+                        ->update([
+                            'pending_email' => null,
+                            'pending_email_verification_token' => null,
+                            'pending_email_verification_expires_at' => null,
+                        ]);
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The profile was updated, but the verification email could not be sent. Please edit the email again to retry.',
+                        'data' => null,
+                    ], 500);
+                }
+            }
+
+            $updatedUser = DB::table('rx_users')
+                ->select([
+                    'id',
+                    'first_name',
+                    'last_name',
+                    'gender',
+                    'email',
+                    'pending_email',
+                    'pending_email_verification_expires_at',
+                    'mobile_number',
+                    'pps_number',
+                    'dob',
+                    'home_address',
+                    'not_residing_in_ireland',
+                    'nominated_pharmacy_id',
+                    'consent_to_transfer_prescriptions',
+                    'updates_offers',
+                    'privacy_policy',
+                    'created_at',
+                ])
+                ->where('id', $id)
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => $responseMessage,
+                'data' => $this->formatRxUserData($updatedUser, $selectedPharmacy),
+            ]);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            \Log::error('Error updating Rx user: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update patient profile',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function verifyPendingEmailChange($id, $token)
+    {
+        try {
+            $user = DB::table('rx_users')
+                ->select([
+                    'id',
+                    'first_name',
+                    'last_name',
+                    'email',
+                    'pending_email',
+                    'pending_email_verification_token',
+                    'pending_email_verification_expires_at',
+                ])
+                ->where('id', $id)
+                ->first();
+
+            if (!$user || !$user->pending_email || !$user->pending_email_verification_token) {
+                return response()->view('rx-user-email-change-status', [
+                    'title' => 'Email Change Link Invalid',
+                    'status' => 'invalid',
+                    'heading' => 'This verification link is not valid.',
+                    'message' => 'No pending email change was found for this patient.',
+                ], 404);
+            }
+
+            $hashedToken = hash('sha256', $token);
+            $isExpired = !$user->pending_email_verification_expires_at || Carbon::parse($user->pending_email_verification_expires_at)->isPast();
+
+            if (!hash_equals($user->pending_email_verification_token, $hashedToken)) {
+                return response()->view('rx-user-email-change-status', [
+                    'title' => 'Email Change Link Invalid',
+                    'status' => 'invalid',
+                    'heading' => 'This verification link is not valid.',
+                    'message' => 'Please request a new email change from Taskgo HQ.',
+                ], 404);
+            }
+
+            if ($isExpired) {
+                DB::table('rx_users')
+                    ->where('id', $id)
+                    ->update([
+                        'pending_email' => null,
+                        'pending_email_verification_token' => null,
+                        'pending_email_verification_expires_at' => null,
+                    ]);
+
+                return response()->view('rx-user-email-change-status', [
+                    'title' => 'Email Change Link Expired',
+                    'status' => 'expired',
+                    'heading' => 'This verification link has expired.',
+                    'message' => 'The patient email remains unchanged. Please ask Taskgo HQ to submit the email change again.',
+                ], 410);
+            }
+
+            DB::table('rx_users')
+                ->where('id', $id)
+                ->update([
+                    'email' => $user->pending_email,
+                    'pending_email' => null,
+                    'pending_email_verification_token' => null,
+                    'pending_email_verification_expires_at' => null,
+                    'updated_at' => now(),
+                ]);
+
+            return response()->view('rx-user-email-change-status', [
+                'title' => 'Email Address Verified',
+                'status' => 'success',
+                'heading' => 'The email address has been verified.',
+                'message' => 'The patient profile now uses the new email address.',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error verifying pending Rx user email change: ' . $e->getMessage());
+
+            return response()->view('rx-user-email-change-status', [
+                'title' => 'Email Verification Failed',
+                'status' => 'invalid',
+                'heading' => 'We could not verify this email change.',
+                'message' => 'Please request a new email change from Taskgo HQ.',
+            ], 500);
+        }
+    }
+
+    private function sendPendingEmailVerification(int $userId, string $firstName, string $currentEmail, string $newEmail, string $plainToken): bool
+    {
+        $verificationUrl = route('rx-users.email-change.verify', [
+            'id' => $userId,
+            'token' => $plainToken,
+        ]);
+
+        try {
+            Mail::send('emails.rx_user_email_change_verification', [
+                'firstName' => $firstName ?: 'there',
+                'currentEmail' => $currentEmail,
+                'newEmail' => $newEmail,
+                'verificationUrl' => $verificationUrl,
+                'expiresAt' => now()->addHours(24),
+            ], function ($message) use ($newEmail) {
+                $message->to($newEmail)
+                    ->subject('Verify your new email address for Taskgo');
+            });
+
+            return true;
+        } catch (\Exception $e) {
+            \Log::error("Failed to send pending email verification to {$newEmail}: " . $e->getMessage());
+            return false;
         }
     }
 

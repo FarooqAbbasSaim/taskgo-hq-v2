@@ -332,6 +332,82 @@ class DashboardController extends Controller
     }
 
     /**
+     * Get total pharmacies data for the dashboard.
+     */
+    public function getTotalPharmaciesData()
+    {
+        try {
+            $now = Carbon::now();
+            $startMonth = $now->copy()->subMonths(11)->startOfMonth();
+
+            $pharmacies = DB::table('pharmacies')
+                ->select('id', 'created_at')
+                ->whereNotNull('created_at')
+                ->where('created_at', '<=', $now)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            $labels = [];
+            $chartData = [];
+            $tooltipData = [];
+
+            for ($i = 11; $i >= 0; $i--) {
+                $monthDate = $now->copy()->subMonths($i);
+                $periodEnd = $i === 0
+                    ? $now->copy()
+                    : $monthDate->copy()->endOfMonth();
+
+                $totalCount = $pharmacies->filter(function ($pharmacy) use ($periodEnd) {
+                    return Carbon::parse($pharmacy->created_at)->lte($periodEnd);
+                })->count();
+
+                $labels[] = $monthDate->format('M');
+                $chartData[] = $totalCount;
+                $tooltipData[] = [
+                    'month' => $monthDate->format('F Y'),
+                    'total' => $totalCount,
+                    'as_of' => $i === 0
+                        ? $now->format('j F Y')
+                        : $monthDate->copy()->endOfMonth()->format('j F Y'),
+                ];
+            }
+
+            $latestMonthCount = DB::table('pharmacies')
+                ->whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()])
+                ->count();
+
+            $previousMonthDate = $now->copy()->subMonth();
+            $previousMonthTotal = DB::table('pharmacies')
+                ->where('created_at', '<=', $previousMonthDate->copy()->endOfMonth())
+                ->count();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'chart' => [
+                        'labels' => $labels,
+                        'data' => $chartData,
+                        'tooltips' => $tooltipData,
+                    ],
+                    'current_total' => end($chartData) ?: 0,
+                    'current_month_new' => $latestMonthCount,
+                    'previous_month_total' => $previousMonthTotal,
+                    'updated_at' => $now->toIso8601String(),
+                    'range_start' => $startMonth->toDateString(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching total pharmacies data: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch total pharmacies data',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Get OpenAI API usage data for the dashboard
      */
     public function getOpenAIUsageData()

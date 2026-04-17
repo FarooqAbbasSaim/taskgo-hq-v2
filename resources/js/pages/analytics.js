@@ -5,6 +5,14 @@ import { Chart } from "chart.js";
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("Analytics script loaded");
 
+    const appointmentsCanvas = document.querySelector("#appointmentsChart");
+    const rxUsersCanvas = document.querySelector("#rxUsersChart");
+    const totalPharmaciesCanvas = document.querySelector("#totalPharmaciesChart");
+
+    if (!appointmentsCanvas && !rxUsersCanvas && !totalPharmaciesCanvas) {
+        return;
+    }
+
     // Add a small delay to ensure DOM is fully ready
     await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -40,15 +48,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             appointmentsData = result.data;
             console.log("Appointments data loaded:", appointmentsData);
 
-            // Update the display values - use more flexible selectors
-            const thisMonthElement = document.querySelector(
-                ".card-body .text-end .fw-semibold span"
+            const thisMonthElement = document.getElementById(
+                "appointmentsThisMonth"
             );
-            const lastMonthElement = document.querySelector(
-                ".card-body .d-flex > div:first-child .fw-semibold span"
+            const lastMonthElement = document.getElementById(
+                "appointmentsLastMonth"
             );
-            const revenuePercentageElement = document.querySelector(
-                ".card-footer strong span"
+            const revenuePercentageElement = document.getElementById(
+                "appointmentsRevenueChange"
             );
 
             console.log("Updating DOM elements with data:", {
@@ -80,30 +87,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else {
                 console.error("Revenue percentage element not found");
             }
-
-            // Fallback: Try to update any remaining elements with data-target attributes
-            const fallbackElements = document.querySelectorAll("[data-target]");
-            fallbackElements.forEach((element) => {
-                const targetValue = element.getAttribute("data-target");
-                if (
-                    targetValue === "2" ||
-                    targetValue === "8" ||
-                    targetValue === "-72.6"
-                ) {
-                    console.log(
-                        "Found fallback element with data-target:",
-                        targetValue
-                    );
-                    if (targetValue === "2") {
-                        element.textContent = result.data.this_month;
-                    } else if (targetValue === "8") {
-                        element.textContent = result.data.last_month;
-                    } else if (targetValue === "-72.6") {
-                        element.textContent =
-                            result.data.revenue_change_percentage;
-                    }
-                }
-            });
 
             // Create the chart
             createAppointmentsChart(appointmentsData);
@@ -300,6 +283,60 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.error("Error fetching Rx Users data:", error);
     }
 
+    let totalPharmaciesData = null;
+    try {
+        console.log("Fetching Total Pharmacies data from API...");
+
+        const totalPharmaciesResponse = await fetch(
+            "/api/dashboard/total-pharmacies",
+            {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": csrfToken || "",
+                    Accept: "application/json",
+                },
+            }
+        );
+
+        if (!totalPharmaciesResponse.ok) {
+            throw new Error(
+                `Total Pharmacies API request failed with status ${totalPharmaciesResponse.status}`
+            );
+        }
+
+        const totalPharmaciesResult = await totalPharmaciesResponse.json();
+        console.log(
+            "Total Pharmacies API Response:",
+            totalPharmaciesResult
+        );
+
+        if (totalPharmaciesResult.success) {
+            totalPharmaciesData = totalPharmaciesResult.data;
+
+            const currentTotalElement = document.getElementById(
+                "totalPharmaciesCurrentTotal"
+            );
+            const currentMonthNewElement = document.getElementById(
+                "totalPharmaciesCurrentMonthNew"
+            );
+
+            if (currentTotalElement) {
+                currentTotalElement.textContent =
+                    totalPharmaciesResult.data.current_total.toLocaleString();
+            }
+
+            if (currentMonthNewElement) {
+                currentMonthNewElement.textContent =
+                    totalPharmaciesResult.data.current_month_new.toLocaleString();
+            }
+
+            createTotalPharmaciesChart(totalPharmaciesData);
+        }
+    } catch (error) {
+        console.error("Error fetching Total Pharmacies data:", error);
+    }
+
     function createAppointmentsChart(data) {
         const canvas = document.querySelector("#appointmentsChart");
         if (!canvas) {
@@ -350,6 +387,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ],
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -378,6 +417,104 @@ document.addEventListener("DOMContentLoaded", async () => {
                 scales: {
                     x: { display: false, grid: { display: false } },
                     y: { display: false, grid: { display: false } },
+                },
+            },
+        });
+    }
+
+    function createTotalPharmaciesChart(data) {
+        const canvas = document.querySelector("#totalPharmaciesChart");
+        if (!canvas) {
+            return;
+        }
+
+        if (
+            window.totalPharmaciesChart &&
+            typeof window.totalPharmaciesChart.destroy === "function"
+        ) {
+            window.totalPharmaciesChart.destroy();
+        }
+
+        const ctx = canvas.getContext("2d");
+        const styles = getComputedStyle(document.documentElement);
+        const primary = styles.getPropertyValue("--bs-primary").trim() || "#3e60d5";
+        const primaryRgb =
+            styles.getPropertyValue("--bs-primary-rgb").trim() || "62, 96, 213";
+        const secondary = styles.getPropertyValue("--bs-secondary-color").trim() || "#6c757d";
+        const borderColor =
+            styles.getPropertyValue("--bs-border-color").trim() || "rgba(0,0,0,0.1)";
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, `rgba(${primaryRgb}, 0.30)`);
+        gradient.addColorStop(1, `rgba(${primaryRgb}, 0.02)`);
+
+        window.totalPharmaciesChart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: data.chart.labels,
+                datasets: [
+                    {
+                        label: "Total Pharmacies",
+                        data: data.chart.data,
+                        fill: true,
+                        backgroundColor: gradient,
+                        borderColor: primary,
+                        borderWidth: 2,
+                        tension: 0.35,
+                        pointRadius: 3,
+                        pointHoverRadius: 4,
+                        pointBackgroundColor: primary,
+                        pointBorderWidth: 0,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            title: function (context) {
+                                return data.chart.tooltips?.[context[0].dataIndex]
+                                    ?.month || context[0].label;
+                            },
+                            label: function (context) {
+                                const tooltip =
+                                    data.chart.tooltips?.[context.dataIndex];
+                                const value = context.parsed.y.toLocaleString();
+                                const asOf = tooltip?.as_of
+                                    ? ` (as of ${tooltip.as_of})`
+                                    : "";
+                                return `Total pharmacies: ${value}${asOf}`;
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: secondary,
+                        },
+                        border: {
+                            display: false,
+                        },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            color: secondary,
+                        },
+                        grid: {
+                            color: borderColor,
+                        },
+                        border: {
+                            display: false,
+                        },
+                    },
                 },
             },
         });

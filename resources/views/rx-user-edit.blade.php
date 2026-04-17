@@ -34,7 +34,7 @@
                             <div class="col-md-6"><div class="mb-3"><label for="email" class="form-label">Email Address</label><input type="email" class="form-control" id="email" required maxlength="100"><div class="invalid-feedback"></div></div></div>
                             <div class="col-md-6"><div class="mb-3"><label for="mobileNumber" class="form-label">Phone Number</label><input type="text" class="form-control" id="mobileNumber" required maxlength="20"><div class="invalid-feedback"></div></div></div>
                             <div class="col-md-6"><div class="mb-3"><label for="ppsNumber" class="form-label">PPS Number</label><input type="text" class="form-control" id="ppsNumber" maxlength="255"><div class="invalid-feedback"></div></div></div>
-                            <div class="col-md-6"><div class="mb-3"><label for="nominatedPharmacyId" class="form-label">Nominated Pharmacy</label><select class="form-select" id="nominatedPharmacyId"><option value="">Select a pharmacy</option></select><div class="form-text">Only active pharmacies are available to select.</div><div class="form-text text-warning d-none" id="archivedPharmacyNotice">The current nominated pharmacy is archived. Choose an active pharmacy only if you want to replace it.</div><div class="invalid-feedback"></div></div></div>
+                            <div class="col-md-6"><div class="mb-3"><label for="nominatedPharmacySearch" class="form-label">Nominated Pharmacy</label><input type="text" class="form-control rx-pharmacy-typeahead" id="nominatedPharmacySearch" placeholder="Search pharmacy" autocomplete="off"><input type="hidden" id="nominatedPharmacyId"><div class="form-text">Type to filter active pharmacies and choose one from the suggestions.</div><div class="form-text text-warning d-none" id="archivedPharmacyNotice">The current nominated pharmacy is archived. Choose an active pharmacy only if you want to replace it.</div><div class="invalid-feedback"></div></div></div>
                             <div class="col-12"><div class="mb-4"><label for="homeAddress" class="form-label">Home Address</label><textarea class="form-control" id="homeAddress" rows="3" required></textarea><div class="invalid-feedback"></div></div></div>
                         </div>
                         <div class="row">
@@ -62,6 +62,7 @@
 @endsection
 
 @section('scripts')
+@vite(['resources/js/pages/form-typehead.js'])
 <script>
 class RxUserEditManager {
     constructor(userId) {
@@ -69,12 +70,14 @@ class RxUserEditManager {
         this.userData = null;
         this.initialFormData = null;
         this.pharmacies = [];
-        this.pharmacyChoices = null;
         this.pendingPayload = null;
         this.confirmModal = new bootstrap.Modal(document.getElementById('confirmChangesModal'));
         this.form = document.getElementById('patientProfileForm');
         this.saveChangesButton = document.getElementById('saveChangesButton');
         this.confirmSaveButton = document.getElementById('confirmSaveButton');
+        this.pharmacySearchInput = document.getElementById('nominatedPharmacySearch');
+        this.pharmacyValueInput = document.getElementById('nominatedPharmacyId');
+        this.typeaheadInitialized = false;
         this.fieldLabels = {
             first_name: 'First Name',
             last_name: 'Last Name',
@@ -96,7 +99,22 @@ class RxUserEditManager {
     async init() {
         this.saveChangesButton.addEventListener('click', () => this.handleSaveRequest());
         this.confirmSaveButton.addEventListener('click', () => this.submitProfileUpdates());
-        await Promise.all([this.loadPharmacies(), this.loadUserData()]);
+        this.bindPharmacySearchInput();
+        this.renderPharmacyOptions();
+
+        try {
+            await Promise.all([this.loadPharmacies(), this.loadUserData()]);
+        } catch (error) {
+            this.showErrorToast(error.message || 'Failed to load patient profile data.');
+        }
+    }
+
+    bindPharmacySearchInput() {
+        this.pharmacySearchInput.addEventListener('input', () => {
+            if (!this.pharmacySearchInput.value.trim()) {
+                this.pharmacyValueInput.value = '';
+            }
+        });
     }
 
     async fetchJson(url, options = {}) {
@@ -138,18 +156,90 @@ class RxUserEditManager {
     }
 
     renderPharmacyOptions() {
-        const select = document.getElementById('nominatedPharmacyId');
         const archivedNotice = document.getElementById('archivedPharmacyNotice');
         const currentValue = this.userData?.nominated_pharmacy_id ? String(this.userData.nominated_pharmacy_id) : '';
         const currentPharmacyIsActive = this.pharmacies.some((item) => String(item.id) === currentValue);
-        select.innerHTML = ['<option value="">Select a pharmacy</option>'].concat(
-            this.pharmacies.map((pharmacy) => `<option value="${pharmacy.id}" ${currentValue === String(pharmacy.id) ? 'selected' : ''}>${this.escapeHtml(pharmacy.pharmacy_name)}</option>`)
-        ).join('');
         archivedNotice.classList.toggle('d-none', !currentValue || currentPharmacyIsActive);
-        if (this.pharmacyChoices) this.pharmacyChoices.destroy();
-        if (window.Choices) {
-            this.pharmacyChoices = new window.Choices(select, { searchEnabled: true, shouldSort: false, itemSelectText: '', allowHTML: false, placeholder: true, placeholderValue: 'Search active pharmacies' });
+
+        if (currentPharmacyIsActive && currentValue) {
+            const pharmacy = this.pharmacies.find((item) => String(item.id) === currentValue);
+            this.pharmacyValueInput.value = currentValue;
+            this.pharmacySearchInput.value = pharmacy ? pharmacy.pharmacy_name : '';
+        } else if (this.userData?.nominated_pharmacy) {
+            this.pharmacyValueInput.value = currentValue;
+            this.pharmacySearchInput.value = this.userData.nominated_pharmacy;
+        } else {
+            this.pharmacyValueInput.value = '';
+            this.pharmacySearchInput.value = '';
         }
+
+        this.initPharmacyTypeahead();
+    }
+
+    initPharmacyTypeahead() {
+        if (!window.jQuery || typeof window.jQuery.fn.typeahead !== 'function') {
+            return;
+        }
+
+        const $input = window.jQuery(this.pharmacySearchInput);
+        const pharmacies = this.pharmacies.map((pharmacy) => ({
+            id: String(pharmacy.id),
+            name: pharmacy.pharmacy_name
+        }));
+
+        if (this.typeaheadInitialized) {
+            $input.typeahead('destroy');
+        }
+
+        $input.off('.rxPharmacyTypeahead');
+
+        const matcher = (query, syncResults) => {
+            const normalizedQuery = query.trim().toLowerCase();
+            const matches = normalizedQuery
+                ? pharmacies.filter((pharmacy) => pharmacy.name.toLowerCase().includes(normalizedQuery))
+                : pharmacies.slice(0, 20);
+            syncResults(matches);
+        };
+
+        $input.typeahead(
+            {
+                hint: false,
+                highlight: true,
+                minLength: 0
+            },
+            {
+                name: 'pharmacies',
+                display: 'name',
+                limit: 20,
+                source: matcher
+            }
+        );
+
+        $input.on('typeahead:select.rxPharmacyTypeahead', (event, suggestion) => {
+            this.pharmacySearchInput.value = suggestion.name;
+            this.pharmacyValueInput.value = suggestion.id;
+        });
+
+        $input.on('typeahead:autocomplete.rxPharmacyTypeahead', (event, suggestion) => {
+            this.pharmacySearchInput.value = suggestion.name;
+            this.pharmacyValueInput.value = suggestion.id;
+        });
+
+        $input.on('blur.rxPharmacyTypeahead', () => {
+            const typedValue = this.pharmacySearchInput.value.trim().toLowerCase();
+            if (!typedValue) {
+                this.pharmacyValueInput.value = '';
+                return;
+            }
+
+            const matchedPharmacy = pharmacies.find((pharmacy) => pharmacy.name.toLowerCase() === typedValue);
+            if (matchedPharmacy) {
+                this.pharmacySearchInput.value = matchedPharmacy.name;
+                this.pharmacyValueInput.value = matchedPharmacy.id;
+            }
+        });
+
+        this.typeaheadInitialized = true;
     }
 
     populateForm() {
@@ -170,7 +260,7 @@ class RxUserEditManager {
     }
 
     getFormData() {
-        const selectedPharmacyValue = document.getElementById('nominatedPharmacyId').value;
+        const selectedPharmacyValue = this.pharmacyValueInput.value;
         const currentPharmacyIsActive = this.pharmacies.some((item) => String(item.id) === String(this.userData?.nominated_pharmacy_id));
         return {
             first_name: document.getElementById('firstName').value.trim(),
@@ -191,6 +281,12 @@ class RxUserEditManager {
 
     handleSaveRequest() {
         this.clearValidationErrors();
+        const typedPharmacy = this.pharmacySearchInput.value.trim();
+        if (typedPharmacy && !this.pharmacyValueInput.value) {
+            this.applyValidationErrors({ nominated_pharmacy_id: ['Please select a pharmacy from the suggestion list.'] });
+            this.showErrorToast('Please select a pharmacy from the suggestion list.');
+            return;
+        }
         if (!this.form.checkValidity()) {
             this.form.classList.add('was-validated');
             this.showErrorToast('Please correct the highlighted fields before saving.');
@@ -262,7 +358,7 @@ class RxUserEditManager {
 
     applyValidationErrors(errors) {
         this.form.classList.add('was-validated');
-        const map = { first_name: 'firstName', last_name: 'lastName', gender: 'gender', dob: 'dob', email: 'email', mobile_number: 'mobileNumber', pps_number: 'ppsNumber', home_address: 'homeAddress', nominated_pharmacy_id: 'nominatedPharmacyId' };
+        const map = { first_name: 'firstName', last_name: 'lastName', gender: 'gender', dob: 'dob', email: 'email', mobile_number: 'mobileNumber', pps_number: 'ppsNumber', home_address: 'homeAddress', nominated_pharmacy_id: 'nominatedPharmacySearch' };
         Object.entries(errors).forEach(([field, messages]) => {
             const element = document.getElementById(map[field] || '');
             if (!element) return;

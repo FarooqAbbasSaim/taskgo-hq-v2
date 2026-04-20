@@ -25,6 +25,9 @@ import "simplebar";
 import Swal from "sweetalert2";
 window.Swal = Swal;
 
+import Choices from "choices.js";
+window.Choices = Choices;
+
 // Import custom components
 import "./components/LoadingButton.js";
 

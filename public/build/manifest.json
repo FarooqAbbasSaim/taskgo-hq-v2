@@ -3,6 +3,23 @@
     "file": "assets/_commonjsHelpers-D6-XlEtG.js",
     "name": "_commonjsHelpers"
   },
+  "_analytics-yP6R08zC.js": {
+    "file": "assets/analytics-yP6R08zC.js",
+    "name": "analytics",
+    "imports": [
+      "__commonjsHelpers-D6-XlEtG.js",
+      "_index-BEKk9TLb.js",
+      "_isObjectLike-mqpIr8Ea.js"
+    ]
+  },
+  "_app-CDfrXvgj.js": {
+    "file": "assets/app-CDfrXvgj.js",
+    "name": "app",
+    "imports": [
+      "_jquery-NjmgXMI-.js",
+      "_analytics-yP6R08zC.js"
+    ]
+  },
   "_dataTables.bootstrap5-DXX-FjKl.js": {
     "file": "assets/dataTables.bootstrap5-DXX-FjKl.js",
     "name": "dataTables.bootstrap5",
@@ -96,16 +113,17 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-DC1eQ7vg.js",
+    "file": "assets/app-BA0UNDpR.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
       "_jquery-NjmgXMI-.js",
+      "_analytics-yP6R08zC.js",
       "__commonjsHelpers-D6-XlEtG.js",
+      "_jquery-BQXThELV.js",
       "_index-BEKk9TLb.js",
-      "_isObjectLike-mqpIr8Ea.js",
-      "_jquery-BQXThELV.js"
+      "_isObjectLike-mqpIr8Ea.js"
     ]
   },
   "resources/js/config.js": {
@@ -202,71 +220,76 @@
     ]
   },
   "resources/js/pages/chart-area.js": {
-    "file": "assets/chart-area-DG63M6NZ.js",
+    "file": "assets/chart-area-o3BWUjaV.js",
     "name": "chart-area",
     "src": "resources/js/pages/chart-area.js",
     "isEntry": true,
     "imports": [
-      "resources/js/app.js",
+      "_app-CDfrXvgj.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
+      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
       "_isObjectLike-mqpIr8Ea.js"
     ]
   },
   "resources/js/pages/chart-bar.js": {
-    "file": "assets/chart-bar-UMWiI2Wq.js",
+    "file": "assets/chart-bar-B9-rO8gM.js",
     "name": "chart-bar",
     "src": "resources/js/pages/chart-bar.js",
     "isEntry": true,
     "imports": [
-      "resources/js/app.js",
+      "_app-CDfrXvgj.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
+      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
       "_isObjectLike-mqpIr8Ea.js"
     ]
   },
   "resources/js/pages/chart-line.js": {
-    "file": "assets/chart-line-C6e9nTtK.js",
+    "file": "assets/chart-line-CW7T8-ip.js",
     "name": "chart-line",
     "src": "resources/js/pages/chart-line.js",
     "isEntry": true,
     "imports": [
-      "resources/js/app.js",
+      "_app-CDfrXvgj.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
+      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
       "_isObjectLike-mqpIr8Ea.js"
     ]
   },
   "resources/js/pages/chart-other.js": {
-    "file": "assets/chart-other-Cyp9eFab.js",
+    "file": "assets/chart-other-BHOj1lew.js",
     "name": "chart-other",
     "src": "resources/js/pages/chart-other.js",
     "isEntry": true,
     "imports": [
-      "resources/js/app.js",
+      "_app-CDfrXvgj.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
+      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
       "_isObjectLike-mqpIr8Ea.js"
     ]
   },
   "resources/js/pages/dashboard.js": {
-    "file": "assets/dashboard-Cna31pgl.js",
+    "file": "assets/dashboard-Tn3aaqac.js",
     "name": "dashboard",
     "src": "resources/js/pages/dashboard.js",
     "isEntry": true,
     "imports": [
-      "resources/js/app.js",
+      "_app-CDfrXvgj.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
+      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
       "_isObjectLike-mqpIr8Ea.js"
     ]
@@ -433,15 +456,16 @@
     ]
   },
   "resources/js/pages/maps-vector.js": {
-    "file": "assets/maps-vector-BRzKelR0.js",
+    "file": "assets/maps-vector-REJc2wfQ.js",
     "name": "maps-vector",
     "src": "resources/js/pages/maps-vector.js",
     "isEntry": true,
     "imports": [
-      "resources/js/app.js",
+      "_app-CDfrXvgj.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
+      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
       "_isObjectLike-mqpIr8Ea.js"
     ]

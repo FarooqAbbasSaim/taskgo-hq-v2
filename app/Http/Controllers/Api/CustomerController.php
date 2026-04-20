@@ -365,6 +365,76 @@ class CustomerController extends Controller
                 ->orderBy('pharmacies.created_at', 'desc')
                 ->get();
 
+            $pharmacyIds = $pharmacies->pluck('id')->all();
+            $pharmacyNameMap = $pharmacies->pluck('pharmacy_name', 'id');
+
+            $childAdminIds = DB::table('users')
+                ->where('created_by', $customer->id)
+                ->where('user_type', 'admin')
+                ->pluck('id');
+
+            $staffUsersQuery = DB::table('users')
+                ->select('id', 'name', 'email', 'user_type', 'user_pharmacy', 'created_by')
+                ->where(function ($query) use ($customer) {
+                    $query->where('id', $customer->id)
+                        ->orWhere('created_by', $customer->id);
+                });
+
+            if ($childAdminIds->isNotEmpty()) {
+                $staffUsersQuery->orWhereIn('created_by', $childAdminIds);
+            }
+
+            $staffUsers = $staffUsersQuery
+                ->orderByRaw("CASE WHEN user_type = 'admin' THEN 0 ELSE 1 END")
+                ->orderBy('name')
+                ->get();
+
+            $reliefAssignments = DB::table('relief_pharmacist_pharmacies')
+                ->join('pharmacies', 'relief_pharmacist_pharmacies.pharmacy_id', '=', 'pharmacies.id')
+                ->select(
+                    'relief_pharmacist_pharmacies.user_id',
+                    'relief_pharmacist_pharmacies.pharmacy_id',
+                    'pharmacies.pharmacy_name'
+                )
+                ->whereIn('relief_pharmacist_pharmacies.user_id', $staffUsers->pluck('id'))
+                ->get()
+                ->groupBy('user_id');
+
+            $formattedStaff = $staffUsers->map(function ($user) use ($pharmacyIds, $pharmacyNameMap, $reliefAssignments) {
+                $role = $this->formatUserRole($user->user_type);
+                $isAdmin = $user->user_type === 'admin';
+                $assignedPharmacyIds = [];
+                $pharmacyNames = [];
+                $pharmaciesDisplay = 'Not Assigned';
+
+                if ($isAdmin) {
+                    $assignedPharmacyIds = $pharmacyIds;
+                    $pharmacyNames = ['All'];
+                    $pharmaciesDisplay = 'All';
+                } elseif ($user->user_type === 'relief_pharmacist') {
+                    $assigned = collect($reliefAssignments->get($user->id, []));
+                    $assignedPharmacyIds = $assigned->pluck('pharmacy_id')->map(fn ($id) => (int) $id)->values()->all();
+                    $pharmacyNames = $assigned->pluck('pharmacy_name')->values()->all();
+                    $pharmaciesDisplay = !empty($pharmacyNames) ? implode(', ', $pharmacyNames) : 'Not Assigned';
+                } elseif (!empty($user->user_pharmacy) && isset($pharmacyNameMap[$user->user_pharmacy])) {
+                    $assignedPharmacyIds = [(int) $user->user_pharmacy];
+                    $pharmacyNames = [$pharmacyNameMap[$user->user_pharmacy]];
+                    $pharmaciesDisplay = $pharmacyNameMap[$user->user_pharmacy];
+                }
+
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $role,
+                    'user_type' => $user->user_type,
+                    'is_admin' => $isAdmin,
+                    'pharmacy_ids' => $assignedPharmacyIds,
+                    'pharmacy_names' => $pharmacyNames,
+                    'pharmacies_display' => $pharmaciesDisplay,
+                ];
+            })->values();
+
             // Format the data for the frontend
             $formattedCustomer = [
                 'id' => $customer->id,
@@ -388,6 +458,7 @@ class CustomerController extends Controller
                 'superintendent_contact' => $customer->superintendent_contact ?? null,
                 'pharmacy_address' => $customer->pharmacy_address ?? null,
                 'pharmacies' => $pharmacies,
+                'staff' => $formattedStaff,
             ];
 
             return response()->json([
@@ -587,5 +658,20 @@ class CustomerController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    private function formatUserRole(?string $role): string
+    {
+        if (!$role) {
+            return 'Unknown';
+        }
+
+        if ($role === 'fos') {
+            return 'FOS';
+        }
+
+        return collect(explode('_', $role))
+            ->map(fn ($part) => ucfirst($part))
+            ->implode(' ');
     }
 }

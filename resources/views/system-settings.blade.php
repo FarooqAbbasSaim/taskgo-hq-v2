@@ -29,7 +29,7 @@
 
                         <div class="mb-3">
                             <h5 class="mb-1">Phone call billing</h5>
-                            <div class="text-muted">Controls how many credits are deducted for Telnyx phone calls.</div>
+                            <div class="text-muted">Controls how many credits are deducted for Twilio phone calls.</div>
                         </div>
 
                         <div class="row g-3">

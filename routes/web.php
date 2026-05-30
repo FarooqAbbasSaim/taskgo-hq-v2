@@ -71,6 +71,7 @@ Route::prefix('api/dashboard')->group(function () {
     Route::get('/appointments', [\App\Http\Controllers\Api\DashboardController::class, 'getAppointmentsData']);
     Route::get('/rx-orders', [\App\Http\Controllers\Api\DashboardController::class, 'getRxOrdersData']);
     Route::get('/rx-users', [\App\Http\Controllers\Api\DashboardController::class, 'getRxUsersData']);
+    Route::get('/total-pharmacies', [\App\Http\Controllers\Api\DashboardController::class, 'getTotalPharmaciesData']);
     Route::get('/openai-usage', [\App\Http\Controllers\Api\DashboardController::class, 'getOpenAIUsageData']);
 });
 
@@ -95,7 +96,9 @@ Route::prefix('api/customer-permissions')->group(function () {
 // Rx Users API routes
 Route::prefix('api/rx-users')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUsersData']);
+    Route::get('/pharmacies/active', [\App\Http\Controllers\Api\RxUserController::class, 'getActivePharmacies']);
     Route::get('/{id}', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserData']);
+    Route::put('/{id}', [\App\Http\Controllers\Api\RxUserController::class, 'updateRxUser']);
     Route::get('/{id}/orders', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserOrders']);
     Route::get('/{id}/bookings', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserBookings']);
     Route::get('/orders/{orderId}/prescription-image', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderPrescriptionImage']);
@@ -105,6 +108,8 @@ Route::prefix('api/rx-users')->group(function () {
 
 // Announcement API route (for taskgo-rx to fetch announcements)
 Route::get('/api/announcements', [\App\Http\Controllers\Admin\AnnouncementController::class, 'getAnnouncement']);
+Route::get('/rx-users/email-change/verify/{id}/{token}', [\App\Http\Controllers\Api\RxUserController::class, 'verifyPendingEmailChange'])
+    ->name('rx-users.email-change.verify');
 
 // Root route - redirect based on authentication status
 Route::get('/', function () {
@@ -158,6 +163,10 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
         return view('rx-users');
     })->name('admin.rx-users');
     
+    Route::get('/rx-users/{id}/edit', function($id) {
+        return view('rx-user-edit', compact('id'));
+    })->name('admin.rx-user.edit');
+
     Route::get('/rx-users/{id}', function($id) {
         return view('rx-user-view', compact('id'));
     })->name('admin.rx-user.view');

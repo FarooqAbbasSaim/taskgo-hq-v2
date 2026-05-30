@@ -175,6 +175,9 @@ class RxUsersManager {
                         <a href="/admin/rx-users/${user.id}" class="btn btn-sm btn-outline-primary">
                             <i class="ti ti-eye"></i> View
                         </a>
+                        <a href="/admin/rx-users/${user.id}/edit" class="btn btn-sm btn-primary">
+                            <i class="ti ti-edit"></i> Edit
+                        </a>
                     </div>
                 </td>
             </tr>

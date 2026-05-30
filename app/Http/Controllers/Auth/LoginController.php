@@ -152,6 +152,11 @@ class LoginController extends Controller
         $user->last_login_at = now();
         $user->save();
 
+        // Skip 2FA for local environment
+        if (app()->environment('local')) {
+            return redirect($this->redirectPath());
+        }
+
         // Check if 2FA is required for the user
         if ($user->requiresTwoFactor()) {
             // Generate and store a new 2FA code
@@ -165,7 +170,7 @@ class LoginController extends Controller
 
             // Log out the user and redirect to 2FA form
             Auth::guard('hq')->logout();
-            
+
             // Use absolute URL to avoid browser redirect issues
             $redirectUrl = url()->route('2fa.form');
             return redirect($redirectUrl)->with('user_id', $user->id)->with('email', $user->email);

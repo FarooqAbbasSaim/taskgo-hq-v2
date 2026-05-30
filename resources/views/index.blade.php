@@ -1,9 +1,9 @@
 @extends('layouts.vertical', ['title' => 'HQ Dashboard'])
 
 @section('content')
-    <div class="row row-cols-xxl-4 row-cols-md-2 row-cols-1 mt-4">
+    <div class="row g-4 mt-4">
         <!-- Appointments Widget -->
-        <div class="col">
+        <div class="col-12 col-xxl-6">
             <div class="card card-h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
@@ -14,27 +14,27 @@
                             <i class="text-muted fs-24 svg-sw-10" data-lucide="calendar"></i>
                         </div>
                     </div>
-                    <div class="mb-3" style="height: 60px; overflow: hidden;">
-                        <canvas height="60" id="appointmentsChart"></canvas>
+                    <div class="mb-4" style="height: 96px;">
+                        <canvas id="appointmentsChart"></canvas>
                     </div>
                     <div class="d-flex justify-content-between">
                         <div>
                             <span class="text-muted">Last month</span>
-                            <div class="fw-semibold"><span>Loading...</span></div>
+                            <div class="fw-semibold"><span id="appointmentsLastMonth">Loading...</span></div>
                         </div>
                         <div class="text-end">
                             <span class="text-muted">This month</span>
-                            <div class="fw-semibold"><span>Loading...</span></div>
+                            <div class="fw-semibold"><span id="appointmentsThisMonth">Loading...</span></div>
                         </div>
                     </div>
                 </div>
                 <div class="card-footer text-muted text-center">
-                    <span>This month's revenue is <strong><span>Loading...</span>%</strong> from last month</span>
+                    <span>This month's revenue is <strong><span id="appointmentsRevenueChange">Loading...</span>%</strong> from last month</span>
                 </div>
             </div>
         </div>
         <!-- Medication Orders Widget -->
-        <div class="col">
+        <div class="col-12 col-xxl-6">
             <div class="card card-h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
@@ -66,7 +66,7 @@
             </div>
         </div>
         <!-- Rx Users Widget -->
-        <div class="col">
+        <div class="col-12 col-xxl-6">
             <div class="card card-h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
@@ -86,18 +86,29 @@
                 </div>
             </div>
         </div>
-        <!-- OpenAI API Usage Widget -->
-        <div class="col">
+        <!-- Total Pharmacies Widget -->
+        <div class="col-12 col-xxl-6">
             <div class="card card-h-100">
-                <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
-                    <div class="mb-3">
-                        <i class="text-muted fs-48 svg-sw-10" data-lucide="clock"></i>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="text-uppercase">Total Pharmacies</h5>
+                        </div>
+                        <div>
+                            <i class="text-muted fs-24 svg-sw-10" data-lucide="building-2"></i>
+                        </div>
                     </div>
-                    <h5 class="text-uppercase text-muted mb-2">Coming Soon</h5>
-                    <p class="text-muted mb-0">New features and analytics are being developed</p>
+                    <div dir="ltr">
+                        <div class="mt-3" style="height: 300px;">
+                            <canvas id="totalPharmaciesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    <span>Total pharmacies: <strong><span id="totalPharmaciesCurrentTotal">Loading...</span></strong>. Added this month: <strong><span id="totalPharmaciesCurrentMonthNew">Loading...</span></strong></span>
                 </div>
             </div>
-            
+
             <!-- Hidden OpenAI API Usage Widget - Keep for future use -->
             <div class="card card-h-100" style="display: none;">
                 <div class="card-body">

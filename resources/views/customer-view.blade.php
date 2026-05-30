@@ -116,6 +116,32 @@
                     </div>
                 </div>
 
+                <div class="card mb-4" id="pharmacyStaffCard" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Pharmacy Staff</h5>
+                        <p class="text-muted mb-0 mt-1" id="selectedPharmacyLabel">Select a pharmacy to view staff.</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-centered table-sm table-nowrap mb-0">
+                                <thead class="bg-light-subtle">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Pharmacies</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pharmacyStaffTable">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">Select a pharmacy to view staff</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -331,17 +357,62 @@ class CustomerViewManager {
                 }
 
                 row.innerHTML = `
-                    <td>${pharmacy.pharmacy_name}</td>
+                    <td>
+                        <button type="button" class="btn btn-link p-0 text-decoration-none pharmacy-staff-link" data-pharmacy-id="${pharmacy.id}" data-pharmacy-name="${pharmacy.pharmacy_name}">
+                            ${pharmacy.pharmacy_name}
+                        </button>
+                    </td>
                     <td>${statusBadge}</td>
                 `;
                 
                 pharmaciesTable.appendChild(row);
+            });
+
+            pharmaciesTable.querySelectorAll('.pharmacy-staff-link').forEach(link => {
+                link.addEventListener('click', (event) => {
+                    this.showPharmacyStaff(
+                        Number(event.currentTarget.dataset.pharmacyId),
+                        event.currentTarget.dataset.pharmacyName
+                    );
+                });
             });
         } else {
             const row = document.createElement('tr');
             row.innerHTML = '<td colspan="2" class="text-center text-muted">No pharmacies found</td>';
             pharmaciesTable.appendChild(row);
         }
+    }
+
+    showPharmacyStaff(pharmacyId, pharmacyName) {
+        const staffCard = document.getElementById('pharmacyStaffCard');
+        const selectedPharmacyLabel = document.getElementById('selectedPharmacyLabel');
+        const staffTable = document.getElementById('pharmacyStaffTable');
+        const staff = Array.isArray(this.customer.staff) ? this.customer.staff : [];
+
+        const filteredStaff = staff.filter(member => {
+            if (member.is_admin) {
+                return true;
+            }
+
+            return Array.isArray(member.pharmacy_ids) && member.pharmacy_ids.includes(pharmacyId);
+        });
+
+        selectedPharmacyLabel.textContent = `Showing all users for ${pharmacyName}`;
+        staffCard.style.display = 'block';
+
+        if (filteredStaff.length === 0) {
+            staffTable.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No staff found for this pharmacy</td></tr>';
+            return;
+        }
+
+        staffTable.innerHTML = filteredStaff.map(member => `
+            <tr>
+                <td>${member.name}</td>
+                <td>${member.email}</td>
+                <td>${member.role}</td>
+                <td>${member.pharmacies_display}</td>
+            </tr>
+        `).join('');
     }
 }
 

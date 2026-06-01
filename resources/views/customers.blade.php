@@ -7,6 +7,9 @@
                 <div class="card-header justify-content-between align-items-center border-dashed">
                     <h4 class="card-title mb-0">Customers Management</h4>
                     <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-success" id="openCreateCustomerModal">
+                            <i class="ti ti-plus me-1"></i> Add Customer
+                        </button>
                         <button class="btn btn-sm btn-light" id="refreshCustomers">
                             <i class="ti ti-refresh me-1"></i> Refresh
                         </button>
@@ -199,6 +202,62 @@
         </div>
     </div>
 
+    <!-- Create Customer Modal -->
+    <div class="modal fade" id="createCustomerModal" tabindex="-1" aria-labelledby="createCustomerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="createCustomerModalLabel">Add Pharmacy Customer</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="createCustomerForm">
+                    <div class="modal-body">
+                        <p class="text-muted">Creates a pharmacy admin account and sends an activation email to the superintendent.</p>
+                        <div id="createCustomerErrors" class="alert alert-danger d-none"></div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="create_name">Superintendent full name</label>
+                                <input type="text" class="form-control" id="create_name" name="name" required maxlength="255">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="create_email">Superintendent email</label>
+                                <input type="email" class="form-control" id="create_email" name="email" required maxlength="255">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="create_pharmacy_name">Organisation name</label>
+                                <input type="text" class="form-control" id="create_pharmacy_name" name="pharmacy_name" required maxlength="255">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="create_registration_number">Superintendent PSI number</label>
+                                <input type="text" class="form-control" id="create_registration_number" name="registration_number" required maxlength="50" pattern="[0-9]+">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="create_pharmacy_address">Organisation address</label>
+                                <input type="text" class="form-control" id="create_pharmacy_address" name="pharmacy_address" required maxlength="500">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="create_country_code">Country code</label>
+                                <select class="form-select" id="create_country_code" name="superintendent_country_code" required>
+                                    <option value="353" selected>+353 (IE)</option>
+                                    <option value="44">+44 (UK)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label" for="create_contact">Contact phone</label>
+                                <input type="text" class="form-control" id="create_contact" name="superintendent_contact" required maxlength="15" pattern="[1-9][0-9]{6,14}">
+                                <div class="form-text">No leading zero. Digits only.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="submitCreateCustomer">Create &amp; Send Activation Email</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 @endsection
 
 @section('scripts')
@@ -263,6 +322,17 @@ class CustomersManager {
         // Export button
         document.getElementById('exportCustomers').addEventListener('click', () => {
             this.exportCustomers();
+        });
+
+        document.getElementById('openCreateCustomerModal').addEventListener('click', () => {
+            document.getElementById('createCustomerForm').reset();
+            document.getElementById('createCustomerErrors').classList.add('d-none');
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('createCustomerModal')).show();
+        });
+
+        document.getElementById('createCustomerForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.createCustomer();
         });
 
         // Modal confirm buttons
@@ -921,6 +991,55 @@ class CustomersManager {
         } catch (error) {
             console.error('Error updating subscription status:', error);
             this.showError('There was an error changing the access.');
+        }
+    }
+
+    async createCustomer() {
+        const form = document.getElementById('createCustomerForm');
+        const submitBtn = document.getElementById('submitCreateCustomer');
+        const errorBox = document.getElementById('createCustomerErrors');
+        const payload = Object.fromEntries(new FormData(form).entries());
+
+        submitBtn.disabled = true;
+        errorBox.classList.add('d-none');
+        errorBox.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/customers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                let message = data.message || 'Failed to create customer.';
+                if (data.errors) {
+                    const details = Object.values(data.errors).flat().join('<br>');
+                    message += '<br>' + details;
+                }
+                errorBox.innerHTML = message;
+                errorBox.classList.remove('d-none');
+                return;
+            }
+
+            bootstrap.Modal.getInstance(document.getElementById('createCustomerModal')).hide();
+            this.showSuccess(data.message || 'Customer created and activation email sent.');
+            this.currentView = 'inactive';
+            this.updateURL('inactive');
+            document.getElementById('inactiveView').checked = true;
+            await this.loadCustomers();
+        } catch (error) {
+            console.error('Error creating customer:', error);
+            errorBox.textContent = 'There was an error creating the customer.';
+            errorBox.classList.remove('d-none');
+        } finally {
+            submitBtn.disabled = false;
         }
     }
 

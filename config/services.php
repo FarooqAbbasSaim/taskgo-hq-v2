@@ -39,4 +39,9 @@ return [
         'url' => env('MY_VACCINE_PORTAL_URL', 'https://myvaccineportal.taskgo.ie'),
     ],
 
+    'taskgo_crm' => [
+        'url' => env('TASKGO_CRM_URL', 'http://localhost:8000'),
+        'hq_api_token' => env('HQ_ONBOARDING_API_TOKEN'),
+    ],
+
 ];

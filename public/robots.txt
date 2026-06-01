@@ -1,2 +1,7 @@
 User-agent: *
-Disallow:
+Disallow: /login
+Disallow: /2fa
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /reset-pass
+Disallow: /new-pass

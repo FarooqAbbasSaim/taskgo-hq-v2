@@ -6,9 +6,76 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
+    /**
+     * Create a pharmacy customer via CRM HQ onboarding API.
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate(
+            $this->onboardingRules(),
+            $this->onboardingMessages()
+        );
+
+        $crmUrl = rtrim((string) config('services.taskgo_crm.url'), '/');
+        $token = (string) config('services.taskgo_crm.hq_api_token');
+
+        if ($crmUrl === '' || $token === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'CRM onboarding is not configured. Set TASKGO_CRM_URL and HQ_ONBOARDING_API_TOKEN.',
+            ], 503);
+        }
+
+        $response = Http::timeout(30)
+            ->withToken($token)
+            ->acceptJson()
+            ->post($crmUrl . '/api/hq/pharmacy-accounts', $validated);
+
+        if ($response->failed()) {
+            return response()->json([
+                'success' => false,
+                'message' => $response->json('message') ?? 'Failed to create pharmacy account.',
+                'errors' => $response->json('errors') ?? null,
+            ], $response->status());
+        }
+
+        return response()->json($response->json(), $response->status());
+    }
+
+    /**
+     * Resend onboarding activation email for an inactive customer.
+     */
+    public function resendActivation(int $id)
+    {
+        $crmUrl = rtrim((string) config('services.taskgo_crm.url'), '/');
+        $token = (string) config('services.taskgo_crm.hq_api_token');
+
+        if ($crmUrl === '' || $token === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'CRM onboarding is not configured.',
+            ], 503);
+        }
+
+        $response = Http::timeout(30)
+            ->withToken($token)
+            ->acceptJson()
+            ->post($crmUrl . '/api/hq/pharmacy-accounts/' . $id . '/resend-activation');
+
+        if ($response->failed()) {
+            return response()->json([
+                'success' => false,
+                'message' => $response->json('message') ?? 'Failed to resend activation email.',
+            ], $response->status());
+        }
+
+        return response()->json($response->json(), $response->status());
+    }
+
     /**
      * Get customers data for the customers page
      */
@@ -673,5 +740,27 @@ class CustomerController extends Controller
         return collect(explode('_', $role))
             ->map(fn ($part) => ucfirst($part))
             ->implode(' ');
+    }
+
+    private function onboardingRules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255'],
+            'pharmacy_name' => ['required', 'string', 'max:255'],
+            'pharmacy_address' => ['required', 'string', 'max:500'],
+            'registration_number' => ['required', 'string', 'max:50', 'regex:/^[0-9]+$/'],
+            'superintendent_name' => ['nullable', 'string', 'max:255'],
+            'superintendent_contact' => ['required', 'string', 'regex:/^[1-9][0-9]{6,14}$/', 'max:15'],
+            'superintendent_country_code' => ['required', 'string', Rule::in(['353', '44'])],
+        ];
+    }
+
+    private function onboardingMessages(): array
+    {
+        return [
+            'superintendent_contact.regex' => 'Phone number must start with 1-9 and contain 7-15 digits (no leading 0).',
+            'registration_number.regex' => 'PSI registration number must contain digits only.',
+        ];
     }
 }

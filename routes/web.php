@@ -75,9 +75,10 @@ Route::prefix('api/dashboard')->group(function () {
     Route::get('/openai-usage', [\App\Http\Controllers\Api\DashboardController::class, 'getOpenAIUsageData']);
 });
 
-// Customers API routes
-Route::prefix('api/customers')->group(function () {
+// Customers API routes (HQ authenticated)
+Route::middleware(['auth:hq'])->prefix('api/customers')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomersData']);
+    Route::post('/', [\App\Http\Controllers\Api\CustomerController::class, 'store']);
     Route::get('/inactive', [\App\Http\Controllers\Api\CustomerController::class, 'getInactiveCustomersData']);
     Route::get('/archived', [\App\Http\Controllers\Api\CustomerController::class, 'getArchivedCustomersData']);
     Route::get('/frozen', [\App\Http\Controllers\Api\CustomerController::class, 'getFrozenCustomersData']);
@@ -85,6 +86,7 @@ Route::prefix('api/customers')->group(function () {
     Route::post('/add-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'addPackagePlan']);
     Route::post('/update-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'updatePackagePlan']);
     Route::post('/change-subscription-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeSubscriptionStatus']);
+    Route::post('/{id}/resend-activation', [\App\Http\Controllers\Api\CustomerController::class, 'resendActivation']);
     Route::get('/{id}', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomerData']);
 });
 

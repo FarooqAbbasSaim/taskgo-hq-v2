@@ -1,5 +1,39 @@
 @extends('layouts.vertical', ['title' => 'Customers'])
 
+@section('styles')
+<style>
+    #createCustomerModal #create_country_code {
+        color: var(--bs-body-color, #111827);
+        background-color: var(--bs-body-bg, #fff);
+        font-size: 0.875rem;
+        line-height: 1.5;
+        padding: 0.5rem 1.75rem 0.5rem 0.75rem;
+        -webkit-appearance: menulist;
+        appearance: menulist;
+    }
+
+    /* Never show green valid state in this modal */
+    #createCustomerModal .form-control.is-valid,
+    #createCustomerModal .form-select.is-valid,
+    #createCustomerModal.was-validated .form-control:valid,
+    #createCustomerModal.was-validated .form-select:valid,
+    #createCustomerForm.was-validated .form-control:valid,
+    #createCustomerForm.was-validated .form-select:valid,
+    #createCustomerForm.was-validated .form-control.is-valid,
+    #createCustomerForm.was-validated .form-select.is-valid {
+        border-color: var(--bs-border-color, #d1d5db) !important;
+        background-image: none !important;
+        box-shadow: none !important;
+        padding-right: 0.75rem !important;
+    }
+
+    #createCustomerModal #create_country_code.is-valid,
+    #createCustomerModal #createCustomerForm.was-validated #create_country_code:valid {
+        padding-right: 1.75rem !important;
+    }
+</style>
+@endsection
+
 @section('content')
     <div class="row mt-4">
         <div class="col-12">
@@ -206,52 +240,78 @@
     <div class="modal fade" id="createCustomerModal" tabindex="-1" aria-labelledby="createCustomerModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title" id="createCustomerModalLabel">Add Pharmacy Customer</h4>
+                <div class="modal-header border-0 pb-0">
+                    <h4 class="modal-title" id="createCustomerModalLabel">Add New Customer</h4>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form id="createCustomerForm">
-                    <div class="modal-body">
-                        <p class="text-muted">Creates a Pharmacy Owner Account and sends an activation email to the superintendent.</p>
+                <form id="createCustomerForm" novalidate>
+                    <div class="modal-body pt-2">
                         <div id="createCustomerErrors" class="alert alert-danger d-none"></div>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label" for="create_name">Superintendent full name</label>
-                                <input type="text" class="form-control" id="create_name" name="name" required maxlength="255">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label" for="create_email">Superintendent email</label>
-                                <input type="email" class="form-control" id="create_email" name="email" required maxlength="255">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label" for="create_pharmacy_name">Organisation name</label>
-                                <input type="text" class="form-control" id="create_pharmacy_name" name="pharmacy_name" required maxlength="255">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label" for="create_registration_number">Superintendent PSI number</label>
-                                <input type="text" class="form-control" id="create_registration_number" name="registration_number" required maxlength="50" pattern="[0-9]+">
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label" for="create_pharmacy_address">Organisation address</label>
-                                <input type="text" class="form-control" id="create_pharmacy_address" name="pharmacy_address" required maxlength="500">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label" for="create_country_code">Country code</label>
-                                <select class="form-select" id="create_country_code" name="superintendent_country_code" required>
-                                    <option value="353" selected>+353 (IE)</option>
-                                    <option value="44">+44 (UK)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-8">
-                                <label class="form-label" for="create_contact">Contact phone</label>
-                                <input type="text" class="form-control" id="create_contact" name="superintendent_contact" required maxlength="15" pattern="[1-9][0-9]{6,14}">
-                                <div class="form-text">No leading zero. Digits only.</div>
+
+                        <div class="p-3 border rounded rounded-lg mb-3" style="background-color: #F7F7F7;">
+                            <h6 class="fw-semibold mb-3">Superintendent Details</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="create_first_name">First Name</label>
+                                    <input type="text" class="form-control" id="create_first_name" name="first_name" required maxlength="120" autocomplete="given-name">
+                                    <div class="invalid-feedback">First name is required.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="create_last_name">Last Name</label>
+                                    <input type="text" class="form-control" id="create_last_name" name="last_name" required maxlength="120" autocomplete="family-name">
+                                    <div class="invalid-feedback">Last name is required.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="create_email">Email Address</label>
+                                    <input type="email" class="form-control" id="create_email" name="email" required maxlength="255" autocomplete="email">
+                                    <div class="invalid-feedback">A valid email address is required.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="create_registration_number">PSI Number</label>
+                                    <input type="text" class="form-control" id="create_registration_number" name="registration_number" required maxlength="50" inputmode="numeric" pattern="[0-9]+">
+                                    <div class="invalid-feedback">PSI number must contain digits only.</div>
+                                </div>
                             </div>
                         </div>
+
+                        <div class="p-3 border rounded rounded-lg mb-3" style="background-color: #F7F7F7;">
+                            <h6 class="fw-semibold mb-3">Organisation Details</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="create_pharmacy_name">Name</label>
+                                    <input type="text" class="form-control" id="create_pharmacy_name" name="pharmacy_name" required maxlength="255">
+                                    <div class="invalid-feedback">Organisation name is required.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="create_contact">Phone</label>
+                                    <div class="input-group has-validation">
+                                        <select class="form-control flex-shrink-0" id="create_country_code" name="superintendent_country_code" required style="width: 6.5rem; min-width: 6.5rem; max-width: 6.5rem;" aria-label="Country code">
+                                            <option value="353" selected>+353</option>
+                                            <option value="44">+44</option>
+                                        </select>
+                                        <input type="tel" class="form-control" id="create_contact" name="superintendent_contact" required maxlength="15" inputmode="numeric" pattern="[1-9][0-9]{6,14}" placeholder="851234567" aria-label="Phone number">
+                                        <div class="invalid-feedback">Enter a valid phone number (no leading 0).</div>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="create_pharmacy_address">Address</label>
+                                    <input type="text" class="form-control" id="create_pharmacy_address" name="pharmacy_address" required maxlength="500">
+                                    <div class="invalid-feedback">Address is required.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="text-muted small mb-0 d-flex align-items-center gap-2">
+                            <i class="ti ti-info-circle flex-shrink-0 lh-1" aria-hidden="true"></i>
+                            <span class="lh-sm">Account activation email will be sent to set the password.</span>
+                        </p>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer border-0 pt-0">
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary" id="submitCreateCustomer">Create &amp; Send Activation Email</button>
+                        <button type="submit" class="btn btn-primary" id="submitCreateCustomer">
+                            <span class="btn-label">Submit</span>
+                            <span class="spinner-border spinner-border-sm d-none ms-1" role="status" aria-hidden="true" id="submitCreateCustomerSpinner"></span>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -325,9 +385,18 @@ class CustomersManager {
         });
 
         document.getElementById('openCreateCustomerModal').addEventListener('click', () => {
-            document.getElementById('createCustomerForm').reset();
+            const form = document.getElementById('createCustomerForm');
+            form.reset();
+            this.clearCreateCustomerFieldValidation(form);
             document.getElementById('createCustomerErrors').classList.add('d-none');
+            document.getElementById('createCustomerErrors').innerHTML = '';
             bootstrap.Modal.getOrCreateInstance(document.getElementById('createCustomerModal')).show();
+        });
+
+        document.getElementById('createCustomerForm').querySelectorAll('input, select').forEach((field) => {
+            const clearInvalid = () => field.classList.remove('is-invalid');
+            field.addEventListener('input', clearInvalid);
+            field.addEventListener('change', clearInvalid);
         });
 
         document.getElementById('createCustomerForm').addEventListener('submit', (e) => {
@@ -584,6 +653,15 @@ class CustomersManager {
     // Get action buttons based on current view and customer status
     getActionButtons(customer) {
         let menuItems = '';
+
+        if (this.currentView === 'inactive' && !customer.email_verified) {
+            menuItems += `
+                <li><a class="dropdown-item" href="#" onclick="customersManager.handleResendActivation(${customer.id}, ${JSON.stringify(customer.name)}); return false;">
+                    <i class="ti ti-mail-forward me-2"></i>Resend activation link
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+            `;
+        }
         
         // If viewing archived customers, only show unarchive option
         if (this.currentView === 'archived') {
@@ -645,6 +723,34 @@ class CustomersManager {
         `;
         
         return menuItems;
+    }
+
+    async handleResendActivation(customerId, customerName) {
+        if (!confirm(`Resend activation email to ${customerName}?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/customers/${customerId}/resend-activation`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                this.showSuccess(data.message || 'Activation email resent.');
+                return;
+            }
+
+            this.showError(data.message || 'Failed to resend activation email.');
+        } catch (error) {
+            console.error('Error resending activation email:', error);
+            this.showError('Failed to resend activation email. Please try again.');
+        }
     }
 
     // Handle freeze/unfreeze button click
@@ -994,15 +1100,97 @@ class CustomersManager {
         }
     }
 
+    clearCreateCustomerFieldValidation(form) {
+        form.classList.remove('was-validated');
+        form.querySelectorAll('.is-invalid').forEach((el) => el.classList.remove('is-invalid'));
+    }
+
+    setCreateCustomerFieldInvalid(form, selector, isInvalid) {
+        const field = form.querySelector(selector);
+        if (!field) {
+            return;
+        }
+        field.classList.toggle('is-invalid', isInvalid);
+    }
+
+    validateCreateCustomerForm(form) {
+        this.clearCreateCustomerFieldValidation(form);
+
+        const firstName = form.querySelector('#create_first_name').value.trim();
+        const lastName = form.querySelector('#create_last_name').value.trim();
+        const email = form.querySelector('#create_email').value.trim();
+        const psi = form.querySelector('#create_registration_number').value.trim();
+        const phone = form.querySelector('#create_contact').value.trim().replace(/\s+/g, '');
+
+        let valid = true;
+
+        if (!firstName) {
+            this.setCreateCustomerFieldInvalid(form, '#create_first_name', true);
+            valid = false;
+        }
+        if (!lastName) {
+            this.setCreateCustomerFieldInvalid(form, '#create_last_name', true);
+            valid = false;
+        }
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            this.setCreateCustomerFieldInvalid(form, '#create_email', true);
+            valid = false;
+        }
+        if (!psi || !/^[0-9]+$/.test(psi)) {
+            this.setCreateCustomerFieldInvalid(form, '#create_registration_number', true);
+            valid = false;
+        }
+        if (!phone || !/^[1-9][0-9]{6,14}$/.test(phone)) {
+            this.setCreateCustomerFieldInvalid(form, '#create_contact', true);
+            valid = false;
+        }
+
+        return valid;
+    }
+
+    buildCreateCustomerPayload(form) {
+        const firstName = form.querySelector('#create_first_name').value.trim();
+        const lastName = form.querySelector('#create_last_name').value.trim();
+        const phone = form.querySelector('#create_contact').value.trim().replace(/\s+/g, '');
+
+        return {
+            name: `${firstName} ${lastName}`.replace(/\s+/g, ' ').trim(),
+            email: form.querySelector('#create_email').value.trim().toLowerCase(),
+            pharmacy_name: form.querySelector('#create_pharmacy_name').value.trim(),
+            pharmacy_address: form.querySelector('#create_pharmacy_address').value.trim(),
+            registration_number: form.querySelector('#create_registration_number').value.trim(),
+            superintendent_country_code: form.querySelector('#create_country_code').value,
+            superintendent_contact: phone,
+        };
+    }
+
+    setCreateCustomerSubmitLoading(isLoading) {
+        const submitBtn = document.getElementById('submitCreateCustomer');
+        const spinner = document.getElementById('submitCreateCustomerSpinner');
+        const label = submitBtn.querySelector('.btn-label');
+
+        submitBtn.disabled = isLoading;
+        if (spinner) {
+            spinner.classList.toggle('d-none', !isLoading);
+        }
+        if (label) {
+            label.textContent = isLoading ? 'Submitting...' : 'Submit';
+        }
+    }
+
     async createCustomer() {
         const form = document.getElementById('createCustomerForm');
-        const submitBtn = document.getElementById('submitCreateCustomer');
         const errorBox = document.getElementById('createCustomerErrors');
-        const payload = Object.fromEntries(new FormData(form).entries());
 
-        submitBtn.disabled = true;
         errorBox.classList.add('d-none');
         errorBox.innerHTML = '';
+
+        if (!this.validateCreateCustomerForm(form)) {
+            return;
+        }
+
+        const payload = this.buildCreateCustomerPayload(form);
+        this.setCreateCustomerSubmitLoading(true);
 
         try {
             const response = await fetch('/api/customers', {
@@ -1023,7 +1211,6 @@ class CustomersManager {
                     const details = Object.values(data.errors).flat().join('<br>');
                     const normalizedMessage = String(message || '').trim();
                     const normalizedDetails = String(details || '').trim();
-                    // Avoid showing the same message twice when both message and errors contain it.
                     if (normalizedDetails && normalizedDetails !== normalizedMessage) {
                         message = normalizedDetails;
                     }
@@ -1044,7 +1231,7 @@ class CustomersManager {
             errorBox.textContent = 'There was an error creating the customer.';
             errorBox.classList.remove('d-none');
         } finally {
-            submitBtn.disabled = false;
+            this.setCreateCustomerSubmitLoading(false);
         }
     }
 

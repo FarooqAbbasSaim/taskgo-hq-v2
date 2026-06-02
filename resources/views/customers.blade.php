@@ -1021,7 +1021,12 @@ class CustomersManager {
                 let message = data.message || 'Failed to create customer.';
                 if (data.errors) {
                     const details = Object.values(data.errors).flat().join('<br>');
-                    message += '<br>' + details;
+                    const normalizedMessage = String(message || '').trim();
+                    const normalizedDetails = String(details || '').trim();
+                    // Avoid showing the same message twice when both message and errors contain it.
+                    if (normalizedDetails && normalizedDetails !== normalizedMessage) {
+                        message = normalizedDetails;
+                    }
                 }
                 errorBox.innerHTML = message;
                 errorBox.classList.remove('d-none');

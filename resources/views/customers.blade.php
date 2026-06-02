@@ -212,7 +212,7 @@
                 </div>
                 <form id="createCustomerForm">
                     <div class="modal-body">
-                        <p class="text-muted">Creates a pharmacy admin account and sends an activation email to the superintendent.</p>
+                        <p class="text-muted">Creates a Pharmacy Owner Account and sends an activation email to the superintendent.</p>
                         <div id="createCustomerErrors" class="alert alert-danger d-none"></div>
                         <div class="row g-3">
                             <div class="col-md-6">

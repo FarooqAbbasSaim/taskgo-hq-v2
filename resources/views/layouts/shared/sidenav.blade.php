@@ -46,12 +46,14 @@
                 </a>
             </li>
 
-            <li class="side-nav-item">
-                <a href="{{ route('admin.corporate-registrations') }}" class="side-nav-link">
-                    <span class="menu-icon"><i data-lucide="building-2"></i></span>
-                    <span class="menu-text">Corporate Registrations</span>
-                </a>
-            </li>
+            @if(config('features.corporate_registrations'))
+                <li class="side-nav-item">
+                    <a href="{{ route('admin.corporate-registrations') }}" class="side-nav-link">
+                        <span class="menu-icon"><i data-lucide="building-2"></i></span>
+                        <span class="menu-text">Corporate Registrations</span>
+                    </a>
+                </li>
+            @endif
 
             <li class="side-nav-item">
                 <a href="{{ route('admin.system-settings') }}" class="side-nav-link">
@@ -59,6 +61,15 @@
                     <span class="menu-text">System Settings</span>
                 </a>
             </li>
+
+            @if(config('features.disposable_email_audit_logs'))
+            <li class="side-nav-item">
+                <a href="{{ route('admin.disposable-email-audit-logs') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="shield-alert"></i></span>
+                    <span class="menu-text">Disposable Email Logs</span>
+                </a>
+            </li>
+            @endif
 
             @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">

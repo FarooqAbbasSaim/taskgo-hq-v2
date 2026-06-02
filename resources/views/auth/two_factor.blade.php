@@ -86,7 +86,7 @@
                         </div>
                     </div>
                     <p class="text-center text-muted mt-4 mb-0">
-                        © 2025 Taskgo HQ
+                        © {{ now()->year }} Taskgo HQ
                     </p>
                 </div>
             </div>

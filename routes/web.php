@@ -6,6 +6,7 @@ use App\Http\Controllers\RoutingController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\CorporateRegistrationsController;
+use App\Http\Controllers\Admin\DisposableEmailAuditLogsController;
 
 // Test route
 Route::get('/test', function () {
@@ -75,9 +76,10 @@ Route::prefix('api/dashboard')->group(function () {
     Route::get('/openai-usage', [\App\Http\Controllers\Api\DashboardController::class, 'getOpenAIUsageData']);
 });
 
-// Customers API routes
-Route::prefix('api/customers')->group(function () {
+// Customers API routes (HQ authenticated)
+Route::middleware(['auth:hq'])->prefix('api/customers')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomersData']);
+    Route::post('/', [\App\Http\Controllers\Api\CustomerController::class, 'store']);
     Route::get('/inactive', [\App\Http\Controllers\Api\CustomerController::class, 'getInactiveCustomersData']);
     Route::get('/archived', [\App\Http\Controllers\Api\CustomerController::class, 'getArchivedCustomersData']);
     Route::get('/frozen', [\App\Http\Controllers\Api\CustomerController::class, 'getFrozenCustomersData']);
@@ -85,6 +87,7 @@ Route::prefix('api/customers')->group(function () {
     Route::post('/add-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'addPackagePlan']);
     Route::post('/update-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'updatePackagePlan']);
     Route::post('/change-subscription-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeSubscriptionStatus']);
+    Route::post('/{id}/resend-activation', [\App\Http\Controllers\Api\CustomerController::class, 'resendActivation']);
     Route::get('/{id}', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomerData']);
 });
 
@@ -176,6 +179,9 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
 
     Route::get('/corporate-registrations', [CorporateRegistrationsController::class, 'index'])->name('admin.corporate-registrations');
     Route::post('/corporate-registrations/{id}/approve', [CorporateRegistrationsController::class, 'approve'])->name('admin.corporate-registrations.approve');
+
+    Route::get('/disposable-email-audit-logs', [DisposableEmailAuditLogsController::class, 'index'])
+        ->name('admin.disposable-email-audit-logs');
 });
 
 // Protected dynamic routes for new UI pages (fallback)

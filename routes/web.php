@@ -6,6 +6,7 @@ use App\Http\Controllers\RoutingController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\CorporateRegistrationsController;
+use App\Http\Controllers\Admin\DisposableEmailAuditLogsController;
 
 // Test route
 Route::get('/test', function () {
@@ -178,6 +179,9 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
 
     Route::get('/corporate-registrations', [CorporateRegistrationsController::class, 'index'])->name('admin.corporate-registrations');
     Route::post('/corporate-registrations/{id}/approve', [CorporateRegistrationsController::class, 'approve'])->name('admin.corporate-registrations.approve');
+
+    Route::get('/disposable-email-audit-logs', [DisposableEmailAuditLogsController::class, 'index'])
+        ->name('admin.disposable-email-audit-logs');
 });
 
 // Protected dynamic routes for new UI pages (fallback)

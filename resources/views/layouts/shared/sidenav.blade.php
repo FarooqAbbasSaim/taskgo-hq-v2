@@ -60,6 +60,15 @@
                 </a>
             </li>
 
+            @if(config('features.disposable_email_audit_logs'))
+            <li class="side-nav-item">
+                <a href="{{ route('admin.disposable-email-audit-logs') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="shield-alert"></i></span>
+                    <span class="menu-text">Disposable Email Logs</span>
+                </a>
+            </li>
+            @endif
+
             @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a href="{{ route('second', ['ton', 'ton-ai'])}}" class="side-nav-link">

@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\CorporateRegistrationsController;
 use App\Http\Controllers\Admin\DisposableEmailAuditLogsController;
+use App\Http\Controllers\Admin\PatientAuthEventsController;
 
 // Test route
 Route::get('/test', function () {
@@ -182,6 +183,9 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
 
     Route::get('/disposable-email-audit-logs', [DisposableEmailAuditLogsController::class, 'index'])
         ->name('admin.disposable-email-audit-logs');
+
+    Route::get('/patient-auth-events', [PatientAuthEventsController::class, 'index'])
+        ->name('admin.patient-auth-events');
 });
 
 // Protected dynamic routes for new UI pages (fallback)

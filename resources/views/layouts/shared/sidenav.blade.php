@@ -71,6 +71,15 @@
             </li>
             @endif
 
+            @if(config('features.patient_auth_events_log'))
+            <li class="side-nav-item">
+                <a href="{{ route('admin.patient-auth-events') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="shield-check"></i></span>
+                    <span class="menu-text">Patient Auth Logs</span>
+                </a>
+            </li>
+            @endif
+
             @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a href="{{ route('second', ['ton', 'ton-ai'])}}" class="side-nav-link">

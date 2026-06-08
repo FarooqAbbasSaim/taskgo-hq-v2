@@ -4,89 +4,132 @@ namespace App\Services;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class PlatformInsightsService
 {
-    /** @return array<int, array{rank: int, name: string, order_lines: int, orders: int}> */
+    /** @return array{data: array<int, array<string, mixed>>, error: string|null} */
     public function topMedications(int $limit = 5): array
     {
         if (! Schema::hasTable('order_medicines') || ! Schema::hasTable('rx_orders')) {
-            return [];
+            return ['data' => [], 'error' => null];
         }
 
-        $rows = DB::table('order_medicines as om')
-            ->join('rx_orders as o', 'o.id', '=', 'om.order_id')
-            ->leftJoin('pharmacy_medications as pm', 'pm.id', '=', 'om.pharmacy_medication_id')
-            ->whereNotIn('o.status', ['reject'])
-            ->selectRaw('COALESCE(NULLIF(TRIM(pm.name), ""), NULLIF(TRIM(om.name), ""), "Unknown") as medication_name')
-            ->selectRaw('COUNT(*) as order_lines')
-            ->selectRaw('COUNT(DISTINCT om.order_id) as orders')
-            ->groupBy(DB::raw('COALESCE(NULLIF(TRIM(pm.name), ""), NULLIF(TRIM(om.name), ""), "Unknown")'))
-            ->orderByDesc('order_lines')
-            ->limit($limit)
-            ->get();
+        try {
+            $medicationNameSql = "COALESCE(NULLIF(TRIM(pm.name), ''), NULLIF(TRIM(om.name), ''), 'Unknown')";
 
-        return $this->rankRows($rows, 'medication_name', [
-            'order_lines' => 'order_lines',
-            'orders' => 'orders',
-        ]);
+            $rows = DB::table('order_medicines as om')
+                ->join('rx_orders as o', 'o.id', '=', 'om.order_id')
+                ->leftJoin('pharmacy_medications as pm', 'pm.id', '=', 'om.pharmacy_medication_id')
+                ->whereNotIn('o.status', ['reject'])
+                ->selectRaw("{$medicationNameSql} as medication_name")
+                ->selectRaw('COUNT(*) as order_lines')
+                ->selectRaw('COUNT(DISTINCT om.order_id) as orders')
+                ->groupByRaw($medicationNameSql)
+                ->orderByRaw('COUNT(*) DESC')
+                ->limit($limit)
+                ->get();
+
+            return [
+                'data' => $this->rankRows($rows, 'medication_name', [
+                    'order_lines' => 'order_lines',
+                    'orders' => 'orders',
+                ]),
+                'error' => null,
+            ];
+        } catch (Throwable $e) {
+            Log::error('PlatformInsightsService::topMedications failed', ['exception' => $e->getMessage()]);
+
+            return ['data' => [], 'error' => 'Could not load medication rankings.'];
+        }
     }
 
-    /** @return array<int, array{rank: int, name: string, type: string|null, bookings: int}> */
+    /** @return array{data: array<int, array<string, mixed>>, error: string|null} */
     public function topServices(int $limit = 5): array
     {
         if (! Schema::hasTable('appointments') || ! Schema::hasTable('services')) {
-            return [];
+            return ['data' => [], 'error' => null];
         }
 
-        $rows = DB::table('appointments as a')
-            ->join('services as s', 's.id', '=', 'a.service_id')
-            ->where('a.status', '!=', 'cancelled')
-            ->select([
-                's.id',
-                's.name',
-                's.type',
-                DB::raw('COUNT(*) as bookings'),
-            ])
-            ->groupBy('s.id', 's.name', 's.type')
-            ->orderByDesc('bookings')
-            ->limit($limit)
-            ->get();
+        try {
+            $rows = DB::table('appointments as a')
+                ->join('services as s', 's.id', '=', 'a.service_id')
+                ->where('a.status', '!=', 'cancelled')
+                ->select([
+                    's.id',
+                    's.name',
+                    's.type',
+                    DB::raw('COUNT(*) as bookings'),
+                ])
+                ->groupBy('s.id', 's.name', 's.type')
+                ->orderByRaw('COUNT(*) DESC')
+                ->limit($limit)
+                ->get();
 
-        return $this->rankRows($rows, 'name', [
-            'type' => 'type',
-            'bookings' => 'bookings',
-        ]);
+            return [
+                'data' => $this->rankRows($rows, 'name', [
+                    'type' => 'type',
+                    'bookings' => 'bookings',
+                ]),
+                'error' => null,
+            ];
+        } catch (Throwable $e) {
+            Log::error('PlatformInsightsService::topServices failed', ['exception' => $e->getMessage()]);
+
+            return ['data' => [], 'error' => 'Could not load service rankings.'];
+        }
     }
 
-    public function ccsBookingsTotal(): ?int
+    /** @return array{value: int|null, error: string|null} */
+    public function ccsBookingsTotal(): array
     {
         if (! Schema::hasTable('appointments') || ! Schema::hasTable('services')) {
-            return null;
+            return ['value' => null, 'error' => null];
         }
 
-        return (int) DB::table('appointments as a')
-            ->join('services as s', 's.id', '=', 'a.service_id')
-            ->where('s.type', 'ccs')
-            ->where('a.status', '!=', 'cancelled')
-            ->count();
+        try {
+            return [
+                'value' => (int) DB::table('appointments as a')
+                    ->join('services as s', 's.id', '=', 'a.service_id')
+                    ->where('s.type', 'ccs')
+                    ->where('a.status', '!=', 'cancelled')
+                    ->count(),
+                'error' => null,
+            ];
+        } catch (Throwable $e) {
+            Log::error('PlatformInsightsService::ccsBookingsTotal failed', ['exception' => $e->getMessage()]);
+
+            return ['value' => null, 'error' => 'Could not load CCS booking total.'];
+        }
     }
 
-    public function dispensingErrorLogsTotal(): ?int
+    /** @return array{value: int|null, error: string|null} */
+    public function dispensingErrorLogsTotal(): array
     {
         if (! Schema::hasTable('dispensing_error_logs')) {
-            return null;
+            return ['value' => null, 'error' => null];
         }
 
-        return (int) DB::table('dispensing_error_logs')->count();
+        try {
+            return [
+                'value' => (int) DB::table('dispensing_error_logs')->count(),
+                'error' => null,
+            ];
+        } catch (Throwable $e) {
+            Log::error('PlatformInsightsService::dispensingErrorLogsTotal failed', ['exception' => $e->getMessage()]);
+
+            return ['value' => null, 'error' => 'Could not load dispensing error log total.'];
+        }
     }
 
     /**
      * @return array{
      *     total: int|null,
      *     breakdown: array<int, array{label: string, count: int}>,
-     *     note: string|null
+     *     note: string|null,
+     *     error: string|null
      * }
      */
     public function whatsAppMessagesTotal(): array
@@ -94,31 +137,42 @@ class PlatformInsightsService
         $breakdown = [];
         $total = 0;
         $hasAnySource = false;
+        $errors = [];
 
         if (Schema::hasTable('rx_supplement_recommendation_cycles')) {
-            $count = (int) DB::table('rx_supplement_recommendation_cycles')
-                ->whereNotNull('whatsapp_sent_at')
-                ->count();
-            $breakdown[] = [
-                'label' => 'Supplement recommendation follow-ups',
-                'count' => $count,
-            ];
-            $total += $count;
-            $hasAnySource = true;
+            try {
+                $count = (int) DB::table('rx_supplement_recommendation_cycles')
+                    ->whereNotNull('whatsapp_sent_at')
+                    ->count();
+                $breakdown[] = [
+                    'label' => 'Supplement recommendation follow-ups',
+                    'count' => $count,
+                ];
+                $total += $count;
+                $hasAnySource = true;
+            } catch (Throwable $e) {
+                Log::error('PlatformInsightsService::whatsAppMessagesTotal supplement failed', ['exception' => $e->getMessage()]);
+                $errors[] = 'Supplement WhatsApp count unavailable.';
+            }
         }
 
         if (Schema::hasTable('patient_auth_events')) {
-            $count = (int) DB::table('patient_auth_events')
-                ->where('channel', 'whatsapp')
-                ->whereIn('action', ['otp_sent', 'otp_resent'])
-                ->where('result', 'success')
-                ->count();
-            $breakdown[] = [
-                'label' => 'Login OTP (My Pharmacy Portal)',
-                'count' => $count,
-            ];
-            $total += $count;
-            $hasAnySource = true;
+            try {
+                $count = (int) DB::table('patient_auth_events')
+                    ->where('channel', 'whatsapp')
+                    ->whereIn('action', ['otp_sent', 'otp_resent'])
+                    ->where('result', 'success')
+                    ->count();
+                $breakdown[] = [
+                    'label' => 'Login OTP (My Pharmacy Portal)',
+                    'count' => $count,
+                ];
+                $total += $count;
+                $hasAnySource = true;
+            } catch (Throwable $e) {
+                Log::error('PlatformInsightsService::whatsAppMessagesTotal otp failed', ['exception' => $e->getMessage()]);
+                $errors[] = 'Login OTP WhatsApp count unavailable.';
+            }
         }
 
         if (! $hasAnySource) {
@@ -126,6 +180,7 @@ class PlatformInsightsService
                 'total' => null,
                 'breakdown' => [],
                 'note' => 'No WhatsApp tracking tables are available in this database.',
+                'error' => null,
             ];
         }
 
@@ -133,6 +188,7 @@ class PlatformInsightsService
             'total' => $total,
             'breakdown' => $breakdown,
             'note' => 'Order status and refill WhatsApp alerts are not stored in the database; this total covers tracked outbound messages only.',
+            'error' => $errors !== [] ? implode(' ', $errors) : null,
         ];
     }
 
@@ -141,12 +197,31 @@ class PlatformInsightsService
      */
     public function snapshot(): array
     {
+        $medications = $this->topMedications();
+        $services = $this->topServices();
+        $ccs = $this->ccsBookingsTotal();
+        $dispensing = $this->dispensingErrorLogsTotal();
+        $whatsapp = $this->whatsAppMessagesTotal();
+
+        $errors = array_values(array_filter([
+            $medications['error'],
+            $services['error'],
+            $ccs['error'],
+            $dispensing['error'],
+            $whatsapp['error'],
+        ]));
+
         return [
-            'top_medications' => $this->topMedications(),
-            'top_services' => $this->topServices(),
-            'ccs_bookings_total' => $this->ccsBookingsTotal(),
-            'dispensing_error_logs_total' => $this->dispensingErrorLogsTotal(),
-            'whatsapp' => $this->whatsAppMessagesTotal(),
+            'top_medications' => $medications['data'],
+            'top_services' => $services['data'],
+            'ccs_bookings_total' => $ccs['value'],
+            'dispensing_error_logs_total' => $dispensing['value'],
+            'whatsapp' => [
+                'total' => $whatsapp['total'],
+                'breakdown' => $whatsapp['breakdown'],
+                'note' => $whatsapp['note'],
+            ],
+            'errors' => $errors,
             'generated_at' => now()->format('M j, Y g:i A'),
         ];
     }

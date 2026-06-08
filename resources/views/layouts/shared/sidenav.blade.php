@@ -71,6 +71,15 @@
             </li>
             @endif
 
+            @if(config('features.platform_insights'))
+            <li class="side-nav-item">
+                <a href="{{ route('admin.platform-insights') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="bar-chart-3"></i></span>
+                    <span class="menu-text">Platform Insights</span>
+                </a>
+            </li>
+            @endif
+
             @if(config('features.patient_auth_events_log'))
             <li class="side-nav-item">
                 <a href="{{ route('admin.patient-auth-events') }}" class="side-nav-link">

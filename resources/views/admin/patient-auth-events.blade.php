@@ -6,7 +6,7 @@
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <div>
                     <h4 class="mb-0">Patient Auth Logs</h4>
-                    <div class="text-muted small">My Pharmacy Portal login and 2FA events (password, OTP, verify access).</div>
+                    <div class="text-muted small">My Pharmacy Portal login, 2FA, and account activation events.</div>
                 </div>
             </div>
 
@@ -26,7 +26,7 @@
                             <select name="action" class="form-select">
                                 <option value="">All</option>
                                 @php $action = $filters['action'] ?? '' @endphp
-                                @foreach(['login_password_ok', 'login_failed', 'otp_sent', 'otp_resent', 'otp_verified', 'otp_verify_failed', 'verify_access_denied'] as $opt)
+                                @foreach(['login_password_ok', 'login_failed', 'login_blocked_inactive', 'activation_sent', 'activation_resend', 'activation_completed', 'activation_failed', 'otp_sent', 'otp_resent', 'otp_verified', 'otp_verify_failed', 'verify_access_denied'] as $opt)
                                     <option value="{{ $opt }}" {{ $action === $opt ? 'selected' : '' }}>{{ $opt }}</option>
                                 @endforeach
                             </select>

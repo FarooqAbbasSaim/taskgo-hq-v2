@@ -17,17 +17,20 @@ class PlatformInsightsService
             return ['data' => [], 'error' => null];
         }
 
-        try {
-            $medicationNameSql = "COALESCE(NULLIF(TRIM(pm.name), ''), NULLIF(TRIM(om.name), ''), 'Unknown')";
+        if (! Schema::hasColumn('order_medicines', 'name')) {
+            return ['data' => [], 'error' => 'Medication name column is unavailable in this database.'];
+        }
 
+        try {
             $rows = DB::table('order_medicines as om')
                 ->join('rx_orders as o', 'o.id', '=', 'om.order_id')
-                ->leftJoin('pharmacy_medications as pm', 'pm.id', '=', 'om.pharmacy_medication_id')
                 ->whereNotIn('o.status', ['reject'])
-                ->selectRaw("{$medicationNameSql} as medication_name")
+                ->whereNotNull('om.name')
+                ->where('om.name', '!=', '')
+                ->selectRaw('TRIM(om.name) as medication_name')
                 ->selectRaw('COUNT(*) as order_lines')
                 ->selectRaw('COUNT(DISTINCT om.order_id) as orders')
-                ->groupByRaw($medicationNameSql)
+                ->groupByRaw('TRIM(om.name)')
                 ->orderByRaw('COUNT(*) DESC')
                 ->limit($limit)
                 ->get();

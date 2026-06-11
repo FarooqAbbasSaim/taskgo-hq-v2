@@ -190,6 +190,8 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
 
     Route::get('/platform-insights', [PlatformInsightsController::class, 'index'])
         ->name('admin.platform-insights');
+    Route::get('/platform-insights/medication-orders', [PlatformInsightsController::class, 'medicationOrders'])
+        ->name('admin.platform-insights.medication-orders');
 });
 
 // Protected dynamic routes for new UI pages (fallback)

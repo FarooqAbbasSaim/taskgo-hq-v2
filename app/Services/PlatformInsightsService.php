@@ -196,6 +196,103 @@ class PlatformInsightsService
     }
 
     /**
+     * @return array{data: array<int, array<string, mixed>>, total: int, page: int, per_page: int, error: string|null}
+     */
+    public function ordersForMedication(string $medicationName, int $page = 1, int $perPage = 25): array
+    {
+        $medicationName = trim($medicationName);
+        $page = max(1, $page);
+        $perPage = min(100, max(1, $perPage));
+
+        if ($medicationName === '') {
+            return ['data' => [], 'total' => 0, 'page' => $page, 'per_page' => $perPage, 'error' => 'Medication name is required.'];
+        }
+
+        if (! Schema::hasTable('order_medicines') || ! Schema::hasTable('rx_orders')) {
+            return ['data' => [], 'total' => 0, 'page' => $page, 'per_page' => $perPage, 'error' => null];
+        }
+
+        try {
+            $base = DB::table('order_medicines as om')
+                ->join('rx_orders as o', 'o.id', '=', 'om.order_id')
+                ->whereNotIn('o.status', ['reject'])
+                ->whereNotNull('om.name')
+                ->whereRaw('TRIM(om.name) = ?', [$medicationName]);
+
+            $total = (int) (clone $base)->distinct()->count('o.id');
+
+            $orderIds = (clone $base)
+                ->select('o.id')
+                ->distinct()
+                ->orderByDesc('o.id')
+                ->forPage($page, $perPage)
+                ->pluck('o.id');
+
+            if ($orderIds->isEmpty()) {
+                return ['data' => [], 'total' => $total, 'page' => $page, 'per_page' => $perPage, 'error' => null];
+            }
+
+            $rows = DB::table('rx_orders as o')
+                ->leftJoin('rx_users as u', 'u.id', '=', 'o.user_id')
+                ->leftJoin('pharmacies as p', 'p.id', '=', 'o.nominated_pharmacy_id')
+                ->whereIn('o.id', $orderIds->all())
+                ->select([
+                    'o.id',
+                    'o.created_at',
+                    'o.status',
+                    'o.collection_method',
+                    DB::raw("COALESCE(p.pharmacy_name, o.nominated_pharmacy, '—') as pharmacy_name"),
+                    DB::raw("TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) as patient_name"),
+                    'u.email as patient_email',
+                ])
+                ->orderByDesc('o.created_at')
+                ->get();
+
+            $quantities = DB::table('order_medicines')
+                ->select('order_id', DB::raw('SUM(quantity) as qty'))
+                ->whereIn('order_id', $orderIds->all())
+                ->whereRaw('TRIM(name) = ?', [$medicationName])
+                ->groupBy('order_id')
+                ->pluck('qty', 'order_id');
+
+            $data = $rows->map(function ($row) use ($quantities) {
+                return [
+                    'id' => (int) $row->id,
+                    'order_no' => 'RX-' . $row->id,
+                    'created_at' => $row->created_at ? (string) $row->created_at : null,
+                    'status' => ucfirst((string) ($row->status ?? '')),
+                    'collection_method' => $row->collection_method ?: '—',
+                    'pharmacy_name' => $row->pharmacy_name ?: '—',
+                    'patient_name' => trim((string) ($row->patient_name ?? '')) ?: '—',
+                    'patient_email' => $row->patient_email ?: '—',
+                    'quantity' => (int) ($quantities[$row->id] ?? 0),
+                ];
+            })->values()->all();
+
+            return [
+                'data' => $data,
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'error' => null,
+            ];
+        } catch (Throwable $e) {
+            Log::error('PlatformInsightsService::ordersForMedication failed', [
+                'medication' => $medicationName,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return [
+                'data' => [],
+                'total' => 0,
+                'page' => $page,
+                'per_page' => $perPage,
+                'error' => 'Could not load orders for this medication.',
+            ];
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function snapshot(): array

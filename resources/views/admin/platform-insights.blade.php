@@ -100,8 +100,8 @@
                                                 <td>{{ $row['rank'] }}</td>
                                                 <td>
                                                     <button type="button"
-                                                        class="btn btn-link p-0 text-start medication-orders-link"
-                                                        data-medication="{{ $row['name'] }}">
+                                                        class="btn btn-link p-0 text-start text-primary text-decoration-underline medication-orders-link"
+                                                        data-medication="{{ e($row['name']) }}">
                                                         {{ $row['name'] }}
                                                     </button>
                                                 </td>
@@ -160,8 +160,8 @@
     </div>
 
     <div class="modal fade" id="medicationOrdersModal" tabindex="-1" aria-labelledby="medicationOrdersModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border border-secondary-subtle shadow-sm">
                 <div class="modal-header">
                     <div>
                         <h5 class="modal-title mb-0" id="medicationOrdersModalLabel">Orders</h5>
@@ -204,8 +204,8 @@
     </div>
 
     <div class="modal fade" id="platformInsightOrderModal" tabindex="-1" aria-labelledby="platformInsightOrderModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border border-secondary-subtle shadow-sm">
                 <div class="modal-header">
                     <h5 class="modal-title" id="platformInsightOrderModalLabel">Order Details</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -234,10 +234,21 @@
     let currentPage = 1;
     let lastPage = 1;
 
-    const ordersModalEl = document.getElementById('medicationOrdersModal');
-    const ordersModal = ordersModalEl ? new bootstrap.Modal(ordersModalEl) : null;
-    const orderModalEl = document.getElementById('platformInsightOrderModal');
-    const orderModal = orderModalEl ? new bootstrap.Modal(orderModalEl) : null;
+    function getModal(id) {
+        if (typeof window.bootstrap === 'undefined') {
+            return null;
+        }
+        const el = document.getElementById(id);
+        return el ? window.bootstrap.Modal.getOrCreateInstance(el) : null;
+    }
+
+    function showOrdersModal() {
+        getModal('medicationOrdersModal')?.show();
+    }
+
+    function showOrderModal() {
+        getModal('platformInsightOrderModal')?.show();
+    }
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -263,7 +274,7 @@
     }
 
     async function loadMedicationOrders(page = 1) {
-        if (!currentMedication || !ordersModal) return;
+        if (!currentMedication) return;
 
         currentPage = page;
         const loading = document.getElementById('medicationOrdersLoading');
@@ -335,11 +346,11 @@
     }
 
     async function showOrderDetails(orderId) {
-        if (!orderModal) return;
-
         const body = document.getElementById('platformInsightOrderModalBody');
+        if (!body) return;
+
         body.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Loading…</div>';
-        orderModal.show();
+        showOrderModal();
 
         try {
             const response = await fetch(`/api/rx-users/orders/${orderId}`, {
@@ -397,29 +408,47 @@
         }
     }
 
-    document.querySelectorAll('.medication-orders-link').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            currentMedication = btn.getAttribute('data-medication') || '';
-            currentPage = 1;
-            ordersModal?.show();
-            loadMedicationOrders(1);
+    function bindHandlers() {
+        document.addEventListener('click', (event) => {
+            const medicationBtn = event.target.closest('.medication-orders-link');
+            if (medicationBtn) {
+                event.preventDefault();
+                currentMedication = medicationBtn.getAttribute('data-medication') || '';
+                currentPage = 1;
+                showOrdersModal();
+                loadMedicationOrders(1);
+                return;
+            }
+
+            const orderBtn = event.target.closest('.platform-insight-order-btn');
+            if (orderBtn) {
+                const orderId = orderBtn.getAttribute('data-order-id');
+                if (orderId) showOrderDetails(orderId);
+            }
         });
-    });
 
-    document.getElementById('medicationOrdersPrevBtn')?.addEventListener('click', () => {
-        if (currentPage > 1) loadMedicationOrders(currentPage - 1);
-    });
+        document.getElementById('medicationOrdersPrevBtn')?.addEventListener('click', () => {
+            if (currentPage > 1) loadMedicationOrders(currentPage - 1);
+        });
 
-    document.getElementById('medicationOrdersNextBtn')?.addEventListener('click', () => {
-        if (currentPage < lastPage) loadMedicationOrders(currentPage + 1);
-    });
+        document.getElementById('medicationOrdersNextBtn')?.addEventListener('click', () => {
+            if (currentPage < lastPage) loadMedicationOrders(currentPage + 1);
+        });
+    }
 
-    document.getElementById('medicationOrdersTableBody')?.addEventListener('click', (event) => {
-        const btn = event.target.closest('.platform-insight-order-btn');
-        if (!btn) return;
-        const orderId = btn.getAttribute('data-order-id');
-        if (orderId) showOrderDetails(orderId);
-    });
+    function initWhenReady() {
+        if (typeof window.bootstrap === 'undefined') {
+            window.setTimeout(initWhenReady, 50);
+            return;
+        }
+        bindHandlers();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initWhenReady);
+    } else {
+        initWhenReady();
+    }
 })();
 </script>
 @endsection

@@ -29,7 +29,7 @@
                         <div class="row">
                             <div class="col-md-6"><div class="mb-3"><label for="firstName" class="form-label">First Name</label><input type="text" class="form-control" id="firstName" required maxlength="50"><div class="invalid-feedback"></div></div></div>
                             <div class="col-md-6"><div class="mb-3"><label for="lastName" class="form-label">Last Name</label><input type="text" class="form-control" id="lastName" required maxlength="50"><div class="invalid-feedback"></div></div></div>
-                            <div class="col-md-6"><div class="mb-3"><label for="gender" class="form-label">Gender</label><select class="form-select" id="gender" required><option value="">Select gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select><div class="invalid-feedback"></div></div></div>
+                            <div class="col-md-6"><div class="mb-3"><label for="gender" class="form-label">Gender</label><select class="form-select" id="gender" required><option value="">Select gender</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select><div class="invalid-feedback"></div></div></div>
                             <div class="col-md-6"><div class="mb-3"><label for="dob" class="form-label">Date of Birth</label><input type="date" class="form-control" id="dob" required><div class="invalid-feedback"></div></div></div>
                             <div class="col-md-6"><div class="mb-3"><label for="email" class="form-label">Email Address</label><input type="email" class="form-control" id="email" required maxlength="100"><div class="invalid-feedback"></div></div></div>
                             <div class="col-md-6"><div class="mb-3"><label for="mobileNumber" class="form-label">Phone Number</label><input type="text" class="form-control" id="mobileNumber" required maxlength="20"><div class="invalid-feedback"></div></div></div>
@@ -344,6 +344,10 @@ class RxUserEditManager {
 
     formatFieldValue(field, value) {
         if (value === null || value === '') return 'Not Set';
+        if (field === 'gender') {
+            const labels = { male: 'Male', female: 'Female', other: 'Other' };
+            return labels[String(value).toLowerCase()] || value;
+        }
         if (['not_residing_in_ireland', 'consent_to_transfer_prescriptions', 'updates_offers', 'privacy_policy'].includes(field)) return value ? 'Yes' : 'No';
         if (field === 'nominated_pharmacy_id') {
             const pharmacy = this.pharmacies.find((item) => String(item.id) === String(value));

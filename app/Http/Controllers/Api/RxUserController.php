@@ -13,10 +13,21 @@ use Illuminate\Validation\ValidationException;
 
 class RxUserController extends Controller
 {
+    private function normalizeGender(?string $gender): ?string
+    {
+        if ($gender === null || trim($gender) === '') {
+            return null;
+        }
+
+        $normalized = strtolower(trim($gender));
+
+        return in_array($normalized, ['male', 'female', 'other'], true) ? $normalized : null;
+    }
+
     private function formatRxUserData(object $user, ?object $pharmacy = null): array
     {
         $fullName = trim($user->first_name . ' ' . $user->last_name);
-        $gender = property_exists($user, 'gender') ? $user->gender : null;
+        $gender = property_exists($user, 'gender') ? $this->normalizeGender($user->gender) : null;
         $homeAddress = property_exists($user, 'home_address') ? $user->home_address : null;
         $notResidingInIreland = property_exists($user, 'not_residing_in_ireland') ? (bool) $user->not_residing_in_ireland : false;
         $consentToTransfer = property_exists($user, 'consent_to_transfer_prescriptions') ? (bool) $user->consent_to_transfer_prescriptions : false;
@@ -230,7 +241,7 @@ class RxUserController extends Controller
             $validated = $request->validate([
                 'first_name' => ['required', 'string', 'max:50'],
                 'last_name' => ['required', 'string', 'max:50'],
-                'gender' => ['required', 'string', 'max:10'],
+                'gender' => ['required', 'string', Rule::in(['male', 'female', 'other'])],
                 'dob' => ['required', 'date', 'before_or_equal:today'],
                 'email' => ['required', 'email', 'max:100', Rule::unique('rx_users', 'email')->ignore($id)],
                 'mobile_number' => ['required', 'string', 'max:20'],
@@ -289,7 +300,7 @@ class RxUserController extends Controller
             $payload = [
                 'first_name' => trim($validated['first_name']),
                 'last_name' => trim($validated['last_name']),
-                'gender' => trim($validated['gender']),
+                'gender' => $this->normalizeGender($validated['gender']),
                 'dob' => $validated['dob'],
                 'mobile_number' => trim($validated['mobile_number']),
                 'pps_number' => filled($validated['pps_number'] ?? null) ? trim($validated['pps_number']) : null,

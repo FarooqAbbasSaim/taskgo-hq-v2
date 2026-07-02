@@ -89,6 +89,15 @@
             </li>
             @endif
 
+            @if(config('features.crm_auth_events_log'))
+            <li class="side-nav-item">
+                <a href="{{ route('admin.crm-auth-events') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="shield"></i></span>
+                    <span class="menu-text">CRM Auth Logs</span>
+                </a>
+            </li>
+            @endif
+
             @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">
                 <a href="{{ route('second', ['ton', 'ton-ai'])}}" class="side-nav-link">

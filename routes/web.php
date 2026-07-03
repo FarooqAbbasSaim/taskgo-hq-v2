@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\CorporateRegistrationsController;
 use App\Http\Controllers\Admin\DisposableEmailAuditLogsController;
+use App\Http\Controllers\Admin\CrmAuthEventsController;
 use App\Http\Controllers\Admin\PatientAuthEventsController;
 use App\Http\Controllers\Admin\PlatformInsightsController;
 
@@ -187,6 +188,9 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
 
     Route::get('/patient-auth-events', [PatientAuthEventsController::class, 'index'])
         ->name('admin.patient-auth-events');
+
+    Route::get('/crm-auth-events', [CrmAuthEventsController::class, 'index'])
+        ->name('admin.crm-auth-events');
 
     Route::get('/platform-insights', [PlatformInsightsController::class, 'index'])
         ->name('admin.platform-insights');

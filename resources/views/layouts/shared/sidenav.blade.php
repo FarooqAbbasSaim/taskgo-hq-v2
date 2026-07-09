@@ -46,6 +46,13 @@
                 </a>
             </li>
 
+            <li class="side-nav-item">
+                <a href="{{ route('admin.sop-catalog') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="file-text"></i></span>
+                    <span class="menu-text">SOP Catalog</span>
+                </a>
+            </li>
+
             @if(config('features.corporate_registrations'))
                 <li class="side-nav-item">
                     <a href="{{ route('admin.corporate-registrations') }}" class="side-nav-link">

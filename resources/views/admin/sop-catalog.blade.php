@@ -103,7 +103,7 @@
                             '</div>' +
                             '<div class="d-flex flex-wrap gap-2">' +
                                 '<button type="button" class="btn btn-sm ' + (item.is_active ? 'btn-outline-warning' : 'btn-outline-success') + ' sop-catalog-toggle" data-id="' + item.id + '" data-active="' + (item.is_active ? '0' : '1') + '">' +
-                                    (item.is_active ? 'Mark Inactive' : 'Activate') +
+                                    (item.is_active ? 'Deactivate' : 'Activate') +
                                 '</button>' +
                                 '<button type="button" class="btn btn-sm btn-outline-danger sop-catalog-delete" data-id="' + item.id + '" ' + (item.has_imports ? 'disabled title="Already imported by a pharmacy"' : '') + '>Delete</button>' +
                             '</div>' +

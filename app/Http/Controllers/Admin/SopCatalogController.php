@@ -71,6 +71,12 @@ class SopCatalogController extends Controller
     {
         $item = $this->findCatalogItem($id);
         $item->is_active = $request->boolean('is_active');
+
+        // Deactivating from HQ resets imported state so reactivation shows as fresh/white in CRM.
+        if (! $item->is_active) {
+            $item->is_imported = false;
+        }
+
         $item->save();
 
         return response()->json([
@@ -125,6 +131,7 @@ class SopCatalogController extends Controller
             'title' => $item->title,
             'original_file_name' => $item->original_file_name,
             'is_active' => (bool) $item->is_active,
+            'is_imported' => (bool) $item->is_imported,
             'added_on' => optional($item->created_at)->format('d-m-Y'),
             'has_imports' => $this->catalogItemHasImports($item->id),
         ];

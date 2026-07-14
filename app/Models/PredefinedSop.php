@@ -19,11 +19,13 @@ class PredefinedSop extends Model
         'effective_date',
         'sort_order',
         'is_active',
+        'is_imported',
     ];
 
     protected $casts = [
         'effective_date' => 'date',
         'is_active' => 'boolean',
+        'is_imported' => 'boolean',
     ];
 
     public function scopeHqCatalog($query)

@@ -7,8 +7,10 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\CorporateRegistrationsController;
 use App\Http\Controllers\Admin\DisposableEmailAuditLogsController;
+use App\Http\Controllers\Admin\CrmAuthEventsController;
 use App\Http\Controllers\Admin\PatientAuthEventsController;
 use App\Http\Controllers\Admin\PlatformInsightsController;
+use App\Http\Controllers\Admin\SopCatalogController;
 
 // Test route
 Route::get('/test', function () {
@@ -116,6 +118,13 @@ Route::get('/api/announcements', [\App\Http\Controllers\Admin\AnnouncementContro
 Route::get('/rx-users/email-change/verify/{id}/{token}', [\App\Http\Controllers\Api\RxUserController::class, 'verifyPendingEmailChange'])
     ->name('rx-users.email-change.verify');
 
+Route::middleware(['auth:hq'])->prefix('api/sop-catalog')->group(function () {
+    Route::get('/', [SopCatalogController::class, 'list']);
+    Route::post('/', [SopCatalogController::class, 'store']);
+    Route::post('/{id}/toggle-active', [SopCatalogController::class, 'toggleActive']);
+    Route::delete('/{id}', [SopCatalogController::class, 'destroy']);
+});
+
 // Root route - redirect based on authentication status
 Route::get('/', function () {
     if (Auth::guard('hq')->check()) {
@@ -143,6 +152,8 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     // Announcement routes
     Route::get('/announcements', [\App\Http\Controllers\Admin\AnnouncementController::class, 'index'])->name('admin.announcements');
     Route::put('/announcements', [\App\Http\Controllers\Admin\AnnouncementController::class, 'update'])->name('admin.announcements.update');
+
+    Route::get('/sop-catalog', [SopCatalogController::class, 'index'])->name('admin.sop-catalog');
     
     Route::get('/customers/active', function() {
         return view('customers', ['status' => 'active']);
@@ -187,6 +198,9 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
 
     Route::get('/patient-auth-events', [PatientAuthEventsController::class, 'index'])
         ->name('admin.patient-auth-events');
+
+    Route::get('/crm-auth-events', [CrmAuthEventsController::class, 'index'])
+        ->name('admin.crm-auth-events');
 
     Route::get('/platform-insights', [PlatformInsightsController::class, 'index'])
         ->name('admin.platform-insights');

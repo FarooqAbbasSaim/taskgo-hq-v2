@@ -46,6 +46,13 @@
                 </a>
             </li>
 
+            <li class="side-nav-item">
+                <a href="{{ route('admin.sop-catalog') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="file-text"></i></span>
+                    <span class="menu-text">SOP Catalog</span>
+                </a>
+            </li>
+
             @if(config('features.corporate_registrations'))
                 <li class="side-nav-item">
                     <a href="{{ route('admin.corporate-registrations') }}" class="side-nav-link">
@@ -85,6 +92,15 @@
                 <a href="{{ route('admin.patient-auth-events') }}" class="side-nav-link">
                     <span class="menu-icon"><i data-lucide="shield-check"></i></span>
                     <span class="menu-text">Patient Auth Logs</span>
+                </a>
+            </li>
+            @endif
+
+            @if(config('features.crm_auth_events_log'))
+            <li class="side-nav-item">
+                <a href="{{ route('admin.crm-auth-events') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="shield"></i></span>
+                    <span class="menu-text">CRM Auth Logs</span>
                 </a>
             </li>
             @endif

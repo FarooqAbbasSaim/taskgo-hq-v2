@@ -90,11 +90,18 @@
 
                 countNode.textContent = items.length + (items.length === 1 ? ' document' : ' documents');
                 listNode.innerHTML = items.map(function (item) {
+                    const statusBadge = item.is_active
+                        ? '<span class="badge bg-success-subtle text-success">Active</span>'
+                        : '<span class="badge bg-secondary-subtle text-secondary">Inactive</span>';
+
                     return (
-                        '<div class="border rounded p-3 mb-3 d-flex flex-wrap justify-content-between align-items-center gap-3">' +
-                            '<div>' +
-                                '<div class="fw-semibold fs-5 text-dark">' + escapeHtml(item.title) + '</div>' +
-                                '<div class="text-muted small mt-1">Added on ' + escapeHtml(item.added_on || '') + '</div>' +
+                        '<div class="border rounded px-3 py-2 mb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">' +
+                            '<div class="min-w-0">' +
+                                '<div class="d-flex flex-wrap align-items-center gap-2">' +
+                                    statusBadge +
+                                    '<div class="fw-semibold text-dark">' + escapeHtml(item.title) + '</div>' +
+                                '</div>' +
+                                '<div class="text-muted small">Added on ' + escapeHtml(item.added_on || '') + '</div>' +
                                 (item.original_file_name
                                     ? '<div class="text-muted small">' + escapeHtml(item.original_file_name) + '</div>'
                                     : '') +

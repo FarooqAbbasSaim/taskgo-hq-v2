@@ -121,7 +121,8 @@ Route::get('/rx-users/email-change/verify/{id}/{token}', [\App\Http\Controllers\
 Route::middleware(['auth:hq'])->prefix('api/sop-catalog')->group(function () {
     Route::get('/', [SopCatalogController::class, 'list']);
     Route::post('/', [SopCatalogController::class, 'store']);
-    Route::post('/{id}/toggle-active', [SopCatalogController::class, 'toggleActive']);
+    Route::get('/{id}/document', [SopCatalogController::class, 'viewDocument']);
+    Route::get('/{id}/download', [SopCatalogController::class, 'downloadDocument']);
     Route::delete('/{id}', [SopCatalogController::class, 'destroy']);
 });
 

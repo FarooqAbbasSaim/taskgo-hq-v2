@@ -98,13 +98,10 @@
                         '<div class="border rounded px-3 py-2 mb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">' +
                             '<div class="min-w-0">' +
                                 '<div class="d-flex flex-wrap align-items-center gap-2">' +
-                                    statusBadge +
                                     '<div class="fw-semibold text-dark">' + escapeHtml(item.title) + '</div>' +
+                                    statusBadge +
                                 '</div>' +
                                 '<div class="text-muted small">Added on ' + escapeHtml(item.added_on || '') + '</div>' +
-                                (item.original_file_name
-                                    ? '<div class="text-muted small">' + escapeHtml(item.original_file_name) + '</div>'
-                                    : '') +
                             '</div>' +
                             '<div class="d-flex flex-wrap gap-2">' +
                                 '<a href="' + escapeHtml(item.view_url) + '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">View</a>' +

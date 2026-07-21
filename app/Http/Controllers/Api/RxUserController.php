@@ -607,6 +607,135 @@ class RxUserController extends Controller
         }
     }
 
+    public function getRxUserStats($id)
+    {
+        try {
+            $user = DB::table('rx_users')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rx user not found',
+                ], 404);
+            }
+
+            $ordersQuery = DB::table('rx_orders')->where('user_id', $id);
+            $ordersCount = (clone $ordersQuery)->count();
+            $ordersByStatus = (clone $ordersQuery)
+                ->select('status', DB::raw('COUNT(*) as cnt'))
+                ->groupBy('status')
+                ->pluck('cnt', 'status')
+                ->toArray();
+
+            $orderIds = DB::table('rx_orders')->where('user_id', $id)->pluck('id');
+            $medicationsCount = 0;
+            if ($orderIds->isNotEmpty()) {
+                $medicationsCount = (int) DB::table('order_medicines')
+                    ->whereIn('order_id', $orderIds)
+                    ->selectRaw('COUNT(DISTINCT name) as cnt')
+                    ->value('cnt');
+            }
+
+            $bookingsQuery = DB::table('appointments')->where('user_id', $id);
+            $bookingsCount = (clone $bookingsQuery)->count();
+            $bookingsByStatus = (clone $bookingsQuery)
+                ->select('status', DB::raw('COUNT(*) as cnt'))
+                ->groupBy('status')
+                ->pluck('cnt', 'status')
+                ->toArray();
+
+            $distinctServices = (int) DB::table('appointments')
+                ->where('user_id', $id)
+                ->whereNotNull('service_id')
+                ->selectRaw('COUNT(DISTINCT service_id) as cnt')
+                ->value('cnt');
+
+            $lastOrderAt = DB::table('rx_orders')->where('user_id', $id)->max('created_at');
+            $lastBookingAt = DB::table('appointments')->where('user_id', $id)->max('created_at');
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'orders_count' => $ordersCount,
+                    'orders_by_status' => $ordersByStatus,
+                    'medications_count' => $medicationsCount,
+                    'bookings_count' => $bookingsCount,
+                    'bookings_by_status' => $bookingsByStatus,
+                    'services_used_count' => $distinctServices,
+                    'last_order_at' => $lastOrderAt,
+                    'last_booking_at' => $lastBookingAt,
+                    'member_since' => $user->created_at,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching Rx user stats: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch Rx user stats',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getRxUserMedications($id)
+    {
+        try {
+            $user = DB::table('rx_users')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rx user not found',
+                ], 404);
+            }
+
+            $orderIds = DB::table('rx_orders')->where('user_id', $id)->pluck('id');
+            if ($orderIds->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            $medications = DB::table('order_medicines')
+                ->join('rx_orders', 'rx_orders.id', '=', 'order_medicines.order_id')
+                ->whereIn('order_medicines.order_id', $orderIds)
+                ->select(
+                    'order_medicines.name',
+                    DB::raw('SUM(order_medicines.quantity) as total_quantity'),
+                    DB::raw('COUNT(*) as times_ordered'),
+                    DB::raw('MAX(rx_orders.created_at) as last_ordered_at'),
+                    DB::raw('MAX(order_medicines.repeats) as max_repeats')
+                )
+                ->groupBy('order_medicines.name')
+                ->orderByDesc('last_ordered_at')
+                ->get()
+                ->map(function ($med) {
+                    return [
+                        'name' => $med->name,
+                        'total_quantity' => (int) $med->total_quantity,
+                        'times_ordered' => (int) $med->times_ordered,
+                        'max_repeats' => $med->max_repeats,
+                        'last_ordered_at' => $med->last_ordered_at
+                            ? Carbon::parse($med->last_ordered_at)->format('j F Y')
+                            : null,
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $medications,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching Rx user medications: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch Rx user medications',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function getOrderDetails($orderId)
     {
         try {

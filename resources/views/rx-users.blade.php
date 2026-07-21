@@ -14,6 +14,15 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="ti ti-search"></i></span>
+                                <input type="text" class="form-control" id="searchRxUsers" placeholder="Search by name, email, phone, PPS, or pharmacy...">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Loading State -->
                     <div id="loadingState" class="text-center py-5">
                         <div class="spinner-border text-primary" role="status">
@@ -40,7 +49,7 @@
                             <i class="ti ti-users" style="font-size: 3rem;"></i>
                         </div>
                         <h5 class="text-muted">No Rx Users Found</h5>
-                        <p class="text-muted">There are no Rx users in the system yet.</p>
+                        <p class="text-muted" id="emptyStateMessage">There are no Rx users in the system yet.</p>
                     </div>
 
                     <!-- Table -->
@@ -111,7 +120,10 @@ class RxUsersManager {
     }
 
     bindEvents() {
-        // Any additional event bindings can go here
+        const searchInput = document.getElementById('searchRxUsers');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => this.renderTable());
+        }
     }
 
     async loadRxUsers() {
@@ -150,15 +162,46 @@ class RxUsersManager {
         }
     }
 
+    getFilteredUsers() {
+        const searchTerm = (document.getElementById('searchRxUsers')?.value || '').trim().toLowerCase();
+        if (!searchTerm) {
+            return this.rxUsers;
+        }
+
+        return this.rxUsers.filter(user => {
+            const fields = [
+                user.full_name,
+                user.email,
+                user.phone,
+                user.pps_no,
+                user.nominated_pharmacy,
+                user.dob,
+            ];
+
+            return fields.some(field => String(field || '').toLowerCase().includes(searchTerm));
+        });
+    }
+
     renderTable() {
         const tbody = document.getElementById('rxUsersTableBody');
+        const filteredUsers = this.getFilteredUsers();
+        const searchTerm = (document.getElementById('searchRxUsers')?.value || '').trim();
         
-        if (this.rxUsers.length === 0) {
+        if (filteredUsers.length === 0) {
+            const emptyMessage = document.getElementById('emptyStateMessage');
+            if (emptyMessage) {
+                emptyMessage.textContent = searchTerm
+                    ? 'Try adjusting your search criteria.'
+                    : 'There are no Rx users in the system yet.';
+            }
+            this.hideTable();
             this.showEmpty();
             return;
         }
 
-        tbody.innerHTML = this.rxUsers.map(user => `
+        this.hideEmpty();
+
+        tbody.innerHTML = filteredUsers.map(user => `
             <tr>
                 <td>
                     <a href="/admin/rx-users/${user.id}" class="text-primary fw-semibold">

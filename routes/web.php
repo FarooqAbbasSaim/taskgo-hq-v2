@@ -92,6 +92,8 @@ Route::middleware(['auth:hq'])->prefix('api/customers')->group(function () {
     Route::post('/update-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'updatePackagePlan']);
     Route::post('/change-subscription-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeSubscriptionStatus']);
     Route::post('/{id}/resend-activation', [\App\Http\Controllers\Api\CustomerController::class, 'resendActivation']);
+    Route::get('/{customerId}/pharmacies/{pharmacyId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getPharmacy']);
+    Route::get('/{customerId}/staff/{userId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getStaff']);
     Route::get('/{id}', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomerData']);
 });
 
@@ -108,6 +110,8 @@ Route::prefix('api/rx-users')->group(function () {
     Route::put('/{id}', [\App\Http\Controllers\Api\RxUserController::class, 'updateRxUser']);
     Route::get('/{id}/orders', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserOrders']);
     Route::get('/{id}/bookings', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserBookings']);
+    Route::get('/{id}/stats', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserStats']);
+    Route::get('/{id}/medications', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserMedications']);
     Route::get('/orders/{orderId}/prescription-image', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderPrescriptionImage']);
     Route::get('/orders/{orderId}', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderDetails']);
     Route::get('/bookings/{bookingId}', [\App\Http\Controllers\Api\RxUserController::class, 'getBookingDetails']);
@@ -171,6 +175,14 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     Route::get('/customers/archived', function() {
         return view('customers', ['status' => 'archived']);
     })->name('admin.customers.archived');
+
+    Route::get('/customers/{customerId}/pharmacies/{pharmacyId}', function ($customerId, $pharmacyId) {
+        return view('pharmacy-view', compact('customerId', 'pharmacyId'));
+    })->name('admin.pharmacy.view');
+
+    Route::get('/customers/{customerId}/staff/{userId}', function ($customerId, $userId) {
+        return view('staff-view', compact('customerId', 'userId'));
+    })->name('admin.staff.view');
     
     Route::get('/customers/{id}', function($id) {
         return view('customer-view', compact('id'));

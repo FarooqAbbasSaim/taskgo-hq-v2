@@ -58,7 +58,7 @@
                         <div class="col-md-4">
                             <div class="input-group">
                                 <span class="input-group-text"><i class="ti ti-search"></i></span>
-                                <input type="text" class="form-control" id="searchCustomers" placeholder="Search customers...">
+                                <input type="text" class="form-control" id="searchCustomers" placeholder="Search name, email, phone, org, PSI...">
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -478,7 +478,9 @@ class CustomersManager {
                 customer.name.toLowerCase().includes(searchTerm) ||
                 customer.email.toLowerCase().includes(searchTerm) ||
                 customer.phone?.toLowerCase().includes(searchTerm) ||
-                customer.pharmacy_name?.toLowerCase().includes(searchTerm);
+                customer.pharmacy_name?.toLowerCase().includes(searchTerm) ||
+                String(customer.registration_number || '').toLowerCase().includes(searchTerm) ||
+                String(customer.id).includes(searchTerm);
             
             // Since we're using separate endpoints for each status, no need for additional status filtering
             return matchesSearch;

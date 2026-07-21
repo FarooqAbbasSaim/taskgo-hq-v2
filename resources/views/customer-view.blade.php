@@ -2,7 +2,10 @@
 
 @section('content')
 <div class="container-fluid">
-    <!-- Header -->
+    @include('partials.support-breadcrumbs', ['breadcrumbs' => [
+        ['label' => 'Customers', 'url' => '/admin/customers'],
+        ['label' => 'Customer details'],
+    ]])
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">

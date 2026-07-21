@@ -139,7 +139,7 @@
         </div> <!-- .d-flex-->
 
         <div class="d-flex align-items-center gap-2">
-            <!-- Search -->
+            @include('partials.support-search')
             @if(env('RUNNING_LOCALLY', false))
             <div class="app-search d-none d-xl-flex me-xl-2">
                 <input type="search" class="form-control topbar-search" name="search"

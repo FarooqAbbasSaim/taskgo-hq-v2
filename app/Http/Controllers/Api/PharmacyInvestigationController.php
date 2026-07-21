@@ -11,6 +11,8 @@ class PharmacyInvestigationController extends Controller
 {
     public function getPharmacy(int $customerId, int $pharmacyId)
     {
+        abort_unless(config('features.support_investigation', true), 404);
+
         try {
             $customer = $this->findCustomer($customerId);
             if (!$customer) {
@@ -31,6 +33,10 @@ class PharmacyInvestigationController extends Controller
             $services = $this->servicesForPharmacy($pharmacyId);
             $patients = $this->patientsForPharmacy($pharmacyId);
             $stats = $this->pharmacyStats($pharmacyId, $staff, $services, $patients);
+            $orders = $this->ordersForPharmacy($pharmacyId);
+            $bookings = $this->bookingsForPharmacy($pharmacyId);
+            $health = $this->healthChecks($customer, $pharmacy);
+            $serviceGaps = $this->unassignedPublishedServices($customerId, $pharmacyId);
 
             return response()->json([
                 'success' => true,
@@ -54,13 +60,20 @@ class PharmacyInvestigationController extends Controller
                         'website' => $pharmacy->website,
                         'gms_number' => $pharmacy->gms_number,
                         'status' => $pharmacy->status ?: 'active',
+                        'embedded_booking_enabled' => (bool) ($pharmacy->embedded_booking_enabled ?? false),
                         'working_hours' => $this->normalizeWorkingHours($workingHours),
                         'created_at' => $pharmacy->created_at,
                     ],
                     'stats' => $stats,
+                    'health' => $health,
                     'staff' => $staff,
                     'services' => $services,
+                    'service_gaps' => $serviceGaps,
                     'patients' => $patients,
+                    'orders' => $orders,
+                    'bookings' => $bookings,
+                    'recent_orders' => array_slice($orders, 0, 10),
+                    'recent_bookings' => array_slice($bookings, 0, 10),
                 ],
             ]);
         } catch (\Exception $e) {
@@ -76,6 +89,8 @@ class PharmacyInvestigationController extends Controller
 
     public function getStaff(int $customerId, int $userId)
     {
+        abort_unless(config('features.support_investigation', true), 404);
+
         try {
             $customer = $this->findCustomer($customerId);
             if (!$customer) {
@@ -114,6 +129,8 @@ class PharmacyInvestigationController extends Controller
                 $policyStats['complete'] = $policyRows->where('status', 'complete')->count();
             }
 
+            $authEvents = $this->authEventsForUser($userId);
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -143,6 +160,7 @@ class PharmacyInvestigationController extends Controller
                         'created_at' => $user->created_at,
                         'freeze_reason' => $user->freeze_reason,
                         'archive_reason' => $user->archive_reason,
+                        'healthmail_enabled' => (bool) ($user->healthmail_enabled ?? false),
                     ],
                     'stats' => [
                         'sops' => $sopStats,
@@ -154,6 +172,7 @@ class PharmacyInvestigationController extends Controller
                             ? round(($policyStats['read'] / $policyStats['total']) * 100)
                             : null,
                     ],
+                    'auth_events' => $authEvents,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -167,6 +186,48 @@ class PharmacyInvestigationController extends Controller
         }
     }
 
+    public function exportPharmacy(int $customerId, int $pharmacyId, string $type)
+    {
+        abort_unless(config('features.support_investigation', true), 404);
+
+        $customer = $this->findCustomer($customerId);
+        if (!$customer) {
+            return $this->notFound('Customer not found');
+        }
+
+        $pharmacy = DB::table('pharmacies')
+            ->where('id', $pharmacyId)
+            ->where('created_by', $customerId)
+            ->first();
+
+        if (!$pharmacy) {
+            return $this->notFound('Pharmacy not found for this customer');
+        }
+
+        $filename = sprintf('%s-%s-%s.csv', $pharmacy->pharmacy_name, $type, now()->format('Y-m-d'));
+        $filename = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $filename);
+
+        $rows = match ($type) {
+            'staff' => $this->csvStaffRows($this->staffForCustomer($customerId, $pharmacyId)),
+            'patients' => $this->csvPatientRows($this->patientsForPharmacy($pharmacyId)),
+            'orders' => $this->csvOrderRows($this->ordersForPharmacy($pharmacyId)),
+            'bookings' => $this->csvBookingRows($this->bookingsForPharmacy($pharmacyId)),
+            default => null,
+        };
+
+        if ($rows === null) {
+            return response()->json(['success' => false, 'message' => 'Invalid export type'], 422);
+        }
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            foreach ($rows as $row) {
+                fputcsv($out, $row);
+            }
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
     private function findCustomer(int $customerId): ?object
     {
         return DB::table('users')
@@ -178,7 +239,11 @@ class PharmacyInvestigationController extends Controller
                 'users.id',
                 'users.name',
                 'users.email',
-                'pharmacy_subscriptions.pharmacy_name'
+                'users.status',
+                'users.email_verified_at',
+                'users.healthmail_enabled',
+                'pharmacy_subscriptions.pharmacy_name',
+                'pharmacy_subscriptions.status as subscription_status'
             )
             ->first();
     }
@@ -407,6 +472,240 @@ class PharmacyInvestigationController extends Controller
             'orders_count' => $ordersCount,
             'bookings_count' => $bookingsCount,
         ];
+    }
+
+    private function ordersForPharmacy(int $pharmacyId, int $limit = 100): array
+    {
+        if (!Schema::hasTable('rx_orders')) {
+            return [];
+        }
+
+        $orders = DB::table('rx_orders')
+            ->leftJoin('rx_users', 'rx_users.id', '=', 'rx_orders.user_id')
+            ->where('rx_orders.nominated_pharmacy_id', $pharmacyId)
+            ->select(
+                'rx_orders.id',
+                'rx_orders.status',
+                'rx_orders.created_at',
+                'rx_users.first_name',
+                'rx_users.last_name',
+                'rx_users.id as user_id'
+            )
+            ->orderByDesc('rx_orders.created_at')
+            ->limit($limit)
+            ->get();
+
+        $orderIds = $orders->pluck('id');
+        $itemCounts = [];
+        if ($orderIds->isNotEmpty() && Schema::hasTable('order_medicines')) {
+            $itemCounts = DB::table('order_medicines')
+                ->select('order_id', DB::raw('COUNT(*) as cnt'))
+                ->whereIn('order_id', $orderIds)
+                ->groupBy('order_id')
+                ->pluck('cnt', 'order_id')
+                ->toArray();
+        }
+
+        return $orders->map(function ($order) use ($itemCounts) {
+            return [
+                'id' => $order->id,
+                'order_no' => 'RX-' . $order->id,
+                'patient_name' => trim(($order->first_name ?? '') . ' ' . ($order->last_name ?? '')),
+                'user_id' => $order->user_id,
+                'status' => ucfirst($order->status ?? ''),
+                'item_count' => $itemCounts[$order->id] ?? 0,
+                'created_at' => $order->created_at
+                    ? Carbon::parse($order->created_at)->format('j F Y g:i A')
+                    : null,
+            ];
+        })->all();
+    }
+
+    private function bookingsForPharmacy(int $pharmacyId, int $limit = 100): array
+    {
+        if (!Schema::hasTable('appointments') || !Schema::hasTable('rx_users')) {
+            return [];
+        }
+
+        $bookings = DB::table('appointments')
+            ->join('rx_users', 'rx_users.id', '=', 'appointments.user_id')
+            ->leftJoin('services', 'services.id', '=', 'appointments.service_id')
+            ->where('rx_users.nominated_pharmacy_id', $pharmacyId)
+            ->select(
+                'appointments.id',
+                'appointments.date',
+                'appointments.start_time',
+                'appointments.status',
+                'appointments.user_id',
+                'services.name as service_name',
+                'rx_users.first_name',
+                'rx_users.last_name'
+            )
+            ->orderByDesc('appointments.date')
+            ->orderByDesc('appointments.start_time')
+            ->limit($limit)
+            ->get();
+
+        return $bookings->map(function ($booking) {
+            $startTime = $booking->start_time ? Carbon::parse($booking->start_time) : null;
+
+            return [
+                'id' => $booking->id,
+                'service' => $booking->service_name ?: 'Unknown Service',
+                'patient_name' => trim(($booking->first_name ?? '') . ' ' . ($booking->last_name ?? '')),
+                'user_id' => $booking->user_id,
+                'date' => $booking->date ? Carbon::parse($booking->date)->format('d-m-Y') : null,
+                'time' => $startTime ? $startTime->format('g:i A') : null,
+                'status' => ucfirst($booking->status ?? ''),
+            ];
+        })->all();
+    }
+
+    private function healthChecks(object $customer, object $pharmacy): array
+    {
+        $hasHours = !empty($pharmacy->working_hours) && $pharmacy->working_hours !== '[]';
+
+        return [
+            ['label' => 'Pharmacy status', 'ok' => in_array($pharmacy->status ?? 'active', ['active', null, ''], true), 'value' => $pharmacy->status ?: 'active'],
+            ['label' => 'Org admin verified', 'ok' => !is_null($customer->email_verified_at ?? null), 'value' => !is_null($customer->email_verified_at ?? null) ? 'Yes' : 'No'],
+            ['label' => 'Org admin status', 'ok' => ($customer->status ?? '') === 'active', 'value' => $customer->status ?? 'unknown'],
+            ['label' => 'Subscription', 'ok' => ($customer->subscription_status ?? '') === 'active', 'value' => $customer->subscription_status ?? 'N/A'],
+            ['label' => 'Opening hours set', 'ok' => $hasHours, 'value' => $hasHours ? 'Yes' : 'No'],
+            ['label' => 'Embedded booking', 'ok' => (bool) ($pharmacy->embedded_booking_enabled ?? false), 'value' => ($pharmacy->embedded_booking_enabled ?? false) ? 'Enabled' : 'Disabled'],
+            ['label' => 'Healthmail', 'ok' => (bool) ($customer->healthmail_enabled ?? false), 'value' => ($customer->healthmail_enabled ?? false) ? 'Enabled' : 'Disabled'],
+            ['label' => 'Pharmacy email', 'ok' => !empty($pharmacy->email), 'value' => $pharmacy->email ?: 'Not set'],
+        ];
+    }
+
+    private function unassignedPublishedServices(int $customerId, int $pharmacyId): array
+    {
+        if (!Schema::hasTable('services') || !Schema::hasTable('pharmacy_services')) {
+            return [];
+        }
+
+        $assignedIds = DB::table('pharmacy_services')
+            ->where('pharmacy_id', $pharmacyId)
+            ->pluck('service_id');
+
+        $query = DB::table('services')
+            ->where('is_published', 1)
+            ->where('is_archived', 0)
+            ->whereNotIn('id', $assignedIds);
+
+        if (Schema::hasColumn('services', 'customer_id')) {
+            $query->where(function ($q) use ($customerId) {
+                $q->where('customer_id', $customerId)->orWhere('user_id', $customerId);
+            });
+        } else {
+            $query->where('user_id', $customerId);
+        }
+
+        return $query->select('id', 'name', 'mode', 'duration', 'price')
+            ->orderBy('name')
+            ->limit(50)
+            ->get()
+            ->map(fn ($s) => [
+                'id' => $s->id,
+                'name' => $s->name,
+                'mode' => $s->mode,
+                'duration' => $s->duration,
+                'price' => $s->price,
+            ])
+            ->all();
+    }
+
+    private function authEventsForUser(int $userId): array
+    {
+        if (!Schema::hasTable('crm_auth_events')) {
+            return [];
+        }
+
+        return DB::table('crm_auth_events')
+            ->where('user_id', $userId)
+            ->orderByDesc('created_at')
+            ->limit(25)
+            ->get()
+            ->map(function ($event) {
+                $meta = is_string($event->meta ?? null) ? json_decode($event->meta, true) : ($event->meta ?? []);
+
+                return [
+                    'action' => $event->action,
+                    'result' => $event->result,
+                    'ip' => $event->ip,
+                    'channel' => is_array($meta) ? ($meta['channel'] ?? null) : null,
+                    'created_at' => $event->created_at
+                        ? Carbon::parse($event->created_at)->format('j M Y g:i A')
+                        : null,
+                ];
+            })
+            ->all();
+    }
+
+    private function csvStaffRows(array $staff): array
+    {
+        $rows = [['Name', 'Email', 'Phone', 'Role', 'Status', 'Pharmacies', 'Last login']];
+        foreach ($staff as $member) {
+            $rows[] = [
+                $member['name'],
+                $member['email'],
+                $member['phone'] ?? '',
+                $member['role'],
+                $member['status'],
+                $member['pharmacies_display'],
+                $member['last_login_at'] ?? '',
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function csvPatientRows(array $patients): array
+    {
+        $rows = [['Name', 'Email', 'Phone', 'PPS', 'DOB', 'Created']];
+        foreach ($patients as $patient) {
+            $rows[] = [
+                $patient['full_name'],
+                $patient['email'] ?? '',
+                $patient['phone'] ?? '',
+                $patient['pps_number'] ?? '',
+                $patient['dob'] ?? '',
+                $patient['created_at'] ?? '',
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function csvOrderRows(array $orders): array
+    {
+        $rows = [['Order', 'Patient', 'Status', 'Items', 'Created']];
+        foreach ($orders as $order) {
+            $rows[] = [
+                $order['order_no'],
+                $order['patient_name'],
+                $order['status'],
+                $order['item_count'],
+                $order['created_at'] ?? '',
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function csvBookingRows(array $bookings): array
+    {
+        $rows = [['Service', 'Patient', 'Date', 'Time', 'Status']];
+        foreach ($bookings as $booking) {
+            $rows[] = [
+                $booking['service'],
+                $booking['patient_name'],
+                $booking['date'] ?? '',
+                $booking['time'] ?? '',
+                $booking['status'],
+            ];
+        }
+
+        return $rows;
     }
 
     private function decodeJsonList($value): array

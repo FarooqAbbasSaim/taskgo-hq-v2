@@ -2,184 +2,84 @@
 
 @section('content')
 <div class="container-fluid">
-    <div class="row mb-3">
-        <div class="col-12 d-flex justify-content-between align-items-center">
-            <div>
-                <a href="/admin/customers/{{ $customerId }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="ti ti-arrow-left me-1"></i>Back to Customer
-                </a>
-            </div>
-        </div>
-    </div>
+    @include('partials.support-breadcrumbs', ['breadcrumbs' => [
+        ['label' => 'Customers', 'url' => '/admin/customers'],
+        ['label' => 'Customer', 'url' => '/admin/customers/' . $customerId],
+        ['label' => 'Pharmacy'],
+    ]])
 
     <div id="loadingSpinner" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
         <p class="mt-3 text-muted">Loading pharmacy details...</p>
     </div>
 
-    <div id="errorMessage" class="alert alert-danger" style="display: none;">
-        <i class="ti ti-alert-circle me-2"></i>
-        <span id="errorText"></span>
-    </div>
+    <div id="errorMessage" class="alert alert-danger" style="display:none;"><span id="errorText"></span></div>
 
-    <div id="pharmacyDetails" style="display: none;">
-        <div class="row">
-            <div class="col-12">
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                            <div>
-                                <h4 class="mb-1" id="pharmacyName">—</h4>
-                                <p class="text-muted mb-0" id="pharmacyOrg">—</p>
-                            </div>
-                            <span class="badge bg-success" id="pharmacyStatus">Active</span>
-                        </div>
-                        <div class="row mt-3 g-3">
-                            <div class="col-md-4">
-                                <strong>Address:</strong> <span id="pharmacyAddress">—</span>
-                            </div>
-                            <div class="col-md-3">
-                                <strong>Phone:</strong> <span id="pharmacyPhone">—</span>
-                            </div>
-                            <div class="col-md-3">
-                                <strong>Email:</strong> <span id="pharmacyEmail">—</span>
-                            </div>
-                            <div class="col-md-2">
-                                <strong>GMS:</strong> <span id="pharmacyGms">—</span>
-                            </div>
-                        </div>
+    <div id="pharmacyDetails" style="display:none;">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-1" id="pharmacyName">—</h4>
+                        <p class="text-muted mb-0" id="pharmacyOrg">—</p>
                     </div>
+                    <span class="badge bg-success" id="pharmacyStatus">Active</span>
+                </div>
+                <div class="row mt-3 g-3 small">
+                    <div class="col-md-4"><strong>Address:</strong> <span id="pharmacyAddress">—</span></div>
+                    <div class="col-md-3"><strong>Phone:</strong> <span id="pharmacyPhone">—</span> <button type="button" class="btn btn-sm btn-link p-0" id="copyPhoneBtn"><i class="ti ti-copy"></i></button></div>
+                    <div class="col-md-3"><strong>Email:</strong> <span id="pharmacyEmail">—</span> <button type="button" class="btn btn-sm btn-link p-0" id="copyEmailBtn"><i class="ti ti-copy"></i></button></div>
+                    <div class="col-md-2"><strong>GMS:</strong> <span id="pharmacyGms">—</span></div>
                 </div>
             </div>
         </div>
 
-        <div class="row mb-4" id="statsRow">
-            <div class="col-6 col-md-2">
-                <div class="card text-center h-100"><div class="card-body py-3">
-                    <div class="fs-3 fw-semibold" id="statStaff">0</div>
-                    <div class="text-muted small">Staff</div>
-                </div></div>
+        <div class="row mb-3" id="statsRow"></div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Health checks</h5>
             </div>
-            <div class="col-6 col-md-2">
-                <div class="card text-center h-100"><div class="card-body py-3">
-                    <div class="fs-3 fw-semibold" id="statPatients">0</div>
-                    <div class="text-muted small">Patients</div>
-                </div></div>
+            <div class="card-body" id="healthChecks"></div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card h-100"><div class="card-header"><h6 class="mb-0">Recent orders</h6></div><div class="card-body p-0"><div id="recentOrders" class="list-group list-group-flush small"></div></div></div>
             </div>
-            <div class="col-6 col-md-2">
-                <div class="card text-center h-100"><div class="card-body py-3">
-                    <div class="fs-3 fw-semibold" id="statServices">0</div>
-                    <div class="text-muted small">Services</div>
-                </div></div>
-            </div>
-            <div class="col-6 col-md-2">
-                <div class="card text-center h-100"><div class="card-body py-3">
-                    <div class="fs-3 fw-semibold" id="statPublished">0</div>
-                    <div class="text-muted small">Published</div>
-                </div></div>
-            </div>
-            <div class="col-6 col-md-2">
-                <div class="card text-center h-100"><div class="card-body py-3">
-                    <div class="fs-3 fw-semibold" id="statOrders">0</div>
-                    <div class="text-muted small">Orders</div>
-                </div></div>
-            </div>
-            <div class="col-6 col-md-2">
-                <div class="card text-center h-100"><div class="card-body py-3">
-                    <div class="fs-3 fw-semibold" id="statBookings">0</div>
-                    <div class="text-muted small">Bookings</div>
-                </div></div>
+            <div class="col-md-6">
+                <div class="card h-100"><div class="card-header"><h6 class="mb-0">Recent bookings</h6></div><div class="card-body p-0"><div id="recentBookings" class="list-group list-group-flush small"></div></div></div>
             </div>
         </div>
 
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <ul class="nav nav-tabs nav-bordered" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#hoursTab" type="button" role="tab">
-                                    <i class="ti ti-clock me-1"></i> Opening Hours
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#staffTab" type="button" role="tab">
-                                    <i class="ti ti-users me-1"></i> Staff
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#patientsTab" type="button" role="tab">
-                                    <i class="ti ti-user-heart me-1"></i> Patients
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#servicesTab" type="button" role="tab">
-                                    <i class="ti ti-stethoscope me-1"></i> Services &amp; Timings
-                                </button>
-                            </li>
-                        </ul>
-
-                        <div class="tab-content mt-3">
-                            <div class="tab-pane fade show active" id="hoursTab" role="tabpanel">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Day</th>
-                                                <th>Hours</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="hoursTableBody"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <div class="tab-pane fade" id="staffTab" role="tabpanel">
-                                <div class="table-responsive">
-                                    <table class="table table-striped table-hover mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Name</th>
-                                                <th>Email</th>
-                                                <th>Role</th>
-                                                <th>Status</th>
-                                                <th>Pharmacies</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="staffTableBody"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <div class="tab-pane fade" id="patientsTab" role="tabpanel">
-                                <div class="table-responsive">
-                                    <table class="table table-striped table-hover mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Name</th>
-                                                <th>Email</th>
-                                                <th>Phone</th>
-                                                <th>PPS</th>
-                                                <th>DOB</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="patientsTableBody"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <div class="tab-pane fade" id="servicesTab" role="tabpanel">
-                                <div id="servicesEmpty" class="text-center text-muted py-4" style="display: none;">
-                                    No services linked to this pharmacy.
-                                </div>
-                                <div id="servicesList"></div>
-                            </div>
-                        </div>
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <div class="btn-group btn-group-sm" role="group" id="exportButtons"></div>
+                </div>
+                <ul class="nav nav-tabs nav-bordered" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#hoursTab">Opening Hours</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#staffTab">Staff</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#patientsTab">Patients</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ordersTab">Orders</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#bookingsTab">Bookings</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#servicesTab">Services</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#gapsTab">Unassigned services</button></li>
+                </ul>
+                <div class="tab-content mt-3">
+                    <div class="tab-pane fade show active" id="hoursTab"><table class="table table-sm"><tbody id="hoursTableBody"></tbody></table></div>
+                    <div class="tab-pane fade" id="staffTab">
+                        <input type="text" class="form-control form-control-sm mb-2" id="staffSearch" placeholder="Search staff...">
+                        <div class="table-responsive"><table class="table table-sm table-hover"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="staffTableBody"></tbody></table></div>
                     </div>
+                    <div class="tab-pane fade" id="patientsTab">
+                        <input type="text" class="form-control form-control-sm mb-2" id="patientsSearch" placeholder="Search patients...">
+                        <div class="table-responsive"><table class="table table-sm table-hover"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th></th></tr></thead><tbody id="patientsTableBody"></tbody></table></div>
+                    </div>
+                    <div class="tab-pane fade" id="ordersTab"><div class="table-responsive"><table class="table table-sm table-hover"><thead><tr><th>Order</th><th>Patient</th><th>Status</th><th>Items</th><th>Created</th><th></th></tr></thead><tbody id="ordersTableBody"></tbody></table></div></div>
+                    <div class="tab-pane fade" id="bookingsTab"><div class="table-responsive"><table class="table table-sm table-hover"><thead><tr><th>Service</th><th>Patient</th><th>Date</th><th>Status</th></tr></thead><tbody id="bookingsTableBody"></tbody></table></div></div>
+                    <div class="tab-pane fade" id="servicesTab"><div id="servicesList"></div></div>
+                    <div class="tab-pane fade" id="gapsTab"><div id="serviceGapsList" class="small text-muted">Loading...</div></div>
                 </div>
             </div>
         </div>
@@ -195,25 +95,22 @@ class PharmacyViewManager {
         this.pharmacyId = pharmacyId;
         this.data = null;
         this.load();
+        document.getElementById('staffSearch')?.addEventListener('input', () => this.renderStaff());
+        document.getElementById('patientsSearch')?.addEventListener('input', () => this.renderPatients());
     }
 
     async load() {
         try {
-            const response = await fetch(`/api/customers/${this.customerId}/pharmacies/${this.pharmacyId}`, {
-                headers: { 'Accept': 'application/json' }
-            });
+            const response = await fetch(`/api/customers/${this.customerId}/pharmacies/${this.pharmacyId}`, { headers: { Accept: 'application/json' } });
             const result = await response.json();
-            if (!result.success) {
-                throw new Error(result.message || 'Failed to load pharmacy');
-            }
+            if (!result.success) throw new Error(result.message || 'Failed to load pharmacy');
             this.data = result.data;
             this.render();
             document.getElementById('loadingSpinner').style.display = 'none';
             document.getElementById('pharmacyDetails').style.display = 'block';
-        } catch (error) {
-            console.error(error);
+        } catch (e) {
             document.getElementById('loadingSpinner').style.display = 'none';
-            document.getElementById('errorText').textContent = error.message;
+            document.getElementById('errorText').textContent = e.message;
             document.getElementById('errorMessage').style.display = 'block';
         }
     }
@@ -227,160 +124,119 @@ class PharmacyViewManager {
         document.getElementById('pharmacyPhone').textContent = p.phone || '—';
         document.getElementById('pharmacyEmail').textContent = p.email || '—';
         document.getElementById('pharmacyGms').textContent = p.gms_number || '—';
+        document.getElementById('copyPhoneBtn').onclick = () => SupportTools.copyText(p.phone || '');
+        document.getElementById('copyEmailBtn').onclick = () => SupportTools.copyText(p.email || '');
 
-        const statusEl = document.getElementById('pharmacyStatus');
         const status = (p.status || 'active').toLowerCase();
-        statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-        statusEl.className = 'badge ' + (status === 'active' ? 'bg-success' : status === 'archived' ? 'bg-warning' : 'bg-danger');
+        const statusEl = document.getElementById('pharmacyStatus');
+        statusEl.textContent = status;
+        statusEl.className = 'badge ' + (status === 'active' ? 'bg-success' : 'bg-warning');
 
-        document.getElementById('statStaff').textContent = s.staff_count;
-        document.getElementById('statPatients').textContent = s.patient_count;
-        document.getElementById('statServices').textContent = s.service_count;
-        document.getElementById('statPublished').textContent = s.published_service_count;
-        document.getElementById('statOrders').textContent = s.orders_count;
-        document.getElementById('statBookings').textContent = s.bookings_count;
+        document.getElementById('statsRow').innerHTML = [
+            ['Staff', s.staff_count], ['Patients', s.patient_count], ['Services', s.service_count],
+            ['Published', s.published_service_count], ['Orders', s.orders_count], ['Bookings', s.bookings_count],
+        ].map(([label, val]) => `<div class="col-6 col-md-2"><div class="card text-center"><div class="card-body py-2"><div class="fs-4 fw-semibold">${val}</div><div class="text-muted small">${label}</div></div></div></div>`).join('');
+
+        document.getElementById('healthChecks').innerHTML = (this.data.health || []).map(h => `
+            <div class="d-flex justify-content-between border-bottom py-2">
+                <span>${h.label}</span>
+                <span><span class="badge ${h.ok ? 'bg-success' : 'bg-warning'} me-2">${h.ok ? 'OK' : 'Check'}</span>${this.esc(h.value)}</span>
+            </div>`).join('');
+
+        this.renderRecent('recentOrders', this.data.recent_orders || [], 'order');
+        this.renderRecent('recentBookings', this.data.recent_bookings || [], 'booking');
+
+        document.getElementById('exportButtons').innerHTML = ['staff','patients','orders','bookings'].map(t =>
+            `<a class="btn btn-outline-secondary" href="/api/customers/${this.customerId}/pharmacies/${this.pharmacyId}/export/${t}">Export ${t}</a>`).join('');
 
         this.renderHours(p.working_hours || []);
-        this.renderStaff(this.data.staff || []);
-        this.renderPatients(this.data.patients || []);
+        this.renderStaff();
+        this.renderPatients();
+        this.renderOrders(this.data.orders || []);
+        this.renderBookings(this.data.bookings || []);
         this.renderServices(this.data.services || []);
+        this.renderServiceGaps(this.data.service_gaps || []);
     }
 
-    formatSlots(day) {
-        if (day.is_day_off || !day.time_slots || day.time_slots.length === 0) {
-            return '<span class="text-muted">Closed</span>';
-        }
-        return day.time_slots
-            .map(slot => `${slot.start_time || '?'} – ${slot.end_time || '?'}`)
-            .join(', ');
-    }
-
-    renderHours(hours) {
-        const body = document.getElementById('hoursTableBody');
-        if (!hours.length) {
-            body.innerHTML = '<tr><td colspan="2" class="text-muted text-center">No opening hours set</td></tr>';
-            return;
-        }
-        body.innerHTML = hours.map(day => `
-            <tr>
-                <td class="fw-semibold">${day.day}</td>
-                <td>${this.formatSlots(day)}</td>
-            </tr>
-        `).join('');
-    }
-
-    statusBadge(status) {
-        const s = (status || 'active').toLowerCase();
-        const cls = s === 'active' ? 'bg-success' : (s === 'freeze' ? 'bg-warning' : 'bg-secondary');
-        return `<span class="badge ${cls}">${s}</span>`;
-    }
-
-    renderStaff(staff) {
-        const body = document.getElementById('staffTableBody');
-        if (!staff.length) {
-            body.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No staff for this pharmacy</td></tr>';
-            return;
-        }
-        body.innerHTML = staff.map(member => `
-            <tr>
-                <td>
-                    <a href="/admin/customers/${this.customerId}/staff/${member.id}" class="fw-semibold text-primary text-decoration-none">
-                        ${this.escape(member.name)}
-                    </a>
-                </td>
-                <td>${this.escape(member.email || '—')}</td>
-                <td>${this.escape(member.role)}</td>
-                <td>${this.statusBadge(member.status)}</td>
-                <td>${this.escape(member.pharmacies_display)}</td>
-                <td>
-                    <a href="/admin/customers/${this.customerId}/staff/${member.id}" class="btn btn-sm btn-outline-primary">View</a>
-                </td>
-            </tr>
-        `).join('');
-    }
-
-    renderPatients(patients) {
-        const body = document.getElementById('patientsTableBody');
-        if (!patients.length) {
-            body.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No nominated patients for this pharmacy</td></tr>';
-            return;
-        }
-        body.innerHTML = patients.map(patient => `
-            <tr>
-                <td>
-                    <a href="/admin/rx-users/${patient.id}" class="fw-semibold text-primary text-decoration-none">
-                        ${this.escape(patient.full_name)}
-                    </a>
-                </td>
-                <td>${this.escape(patient.email || '—')}</td>
-                <td>${this.escape(patient.phone || '—')}</td>
-                <td>${this.escape(patient.pps_number || '—')}</td>
-                <td>${this.escape(patient.dob || '—')}</td>
-                <td>
-                    <a href="/admin/rx-users/${patient.id}" class="btn btn-sm btn-outline-primary">View</a>
-                </td>
-            </tr>
-        `).join('');
-    }
-
-    renderServices(services) {
-        const list = document.getElementById('servicesList');
-        const empty = document.getElementById('servicesEmpty');
-        if (!services.length) {
-            list.innerHTML = '';
-            empty.style.display = 'block';
-            return;
-        }
-        empty.style.display = 'none';
-        list.innerHTML = services.map(service => {
-            const badges = [
-                service.is_published ? '<span class="badge bg-success">Published</span>' : '<span class="badge bg-secondary">Unpublished</span>',
-                service.is_archived ? '<span class="badge bg-warning">Archived</span>' : '',
-                service.is_24_hour_service ? '<span class="badge bg-info">24h</span>' : '',
-            ].filter(Boolean).join(' ');
-
-            const hoursRows = (service.week_chart || []).map(day => `
-                <tr>
-                    <td style="width: 120px;">${day.day}</td>
-                    <td>${this.formatSlots(day)}</td>
-                </tr>
-            `).join('');
-
-            return `
-                <div class="border rounded p-3 mb-3">
-                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
-                        <div>
-                            <h5 class="mb-1">${this.escape(service.name)}</h5>
-                            <div class="text-muted small">
-                                ${service.duration ? service.duration + ' min' : ''}
-                                ${service.price !== null && service.price !== undefined ? ' · €' + service.price : ''}
-                                ${service.mode ? ' · ' + this.escape(service.mode) : ''}
-                            </div>
-                        </div>
-                        <div>${badges}</div>
-                    </div>
-                    ${service.description ? `<p class="text-muted small mb-2">${this.escape(service.description)}</p>` : ''}
-                    <div class="table-responsive">
-                        <table class="table table-sm mb-0">
-                            <tbody>${hoursRows || '<tr><td class="text-muted">No service timings</td></tr>'}</tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
+    renderRecent(id, items, type) {
+        const el = document.getElementById(id);
+        if (!items.length) { el.innerHTML = '<div class="list-group-item text-muted">None yet</div>'; return; }
+        el.innerHTML = items.map(item => {
+            const label = type === 'order' ? item.order_no : item.service;
+            const sub = type === 'order' ? `${item.patient_name} · ${item.status}` : `${item.patient_name} · ${item.date || ''}`;
+            const link = item.user_id ? `/admin/rx-users/${item.user_id}` : '#';
+            return `<a href="${link}" class="list-group-item list-group-item-action"><div class="fw-semibold">${this.esc(label)}</div><div class="text-muted">${this.esc(sub)}</div></a>`;
         }).join('');
     }
 
-    escape(value) {
-        return String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+    formatSlots(day) {
+        if (day.is_day_off || !day.time_slots?.length) return '<span class="text-muted">Closed</span>';
+        return day.time_slots.map(s => `${s.start_time} – ${s.end_time}`).join(', ');
     }
+
+    renderHours(hours) {
+        document.getElementById('hoursTableBody').innerHTML = hours.map(d => `<tr><td>${d.day}</td><td>${this.formatSlots(d)}</td></tr>`).join('') || '<tr><td colspan="2" class="text-muted">No hours set</td></tr>';
+    }
+
+    filterList(list, term, fields) {
+        term = (term || '').trim().toLowerCase();
+        if (!term) return list;
+        return list.filter(row => fields.some(f => String(row[f] || '').toLowerCase().includes(term)));
+    }
+
+    renderStaff() {
+        const term = document.getElementById('staffSearch')?.value;
+        const staff = this.filterList(this.data.staff || [], term, ['name','email','role','pharmacies_display']);
+        document.getElementById('staffTableBody').innerHTML = staff.map(m => `<tr>
+            <td><a href="/admin/customers/${this.customerId}/staff/${m.id}">${this.esc(m.name)}</a></td>
+            <td>${this.esc(m.email)}</td><td>${this.esc(m.role)}</td><td>${this.esc(m.status)}</td>
+            <td><a class="btn btn-sm btn-outline-primary" href="/admin/customers/${this.customerId}/staff/${m.id}">View</a></td></tr>`).join('') || '<tr><td colspan="5" class="text-muted text-center">No staff</td></tr>';
+    }
+
+    renderPatients() {
+        const term = document.getElementById('patientsSearch')?.value;
+        const patients = this.filterList(this.data.patients || [], term, ['full_name','email','phone','pps_number']);
+        document.getElementById('patientsTableBody').innerHTML = patients.map(p => `<tr>
+            <td><a href="/admin/rx-users/${p.id}">${this.esc(p.full_name)}</a></td>
+            <td>${this.esc(p.email)}</td><td>${this.esc(p.phone)}</td>
+            <td><a class="btn btn-sm btn-outline-primary" href="/admin/rx-users/${p.id}">View</a></td></tr>`).join('') || '<tr><td colspan="4" class="text-muted text-center">No patients</td></tr>';
+    }
+
+    renderOrders(orders) {
+        document.getElementById('ordersTableBody').innerHTML = orders.map(o => `<tr>
+            <td><a href="#" onclick="showPharmacyOrder(${o.id}); return false;">${this.esc(o.order_no)}</a></td>
+            <td><a href="/admin/rx-users/${o.user_id}">${this.esc(o.patient_name)}</a></td>
+            <td>${this.esc(o.status)}</td><td>${o.item_count}</td><td>${this.esc(o.created_at)}</td>
+            <td><button class="btn btn-sm btn-outline-primary" onclick="showPharmacyOrder(${o.id})">Details</button></td></tr>`).join('') || '<tr><td colspan="6" class="text-muted text-center">No orders</td></tr>';
+    }
+
+    renderBookings(bookings) {
+        document.getElementById('bookingsTableBody').innerHTML = bookings.map(b => `<tr>
+            <td>${this.esc(b.service)}</td><td><a href="/admin/rx-users/${b.user_id}">${this.esc(b.patient_name)}</a></td>
+            <td>${this.esc(b.date)} ${this.esc(b.time || '')}</td><td>${this.esc(b.status)}</td></tr>`).join('') || '<tr><td colspan="4" class="text-muted text-center">No bookings</td></tr>';
+    }
+
+    renderServices(services) {
+        document.getElementById('servicesList').innerHTML = services.length ? services.map(s => `
+            <div class="border rounded p-3 mb-2"><div class="fw-semibold">${this.esc(s.name)}</div>
+            <div class="text-muted small">${s.duration || ''} min · ${s.timings_summary || ''}</div></div>`).join('') : '<p class="text-muted">No services linked</p>';
+    }
+
+    renderServiceGaps(gaps) {
+        document.getElementById('serviceGapsList').innerHTML = gaps.length ? `<ul class="mb-0">${gaps.map(g => `<li>${this.esc(g.name)} <span class="text-muted">(${g.mode || '—'})</span></li>`).join('')}</ul>` : '<p class="mb-0">All published org services are assigned to this pharmacy.</p>';
+    }
+
+    esc(v) { return SupportTools.escapeHtml(v); }
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    new PharmacyViewManager({{ (int) $customerId }}, {{ (int) $pharmacyId }});
-});
+async function showPharmacyOrder(orderId) {
+    const response = await fetch(`/api/rx-users/orders/${orderId}`, { headers: { Accept: 'application/json' } });
+    const result = await response.json();
+    if (!result.success) { alert(result.message || 'Failed'); return; }
+    const order = result.data;
+    alert(`Order ${order.order_no}\nPatient: ${order.user_name}\nStatus: ${order.status}\nItems: ${(order.items || []).length}`);
+}
+
+document.addEventListener('DOMContentLoaded', () => new PharmacyViewManager({{ (int) $customerId }}, {{ (int) $pharmacyId }}));
 </script>
 @endsection

@@ -93,8 +93,13 @@ Route::middleware(['auth:hq'])->prefix('api/customers')->group(function () {
     Route::post('/change-subscription-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeSubscriptionStatus']);
     Route::post('/{id}/resend-activation', [\App\Http\Controllers\Api\CustomerController::class, 'resendActivation']);
     Route::get('/{customerId}/pharmacies/{pharmacyId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getPharmacy']);
+    Route::get('/{customerId}/pharmacies/{pharmacyId}/export/{type}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'exportPharmacy']);
     Route::get('/{customerId}/staff/{userId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getStaff']);
     Route::get('/{id}', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomerData']);
+});
+
+Route::middleware(['auth:hq'])->prefix('api/support')->group(function () {
+    Route::get('/search', [\App\Http\Controllers\Api\SupportSearchController::class, 'search']);
 });
 
 // Customer permission routes
@@ -112,6 +117,7 @@ Route::prefix('api/rx-users')->group(function () {
     Route::get('/{id}/bookings', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserBookings']);
     Route::get('/{id}/stats', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserStats']);
     Route::get('/{id}/medications', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserMedications']);
+    Route::get('/{id}/timeline', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserTimeline']);
     Route::get('/orders/{orderId}/prescription-image', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderPrescriptionImage']);
     Route::get('/orders/{orderId}', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderDetails']);
     Route::get('/bookings/{bookingId}', [\App\Http\Controllers\Api\RxUserController::class, 'getBookingDetails']);

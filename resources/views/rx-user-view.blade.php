@@ -76,6 +76,11 @@
                                 <i class="ti ti-calendar me-1"></i> Service Bookings
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timeline" type="button" role="tab" aria-controls="timeline" aria-selected="false">
+                                <i class="ti ti-timeline me-1"></i> Timeline
+                            </button>
+                        </li>
                     </ul>
 
                     <!-- Tab panes -->
@@ -264,6 +269,14 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="tab-pane fade" id="timeline" role="tabpanel" aria-labelledby="timeline-tab">
+                            <div id="timelineLoadingState" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+                            </div>
+                            <div id="timelineContent" class="list-group list-group-flush" style="display:none;"></div>
+                            <div id="timelineEmpty" class="text-center text-muted py-4" style="display:none;">No activity yet.</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -347,6 +360,7 @@ class RxUserViewManager {
         this.ordersLoaded = false;
         this.bookingsLoaded = false;
         this.medicationsLoaded = false;
+        this.timelineLoaded = false;
         this.init();
     }
 
@@ -620,6 +634,38 @@ class RxUserViewManager {
         `).join('');
 
         this.showBookingsTable();
+    }
+
+    async loadTimeline() {
+        document.getElementById('timelineLoadingState').style.display = 'block';
+        document.getElementById('timelineContent').style.display = 'none';
+        document.getElementById('timelineEmpty').style.display = 'none';
+        try {
+            const response = await fetch(`/api/rx-users/${this.userId}/timeline`, { headers: { Accept: 'application/json' } });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message || 'Failed');
+            this.timelineLoaded = true;
+            const items = result.data || [];
+            if (!items.length) {
+                document.getElementById('timelineEmpty').style.display = 'block';
+                return;
+            }
+            document.getElementById('timelineContent').innerHTML = items.map(item => `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                        <span class="badge bg-light text-dark text-capitalize">${item.type}</span>
+                        <span class="text-muted small">${item.occurred_at}</span>
+                    </div>
+                    <div class="fw-semibold mt-1">${item.title}</div>
+                    <div class="text-muted small">${item.subtitle || ''}</div>
+                </div>`).join('');
+            document.getElementById('timelineContent').style.display = 'block';
+        } catch (e) {
+            document.getElementById('timelineEmpty').textContent = e.message;
+            document.getElementById('timelineEmpty').style.display = 'block';
+        } finally {
+            document.getElementById('timelineLoadingState').style.display = 'none';
+        }
     }
 
     getStatusBadgeClass(status) {
@@ -925,6 +971,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('medications-tab').addEventListener('click', function() {
         if (window.rxUserViewManager && !window.rxUserViewManager.medicationsLoaded) {
             window.rxUserViewManager.loadMedications();
+        }
+    });
+
+    document.getElementById('timeline-tab').addEventListener('click', function() {
+        if (window.rxUserViewManager && !window.rxUserViewManager.timelineLoaded) {
+            window.rxUserViewManager.loadTimeline();
         }
     });
 });

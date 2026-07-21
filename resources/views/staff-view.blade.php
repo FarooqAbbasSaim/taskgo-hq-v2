@@ -2,13 +2,11 @@
 
 @section('content')
 <div class="container-fluid">
-    <div class="row mb-3">
-        <div class="col-12">
-            <a id="backLink" href="/admin/customers/{{ $customerId }}" class="btn btn-outline-secondary btn-sm">
-                <i class="ti ti-arrow-left me-1"></i>Back
-            </a>
-        </div>
-    </div>
+    @include('partials.support-breadcrumbs', ['breadcrumbs' => [
+        ['label' => 'Customers', 'url' => '/admin/customers'],
+        ['label' => 'Customer', 'url' => '/admin/customers/' . $customerId],
+        ['label' => 'Staff'],
+    ]])
 
     <div id="loadingSpinner" class="text-center py-5">
         <div class="spinner-border text-primary" role="status">
@@ -112,6 +110,21 @@
                 </div>
             </div>
         </div>
+
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">CRM auth history</h5>
+                <a id="authLogLink" href="/admin/crm-auth-events" class="btn btn-sm btn-outline-secondary">Open full log</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light"><tr><th>When</th><th>Action</th><th>Result</th><th>IP</th><th>Channel</th></tr></thead>
+                        <tbody id="authEventsTable"><tr><td colspan="5" class="text-muted text-center">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 @endsection
@@ -157,10 +170,7 @@ class StaffViewManager {
         const stats = data.stats;
 
         const ref = document.referrer || '';
-        if (ref.includes('/pharmacies/')) {
-            document.getElementById('backLink').href = ref;
-            document.getElementById('backLink').innerHTML = '<i class="ti ti-arrow-left me-1"></i>Back to Pharmacy';
-        }
+        // breadcrumb navigation handles back path
 
         document.getElementById('staffName').textContent = user.name;
         document.getElementById('staffEmail').textContent = user.email || '—';
@@ -191,6 +201,15 @@ class StaffViewManager {
         document.getElementById('statSopPct').textContent = stats.sop_read_pct !== null ? `${stats.sop_read_pct}%` : '—';
         document.getElementById('statPolicyRead').textContent = `${pol.read || 0}/${pol.total || 0}`;
         document.getElementById('statPolicyPct').textContent = stats.policy_read_pct !== null ? `${stats.policy_read_pct}%` : '—';
+
+        const authLink = document.getElementById('authLogLink');
+        if (authLink) authLink.href = `/admin/crm-auth-events?user_id=${user.id}`;
+
+        const events = data.auth_events || [];
+        const tbody = document.getElementById('authEventsTable');
+        tbody.innerHTML = events.length ? events.map(e => `<tr>
+            <td>${e.created_at || '—'}</td><td>${e.action}</td><td>${e.result}</td><td>${e.ip || '—'}</td><td>${e.channel || '—'}</td>
+        </tr>`).join('') : '<tr><td colspan="5" class="text-muted text-center">No auth events recorded</td></tr>';
     }
 }
 

@@ -313,7 +313,25 @@ class PharmacyInvestigationController extends Controller
                 ->groupBy('user_id');
         }
 
-        $formatted = $staffUsers->map(function ($user) use ($pharmacyIds, $pharmacyNameMap, $reliefAssignments) {
+        // Multi-pharmacy staff (dispensary / fos / locum) use user_pharmacies pivot.
+        $staffPharmacyAssignments = collect();
+        if (Schema::hasTable('user_pharmacies') && $staffUsers->isNotEmpty()) {
+            $staffPharmacyAssignments = DB::table('user_pharmacies')
+                ->join('pharmacies', 'user_pharmacies.pharmacy_id', '=', 'pharmacies.id')
+                ->select(
+                    'user_pharmacies.user_id',
+                    'user_pharmacies.pharmacy_id',
+                    'pharmacies.pharmacy_name'
+                )
+                ->whereIn('user_pharmacies.user_id', $staffUsers->pluck('id'))
+                ->orderBy('pharmacies.pharmacy_name')
+                ->get()
+                ->groupBy('user_id');
+        }
+
+        $multiPharmacyTypes = ['dispensary', 'fos', 'locum_pharmacist'];
+
+        $formatted = $staffUsers->map(function ($user) use ($pharmacyIds, $pharmacyNameMap, $reliefAssignments, $staffPharmacyAssignments, $multiPharmacyTypes) {
             $role = $this->formatUserRole($user->user_type);
             $isAdmin = $user->user_type === 'admin';
             $assignedPharmacyIds = [];
@@ -328,6 +346,17 @@ class PharmacyInvestigationController extends Controller
                 $assigned = collect($reliefAssignments->get($user->id, []));
                 $assignedPharmacyIds = $assigned->pluck('pharmacy_id')->map(fn ($id) => (int) $id)->values()->all();
                 $pharmacyNames = $assigned->pluck('pharmacy_name')->values()->all();
+                $pharmaciesDisplay = !empty($pharmacyNames) ? implode(', ', $pharmacyNames) : 'Not Assigned';
+            } elseif (in_array($user->user_type, $multiPharmacyTypes, true)) {
+                $assigned = collect($staffPharmacyAssignments->get($user->id, []));
+                $assignedPharmacyIds = $assigned->pluck('pharmacy_id')->map(fn ($id) => (int) $id)->values()->all();
+                $pharmacyNames = $assigned->pluck('pharmacy_name')->values()->all();
+
+                if (empty($assignedPharmacyIds) && !empty($user->user_pharmacy) && isset($pharmacyNameMap[$user->user_pharmacy])) {
+                    $assignedPharmacyIds = [(int) $user->user_pharmacy];
+                    $pharmacyNames = [$pharmacyNameMap[$user->user_pharmacy]];
+                }
+
                 $pharmaciesDisplay = !empty($pharmacyNames) ? implode(', ', $pharmacyNames) : 'Not Assigned';
             } elseif (!empty($user->user_pharmacy) && isset($pharmacyNameMap[$user->user_pharmacy])) {
                 $assignedPharmacyIds = [(int) $user->user_pharmacy];

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
@@ -456,18 +457,38 @@ class CustomerController extends Controller
                 ->orderBy('name')
                 ->get();
 
-            $reliefAssignments = DB::table('relief_pharmacist_pharmacies')
-                ->join('pharmacies', 'relief_pharmacist_pharmacies.pharmacy_id', '=', 'pharmacies.id')
-                ->select(
-                    'relief_pharmacist_pharmacies.user_id',
-                    'relief_pharmacist_pharmacies.pharmacy_id',
-                    'pharmacies.pharmacy_name'
-                )
-                ->whereIn('relief_pharmacist_pharmacies.user_id', $staffUsers->pluck('id'))
-                ->get()
-                ->groupBy('user_id');
+            $reliefAssignments = collect();
+            if (Schema::hasTable('relief_pharmacist_pharmacies') && $staffUsers->isNotEmpty()) {
+                $reliefAssignments = DB::table('relief_pharmacist_pharmacies')
+                    ->join('pharmacies', 'relief_pharmacist_pharmacies.pharmacy_id', '=', 'pharmacies.id')
+                    ->select(
+                        'relief_pharmacist_pharmacies.user_id',
+                        'relief_pharmacist_pharmacies.pharmacy_id',
+                        'pharmacies.pharmacy_name'
+                    )
+                    ->whereIn('relief_pharmacist_pharmacies.user_id', $staffUsers->pluck('id'))
+                    ->get()
+                    ->groupBy('user_id');
+            }
 
-            $formattedStaff = $staffUsers->map(function ($user) use ($pharmacyIds, $pharmacyNameMap, $reliefAssignments) {
+            $staffPharmacyAssignments = collect();
+            if (Schema::hasTable('user_pharmacies') && $staffUsers->isNotEmpty()) {
+                $staffPharmacyAssignments = DB::table('user_pharmacies')
+                    ->join('pharmacies', 'user_pharmacies.pharmacy_id', '=', 'pharmacies.id')
+                    ->select(
+                        'user_pharmacies.user_id',
+                        'user_pharmacies.pharmacy_id',
+                        'pharmacies.pharmacy_name'
+                    )
+                    ->whereIn('user_pharmacies.user_id', $staffUsers->pluck('id'))
+                    ->orderBy('pharmacies.pharmacy_name')
+                    ->get()
+                    ->groupBy('user_id');
+            }
+
+            $multiPharmacyTypes = ['dispensary', 'fos', 'locum_pharmacist'];
+
+            $formattedStaff = $staffUsers->map(function ($user) use ($pharmacyIds, $pharmacyNameMap, $reliefAssignments, $staffPharmacyAssignments, $multiPharmacyTypes) {
                 $role = $this->formatUserRole($user->user_type);
                 $isAdmin = $user->user_type === 'admin';
                 $assignedPharmacyIds = [];
@@ -482,6 +503,17 @@ class CustomerController extends Controller
                     $assigned = collect($reliefAssignments->get($user->id, []));
                     $assignedPharmacyIds = $assigned->pluck('pharmacy_id')->map(fn ($id) => (int) $id)->values()->all();
                     $pharmacyNames = $assigned->pluck('pharmacy_name')->values()->all();
+                    $pharmaciesDisplay = !empty($pharmacyNames) ? implode(', ', $pharmacyNames) : 'Not Assigned';
+                } elseif (in_array($user->user_type, $multiPharmacyTypes, true)) {
+                    $assigned = collect($staffPharmacyAssignments->get($user->id, []));
+                    $assignedPharmacyIds = $assigned->pluck('pharmacy_id')->map(fn ($id) => (int) $id)->values()->all();
+                    $pharmacyNames = $assigned->pluck('pharmacy_name')->values()->all();
+
+                    if (empty($assignedPharmacyIds) && !empty($user->user_pharmacy) && isset($pharmacyNameMap[$user->user_pharmacy])) {
+                        $assignedPharmacyIds = [(int) $user->user_pharmacy];
+                        $pharmacyNames = [$pharmacyNameMap[$user->user_pharmacy]];
+                    }
+
                     $pharmaciesDisplay = !empty($pharmacyNames) ? implode(', ', $pharmacyNames) : 'Not Assigned';
                 } elseif (!empty($user->user_pharmacy) && isset($pharmacyNameMap[$user->user_pharmacy])) {
                     $assignedPharmacyIds = [(int) $user->user_pharmacy];

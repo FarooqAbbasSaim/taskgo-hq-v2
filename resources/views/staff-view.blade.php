@@ -81,13 +81,9 @@
                         <label class="form-label">Email verified</label>
                         <input type="text" class="form-control" id="staffVerified" readonly>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Primary pharmacy</label>
-                        <input type="text" class="form-control" id="staffPrimaryPharmacy" readonly>
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-12">
                         <label class="form-label">Assigned pharmacies</label>
-                        <input type="text" class="form-control" id="staffPharmacies" readonly>
+                        <div id="staffPharmacies" class="d-flex flex-wrap gap-2 align-items-center min-vh-0 border rounded px-3 py-2 bg-light" style="min-height: 2.75rem;"></div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Last login</label>
@@ -184,8 +180,7 @@ class StaffViewManager {
         document.getElementById('staffPhone').value = user.phone || '—';
         document.getElementById('staffPsi').value = user.psi_number || '—';
         document.getElementById('staffVerified').value = user.email_verified ? 'Yes' : 'No';
-        document.getElementById('staffPrimaryPharmacy').value = user.user_pharmacy_name || '—';
-        document.getElementById('staffPharmacies').value = user.pharmacies_display || '—';
+        this.renderAssignedPharmacies(user);
         document.getElementById('staffLastLogin').value = this.formatDate(user.last_login_at);
         document.getElementById('staffCreated').value = this.formatDate(user.created_at);
 
@@ -210,6 +205,35 @@ class StaffViewManager {
         tbody.innerHTML = events.length ? events.map(e => `<tr>
             <td>${e.created_at || '—'}</td><td>${e.action}</td><td>${e.result}</td><td>${e.ip || '—'}</td><td>${e.channel || '—'}</td>
         </tr>`).join('') : '<tr><td colspan="5" class="text-muted text-center">No auth events recorded</td></tr>';
+    }
+
+    renderAssignedPharmacies(user) {
+        const container = document.getElementById('staffPharmacies');
+        let names = Array.isArray(user.pharmacy_names) ? user.pharmacy_names.filter(Boolean) : [];
+
+        if (!names.length && user.pharmacies_display && user.pharmacies_display !== 'Not Assigned') {
+            names = user.pharmacies_display.split(',').map((name) => name.trim()).filter(Boolean);
+        }
+
+        if (!names.length) {
+            container.innerHTML = '<span class="text-muted">Not assigned</span>';
+            return;
+        }
+
+        if (names.length === 1 && names[0] === 'All') {
+            container.innerHTML = '<span class="badge rounded-pill text-bg-primary">All pharmacies</span>';
+            return;
+        }
+
+        container.innerHTML = names.map((name) =>
+            `<span class="badge rounded-pill text-bg-secondary">${this.esc(name)}</span>`
+        ).join('');
+    }
+
+    esc(value) {
+        const div = document.createElement('div');
+        div.textContent = value == null ? '' : String(value);
+        return div.innerHTML;
     }
 }
 

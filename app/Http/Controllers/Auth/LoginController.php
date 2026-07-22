@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\HqUser;
+use App\Support\SessionFingerprint;
 
 class LoginController extends Controller
 {
@@ -154,6 +155,8 @@ class LoginController extends Controller
 
         // Skip 2FA for local environment
         if (app()->environment('local')) {
+            SessionFingerprint::bind($request);
+
             return redirect($this->redirectPath());
         }
 
@@ -175,6 +178,8 @@ class LoginController extends Controller
             $redirectUrl = url()->route('2fa.form');
             return redirect($redirectUrl)->with('user_id', $user->id)->with('email', $user->email);
         }
+
+        SessionFingerprint::bind($request);
 
         return redirect($this->redirectPath());
     }
@@ -215,6 +220,8 @@ class LoginController extends Controller
 
             // Log in the user using HQ guard
             Auth::guard('hq')->login($user);
+            $request->session()->regenerate();
+            SessionFingerprint::bind($request);
 
             return redirect()->intended($this->redirectPath());
         }

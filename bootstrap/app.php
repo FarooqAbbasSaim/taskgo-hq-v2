@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(\App\Http\Middleware\NoindexAuthPages::class);
+        $middleware->web(append: [
+            \App\Http\Middleware\ValidateSessionFingerprint::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

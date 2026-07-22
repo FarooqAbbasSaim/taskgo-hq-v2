@@ -230,10 +230,30 @@
                                 <button type="button" class="btn btn-primary btn-sm" onclick="rxUserViewManager.loadDosageReminders()">Try Again</button>
                             </div>
                             <div id="remindersContent" style="display: none;">
-                                <p class="text-muted small mb-3" id="remindersScheduleNote"></p>
                                 <div id="remindersDuplicateAlert" class="alert alert-warning py-2" style="display: none;"></div>
 
-                                <h6 class="mb-2">Orders with dosage reminders enabled</h6>
+                                <h6 class="mb-2 d-inline-flex align-items-center gap-1">
+                                    Orders with dosage reminders enabled
+                                    <i class="ti ti-info-circle text-primary dosage-reminders-schedule-info"
+                                       data-bs-toggle="popover"
+                                       data-bs-trigger="hover focus"
+                                       data-bs-placement="right"
+                                       data-bs-html="true"
+                                       data-bs-title="Dosage reminder schedule"
+                                       tabindex="0"
+                                       role="button"
+                                       aria-label="Dosage reminder schedule"
+                                       style="cursor: pointer;"></i>
+                                </h6>
+                                <div id="dosageRemindersScheduleContent" class="d-none">
+                                    <p class="mb-2 small text-muted">Rx sends hourly (Europe/Dublin).</p>
+                                    <ul class="mb-0 ps-3 small">
+                                        <li><strong>Freq 1:</strong> 09:00</li>
+                                        <li><strong>Freq 2:</strong> 09:00 &amp; 21:00</li>
+                                        <li><strong>Freq 3:</strong> 09:00, 14:00, 21:00</li>
+                                        <li><strong>Freq 4:</strong> 08:00, 12:00, 18:00, 22:00</li>
+                                    </ul>
+                                </div>
                                 <div id="remindersEnabledEmpty" class="text-muted small mb-3" style="display: none;">No orders currently have dosage reminders enabled.</div>
                                 <div class="table-responsive mb-4" id="remindersEnabledTableWrap" style="display: none;">
                                     <table class="table table-sm table-striped">
@@ -600,7 +620,7 @@ class RxUserViewManager {
         const enabled = data.enabled_orders || [];
         const history = data.history || [];
 
-        document.getElementById('remindersScheduleNote').textContent = data.schedule_note || '';
+        this.initDosageRemindersSchedulePopover();
 
         const dupAlert = document.getElementById('remindersDuplicateAlert');
         if (data.duplicate_same_slot_count > 0) {
@@ -655,6 +675,28 @@ class RxUserViewManager {
                 </tr>
             `;
         }).join('');
+    }
+
+    initDosageRemindersSchedulePopover() {
+        const icon = document.querySelector('.dosage-reminders-schedule-info');
+        const contentEl = document.getElementById('dosageRemindersScheduleContent');
+        if (!icon || !contentEl || typeof bootstrap === 'undefined' || !bootstrap.Popover) {
+            return;
+        }
+
+        const existing = bootstrap.Popover.getInstance(icon);
+        if (existing) {
+            existing.dispose();
+        }
+
+        new bootstrap.Popover(icon, {
+            html: true,
+            trigger: 'hover focus',
+            placement: 'right',
+            title: 'Dosage reminder schedule',
+            content: contentEl.innerHTML,
+            container: 'body',
+        });
     }
 
     async loadOrders() {

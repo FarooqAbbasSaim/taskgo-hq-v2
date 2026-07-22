@@ -10,7 +10,7 @@
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info">
-                        Only <strong>.doc</strong> and <strong>.docx</strong> files are supported. New uploads are inactive until activated.
+                        Only <strong>.doc</strong> and <strong>.docx</strong> files are supported. New uploads are immediately available for pharmacy import.
                     </div>
 
                     <form id="sopCatalogUploadForm" enctype="multipart/form-data">
@@ -95,17 +95,17 @@
                         : '<span class="badge bg-secondary-subtle text-secondary">Inactive</span>';
 
                     return (
-                        '<div class="border rounded p-3 mb-3 d-flex flex-wrap justify-content-between align-items-center gap-3">' +
-                            '<div>' +
-                                '<div class="fw-semibold fs-5 text-dark">' + escapeHtml(item.title) + '</div>' +
-                                '<div class="text-muted small mt-1">Added on ' + escapeHtml(item.added_on || '') + '</div>' +
-                                '<div class="mt-2">' + statusBadge + '</div>' +
+                        '<div class="border rounded px-3 py-2 mb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">' +
+                            '<div class="min-w-0">' +
+                                '<div class="d-flex flex-wrap align-items-center gap-2">' +
+                                    '<div class="fw-semibold text-dark">' + escapeHtml(item.title) + '</div>' +
+                                    statusBadge +
+                                '</div>' +
+                                '<div class="text-muted small">Added on ' + escapeHtml(item.added_on || '') + '</div>' +
                             '</div>' +
                             '<div class="d-flex flex-wrap gap-2">' +
-                                '<button type="button" class="btn btn-sm ' + (item.is_active ? 'btn-outline-warning' : 'btn-outline-success') + ' sop-catalog-toggle" data-id="' + item.id + '" data-active="' + (item.is_active ? '0' : '1') + '">' +
-                                    (item.is_active ? 'Deactivate' : 'Activate') +
-                                '</button>' +
-                                '<button type="button" class="btn btn-sm btn-outline-danger sop-catalog-delete" data-id="' + item.id + '" ' + (item.has_imports ? 'disabled title="Already imported by a pharmacy"' : '') + '>Delete</button>' +
+                                '<a href="' + escapeHtml(item.view_url) + '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">View</a>' +
+                                '<button type="button" class="btn btn-sm btn-outline-danger sop-catalog-delete" data-id="' + item.id + '">Delete</button>' +
                             '</div>' +
                         '</div>'
                     );
@@ -188,32 +188,10 @@
             });
 
             listNode.addEventListener('click', async function (event) {
-                const toggleBtn = event.target.closest('.sop-catalog-toggle');
                 const deleteBtn = event.target.closest('.sop-catalog-delete');
 
-                if (toggleBtn) {
-                    const id = toggleBtn.getAttribute('data-id');
-                    const isActive = toggleBtn.getAttribute('data-active') === '1';
-                    const response = await fetch('/api/sop-catalog/' + id + '/toggle-active', {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest',
-                        },
-                        body: JSON.stringify({ is_active: isActive }),
-                    });
-                    const payload = await response.json();
-                    if (!response.ok || !payload.success) {
-                        alert(payload.message || 'Could not update catalog item.');
-                        return;
-                    }
-                    await loadCatalog();
-                }
-
-                if (deleteBtn && !deleteBtn.disabled) {
-                    if (!confirm('Delete this catalog document and remove its file from storage?')) {
+                if (deleteBtn) {
+                    if (!confirm('Delete this catalog document? Pharmacies that already imported it will keep their own copy.')) {
                         return;
                     }
 

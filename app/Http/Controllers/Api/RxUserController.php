@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -98,28 +99,69 @@ class RxUserController extends Controller
         }
     }
 
-    public function getRxUsersData()
+    public function getRxUsersData(Request $request)
     {
         try {
-            $users = DB::table('rx_users')
+            $perPage = min(100, max(10, (int) $request->get('per_page', 25)));
+            $page = max(1, (int) $request->get('page', 1));
+            $search = trim((string) $request->get('search', ''));
+            $pharmacyId = $request->get('pharmacy_id');
+            $hasOrders = $request->boolean('has_orders');
+            $hasBookings = $request->boolean('has_bookings');
+
+            $query = DB::table('rx_users')
                 ->select([
-                    'id',
-                    'first_name',
-                    'last_name',
-                    'email',
-                    'mobile_number',
-                    'pps_number',
-                    'dob',
-                    'nominated_pharmacy_id',
-                    'created_at'
-                ])
-                ->orderBy('created_at', 'desc')
+                    'rx_users.id',
+                    'rx_users.first_name',
+                    'rx_users.last_name',
+                    'rx_users.email',
+                    'rx_users.mobile_number',
+                    'rx_users.pps_number',
+                    'rx_users.dob',
+                    'rx_users.nominated_pharmacy_id',
+                    'rx_users.created_at',
+                ]);
+
+            if ($search !== '') {
+                $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $search) . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->where('rx_users.first_name', 'like', $like)
+                        ->orWhere('rx_users.last_name', 'like', $like)
+                        ->orWhere('rx_users.email', 'like', $like)
+                        ->orWhere('rx_users.mobile_number', 'like', $like)
+                        ->orWhere('rx_users.pps_number', 'like', $like);
+                });
+            }
+
+            if ($pharmacyId) {
+                $query->where('rx_users.nominated_pharmacy_id', (int) $pharmacyId);
+            }
+
+            if ($hasOrders && Schema::hasTable('rx_orders')) {
+                $query->whereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('rx_orders')
+                        ->whereColumn('rx_orders.user_id', 'rx_users.id');
+                });
+            }
+
+            if ($hasBookings && Schema::hasTable('appointments')) {
+                $query->whereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('appointments')
+                        ->whereColumn('appointments.user_id', 'rx_users.id');
+                });
+            }
+
+            $total = (clone $query)->count();
+            $users = $query
+                ->orderByDesc('rx_users.created_at')
+                ->offset(($page - 1) * $perPage)
+                ->limit($perPage)
                 ->get();
 
-            // Get pharmacy names for nominated pharmacies
             $pharmacyIds = $users->pluck('nominated_pharmacy_id')->filter()->unique();
             $pharmacies = [];
-            
             if ($pharmacyIds->isNotEmpty()) {
                 $pharmacies = DB::table('pharmacies')
                     ->whereIn('id', $pharmacyIds)
@@ -128,8 +170,8 @@ class RxUserController extends Controller
             }
 
             $usersData = $users->map(function ($user) use ($pharmacies) {
-                $nominatedPharmacy = $user->nominated_pharmacy_id ? 
-                    ($pharmacies[$user->nominated_pharmacy_id] ?? 'Unknown Pharmacy') : 
+                $nominatedPharmacy = $user->nominated_pharmacy_id ?
+                    ($pharmacies[$user->nominated_pharmacy_id] ?? 'Unknown Pharmacy') :
                     'Not Set';
 
                 $dobFormatted = null;
@@ -149,13 +191,20 @@ class RxUserController extends Controller
                     'pps_no' => $user->pps_number,
                     'dob' => $dobFormatted,
                     'nominated_pharmacy' => $nominatedPharmacy,
-                    'created_at' => $user->created_at
+                    'nominated_pharmacy_id' => $user->nominated_pharmacy_id,
+                    'created_at' => $user->created_at,
                 ];
             });
 
             return response()->json([
                 'success' => true,
-                'data' => $usersData
+                'data' => $usersData,
+                'meta' => [
+                    'total' => $total,
+                    'page' => $page,
+                    'per_page' => $perPage,
+                    'last_page' => (int) ceil($total / $perPage),
+                ],
             ]);
 
         } catch (\Exception $e) {
@@ -603,6 +652,226 @@ class RxUserController extends Controller
                 'success' => false,
                 'message' => 'Failed to fetch Rx user bookings',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getRxUserStats($id)
+    {
+        try {
+            $user = DB::table('rx_users')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rx user not found',
+                ], 404);
+            }
+
+            $ordersQuery = DB::table('rx_orders')->where('user_id', $id);
+            $ordersCount = (clone $ordersQuery)->count();
+            $ordersByStatus = (clone $ordersQuery)
+                ->select('status', DB::raw('COUNT(*) as cnt'))
+                ->groupBy('status')
+                ->pluck('cnt', 'status')
+                ->toArray();
+
+            $orderIds = DB::table('rx_orders')->where('user_id', $id)->pluck('id');
+            $medicationsCount = 0;
+            if ($orderIds->isNotEmpty()) {
+                $medicationsCount = (int) DB::table('order_medicines')
+                    ->whereIn('order_id', $orderIds)
+                    ->selectRaw('COUNT(DISTINCT name) as cnt')
+                    ->value('cnt');
+            }
+
+            $bookingsQuery = DB::table('appointments')->where('user_id', $id);
+            $bookingsCount = (clone $bookingsQuery)->count();
+            $bookingsByStatus = (clone $bookingsQuery)
+                ->select('status', DB::raw('COUNT(*) as cnt'))
+                ->groupBy('status')
+                ->pluck('cnt', 'status')
+                ->toArray();
+
+            $distinctServices = (int) DB::table('appointments')
+                ->where('user_id', $id)
+                ->whereNotNull('service_id')
+                ->selectRaw('COUNT(DISTINCT service_id) as cnt')
+                ->value('cnt');
+
+            $lastOrderAt = DB::table('rx_orders')->where('user_id', $id)->max('created_at');
+            $lastBookingAt = DB::table('appointments')->where('user_id', $id)->max('created_at');
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'orders_count' => $ordersCount,
+                    'orders_by_status' => $ordersByStatus,
+                    'medications_count' => $medicationsCount,
+                    'bookings_count' => $bookingsCount,
+                    'bookings_by_status' => $bookingsByStatus,
+                    'services_used_count' => $distinctServices,
+                    'last_order_at' => $lastOrderAt,
+                    'last_booking_at' => $lastBookingAt,
+                    'member_since' => $user->created_at,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching Rx user stats: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch Rx user stats',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getRxUserMedications($id)
+    {
+        try {
+            $user = DB::table('rx_users')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rx user not found',
+                ], 404);
+            }
+
+            $orderIds = DB::table('rx_orders')->where('user_id', $id)->pluck('id');
+            if ($orderIds->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            $medications = DB::table('order_medicines')
+                ->join('rx_orders', 'rx_orders.id', '=', 'order_medicines.order_id')
+                ->whereIn('order_medicines.order_id', $orderIds)
+                ->select(
+                    'order_medicines.name',
+                    DB::raw('SUM(order_medicines.quantity) as total_quantity'),
+                    DB::raw('COUNT(*) as times_ordered'),
+                    DB::raw('MAX(rx_orders.created_at) as last_ordered_at'),
+                    DB::raw('MAX(order_medicines.repeats) as max_repeats')
+                )
+                ->groupBy('order_medicines.name')
+                ->orderByDesc('last_ordered_at')
+                ->get()
+                ->map(function ($med) {
+                    return [
+                        'name' => $med->name,
+                        'total_quantity' => (int) $med->total_quantity,
+                        'times_ordered' => (int) $med->times_ordered,
+                        'max_repeats' => $med->max_repeats,
+                        'last_ordered_at' => $med->last_ordered_at
+                            ? Carbon::parse($med->last_ordered_at)->format('j F Y')
+                            : null,
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $medications,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching Rx user medications: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch Rx user medications',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getRxUserTimeline($id)
+    {
+        try {
+            $user = DB::table('rx_users')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rx user not found',
+                ], 404);
+            }
+
+            $events = collect();
+
+            if (Schema::hasTable('rx_orders')) {
+                $orders = DB::table('rx_orders')
+                    ->where('user_id', $id)
+                    ->select('id', 'status', 'created_at')
+                    ->orderByDesc('created_at')
+                    ->limit(50)
+                    ->get();
+
+                foreach ($orders as $order) {
+                    $events->push([
+                        'type' => 'order',
+                        'title' => 'Order RX-' . $order->id,
+                        'subtitle' => ucfirst($order->status ?? ''),
+                        'occurred_at' => $order->created_at,
+                        'sort_at' => Carbon::parse($order->created_at)->timestamp,
+                        'ref_id' => $order->id,
+                    ]);
+                }
+            }
+
+            if (Schema::hasTable('appointments')) {
+                $bookings = DB::table('appointments')
+                    ->leftJoin('services', 'services.id', '=', 'appointments.service_id')
+                    ->where('appointments.user_id', $id)
+                    ->select(
+                        'appointments.id',
+                        'appointments.status',
+                        'appointments.date',
+                        'appointments.start_time',
+                        'appointments.created_at',
+                        'services.name as service_name'
+                    )
+                    ->orderByDesc('appointments.created_at')
+                    ->limit(50)
+                    ->get();
+
+                foreach ($bookings as $booking) {
+                    $when = $booking->created_at ?: ($booking->date . ' ' . ($booking->start_time ?? '00:00:00'));
+                    $events->push([
+                        'type' => 'booking',
+                        'title' => $booking->service_name ?: 'Service booking',
+                        'subtitle' => ucfirst($booking->status ?? ''),
+                        'occurred_at' => $when,
+                        'sort_at' => Carbon::parse($when)->timestamp,
+                        'ref_id' => $booking->id,
+                    ]);
+                }
+            }
+
+            $timeline = $events
+                ->sortByDesc('sort_at')
+                ->take(40)
+                ->values()
+                ->map(function ($event) {
+                    return [
+                        'type' => $event['type'],
+                        'title' => $event['title'],
+                        'subtitle' => $event['subtitle'],
+                        'occurred_at' => Carbon::parse($event['occurred_at'])->format('j F Y g:i A'),
+                        'ref_id' => $event['ref_id'],
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $timeline,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching Rx user timeline: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch timeline',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

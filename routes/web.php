@@ -92,7 +92,14 @@ Route::middleware(['auth:hq'])->prefix('api/customers')->group(function () {
     Route::post('/update-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'updatePackagePlan']);
     Route::post('/change-subscription-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeSubscriptionStatus']);
     Route::post('/{id}/resend-activation', [\App\Http\Controllers\Api\CustomerController::class, 'resendActivation']);
+    Route::get('/{customerId}/pharmacies/{pharmacyId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getPharmacy']);
+    Route::get('/{customerId}/pharmacies/{pharmacyId}/export/{type}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'exportPharmacy']);
+    Route::get('/{customerId}/staff/{userId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getStaff']);
     Route::get('/{id}', [\App\Http\Controllers\Api\CustomerController::class, 'getCustomerData']);
+});
+
+Route::middleware(['auth:hq'])->prefix('api/support')->group(function () {
+    Route::get('/search', [\App\Http\Controllers\Api\SupportSearchController::class, 'search']);
 });
 
 // Customer permission routes
@@ -108,6 +115,9 @@ Route::prefix('api/rx-users')->group(function () {
     Route::put('/{id}', [\App\Http\Controllers\Api\RxUserController::class, 'updateRxUser']);
     Route::get('/{id}/orders', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserOrders']);
     Route::get('/{id}/bookings', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserBookings']);
+    Route::get('/{id}/stats', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserStats']);
+    Route::get('/{id}/medications', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserMedications']);
+    Route::get('/{id}/timeline', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserTimeline']);
     Route::get('/orders/{orderId}/prescription-image', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderPrescriptionImage']);
     Route::get('/orders/{orderId}', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderDetails']);
     Route::get('/bookings/{bookingId}', [\App\Http\Controllers\Api\RxUserController::class, 'getBookingDetails']);
@@ -121,7 +131,8 @@ Route::get('/rx-users/email-change/verify/{id}/{token}', [\App\Http\Controllers\
 Route::middleware(['auth:hq'])->prefix('api/sop-catalog')->group(function () {
     Route::get('/', [SopCatalogController::class, 'list']);
     Route::post('/', [SopCatalogController::class, 'store']);
-    Route::post('/{id}/toggle-active', [SopCatalogController::class, 'toggleActive']);
+    Route::get('/{id}/document', [SopCatalogController::class, 'viewDocument']);
+    Route::get('/{id}/download', [SopCatalogController::class, 'downloadDocument']);
     Route::delete('/{id}', [SopCatalogController::class, 'destroy']);
 });
 
@@ -170,6 +181,14 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     Route::get('/customers/archived', function() {
         return view('customers', ['status' => 'archived']);
     })->name('admin.customers.archived');
+
+    Route::get('/customers/{customerId}/pharmacies/{pharmacyId}', function ($customerId, $pharmacyId) {
+        return view('pharmacy-view', compact('customerId', 'pharmacyId'));
+    })->name('admin.pharmacy.view');
+
+    Route::get('/customers/{customerId}/staff/{userId}', function ($customerId, $userId) {
+        return view('staff-view', compact('customerId', 'userId'));
+    })->name('admin.staff.view');
     
     Route::get('/customers/{id}', function($id) {
         return view('customer-view', compact('id'));

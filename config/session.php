@@ -51,6 +51,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Session Fingerprint Binding
+    |--------------------------------------------------------------------------
+    */
+
+    'fingerprint_enabled' => env('SESSION_FINGERPRINT_ENABLED', true),
+
+    'fingerprint_bind_ip' => env('SESSION_FINGERPRINT_BIND_IP', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Session File Location
     |--------------------------------------------------------------------------
     |
@@ -169,7 +179,10 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    'secure' => filter_var(
+        env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production' ? 'true' : 'false'),
+        FILTER_VALIDATE_BOOLEAN
+    ),
 
     /*
     |--------------------------------------------------------------------------

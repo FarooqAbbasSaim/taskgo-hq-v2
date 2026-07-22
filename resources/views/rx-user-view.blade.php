@@ -52,7 +52,22 @@
                     <!-- Nav tabs -->
                     <ul class="nav nav-tabs nav-bordered" id="userTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab" aria-controls="orders" aria-selected="true">
+                            <button class="nav-link active" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats" type="button" role="tab" aria-controls="stats" aria-selected="true">
+                                <i class="ti ti-chart-bar me-1"></i> Stats
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab" aria-controls="details" aria-selected="false">
+                                <i class="ti ti-id me-1"></i> Details
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="medications-tab" data-bs-toggle="tab" data-bs-target="#medications" type="button" role="tab" aria-controls="medications" aria-selected="false">
+                                <i class="ti ti-pill me-1"></i> Medications
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab" aria-controls="orders" aria-selected="false">
                                 <i class="ti ti-package me-1"></i> Medication Orders
                             </button>
                         </li>
@@ -61,12 +76,84 @@
                                 <i class="ti ti-calendar me-1"></i> Service Bookings
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timeline" type="button" role="tab" aria-controls="timeline" aria-selected="false">
+                                <i class="ti ti-timeline me-1"></i> Timeline
+                            </button>
+                        </li>
                     </ul>
 
                     <!-- Tab panes -->
                     <div class="tab-content mt-3" id="userTabsContent">
+                        <div class="tab-pane fade show active" id="stats" role="tabpanel" aria-labelledby="stats-tab">
+                            <div id="statsLoadingState" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+                                <p class="mt-2 text-muted">Loading stats...</p>
+                            </div>
+                            <div id="statsErrorState" class="text-center py-4" style="display: none;">
+                                <h6 class="text-danger">Failed to load stats</h6>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="rxUserViewManager.loadStats()">Try Again</button>
+                            </div>
+                            <div id="statsContent" style="display: none;">
+                                <div class="row g-3">
+                                    <div class="col-6 col-md-3"><div class="border rounded p-3 text-center"><div class="fs-3 fw-semibold" id="statOrdersCount">0</div><div class="text-muted small">Orders</div></div></div>
+                                    <div class="col-6 col-md-3"><div class="border rounded p-3 text-center"><div class="fs-3 fw-semibold" id="statMedsCount">0</div><div class="text-muted small">Medications</div></div></div>
+                                    <div class="col-6 col-md-3"><div class="border rounded p-3 text-center"><div class="fs-3 fw-semibold" id="statBookingsCount">0</div><div class="text-muted small">Bookings</div></div></div>
+                                    <div class="col-6 col-md-3"><div class="border rounded p-3 text-center"><div class="fs-3 fw-semibold" id="statServicesCount">0</div><div class="text-muted small">Services used</div></div></div>
+                                </div>
+                                <div class="row g-3 mt-1">
+                                    <div class="col-md-4"><strong>Member since:</strong> <span id="statMemberSince">—</span></div>
+                                    <div class="col-md-4"><strong>Last order:</strong> <span id="statLastOrder">—</span></div>
+                                    <div class="col-md-4"><strong>Last booking:</strong> <span id="statLastBooking">—</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="details" role="tabpanel" aria-labelledby="details-tab">
+                            <div class="row g-3" id="detailsContent">
+                                <div class="col-md-4"><strong>Full name:</strong> <span id="detailFullName">—</span></div>
+                                <div class="col-md-4"><strong>Email:</strong> <span id="detailEmail">—</span></div>
+                                <div class="col-md-4"><strong>Phone:</strong> <span id="detailPhone">—</span></div>
+                                <div class="col-md-4"><strong>PPS No:</strong> <span id="detailPps">—</span></div>
+                                <div class="col-md-4"><strong>Date of birth:</strong> <span id="detailDob">—</span></div>
+                                <div class="col-md-4"><strong>Gender:</strong> <span id="detailGender">—</span></div>
+                                <div class="col-md-8"><strong>Home address:</strong> <span id="detailAddress">—</span></div>
+                                <div class="col-md-4"><strong>Nominated pharmacy:</strong> <span id="detailPharmacy">—</span></div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="medications" role="tabpanel" aria-labelledby="medications-tab">
+                            <div id="medsLoadingState" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+                                <p class="mt-2 text-muted">Loading medications...</p>
+                            </div>
+                            <div id="medsErrorState" class="text-center py-4" style="display: none;">
+                                <h6 class="text-danger">Failed to load medications</h6>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="rxUserViewManager.loadMedications()">Try Again</button>
+                            </div>
+                            <div id="medsEmptyState" class="text-center py-4" style="display: none;">
+                                <h6 class="text-muted">No Medications Found</h6>
+                                <p class="text-muted">No medications from orders yet.</p>
+                            </div>
+                            <div id="medsTableContainer" style="display: none;">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Medication</th>
+                                                <th>Times ordered</th>
+                                                <th>Total qty</th>
+                                                <th>Last ordered</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="medsTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Medication Orders Tab -->
-                        <div class="tab-pane fade show active" id="orders" role="tabpanel" aria-labelledby="orders-tab">
+                        <div class="tab-pane fade" id="orders" role="tabpanel" aria-labelledby="orders-tab">
                             <!-- <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="mb-0">Medication Orders</h5>
                                 <button type="button" class="btn btn-primary btn-sm" onclick="refreshOrders()">
@@ -182,6 +269,14 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="tab-pane fade" id="timeline" role="tabpanel" aria-labelledby="timeline-tab">
+                            <div id="timelineLoadingState" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+                            </div>
+                            <div id="timelineContent" class="list-group list-group-flush" style="display:none;"></div>
+                            <div id="timelineEmpty" class="text-center text-muted py-4" style="display:none;">No activity yet.</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -260,12 +355,18 @@ class RxUserViewManager {
         this.userData = null;
         this.orders = [];
         this.bookings = [];
+        this.medications = [];
+        this.stats = null;
+        this.ordersLoaded = false;
+        this.bookingsLoaded = false;
+        this.medicationsLoaded = false;
+        this.timelineLoaded = false;
         this.init();
     }
 
     init() {
         this.loadUserData();
-        this.loadOrders();
+        this.loadStats();
     }
 
     async loadUserData() {
@@ -306,6 +407,93 @@ class RxUserViewManager {
         document.getElementById('userPpsNo').textContent = this.userData.pps_no || '-';
         document.getElementById('userDob').textContent = this.userData.dob || '-';
         document.getElementById('userPharmacy').textContent = this.userData.nominated_pharmacy || '-';
+
+        document.getElementById('detailFullName').textContent = this.userData.full_name || '—';
+        document.getElementById('detailEmail').textContent = this.userData.email || '—';
+        document.getElementById('detailPhone').textContent = this.userData.phone || '—';
+        document.getElementById('detailPps').textContent = this.userData.pps_no || '—';
+        document.getElementById('detailDob').textContent = this.userData.dob || '—';
+        document.getElementById('detailGender').textContent = this.userData.gender || '—';
+        document.getElementById('detailAddress').textContent = this.userData.home_address || '—';
+        document.getElementById('detailPharmacy').textContent = this.userData.nominated_pharmacy || '—';
+    }
+
+    formatDateTime(value) {
+        if (!value) return '—';
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return value;
+        return date.toLocaleString();
+    }
+
+    async loadStats() {
+        document.getElementById('statsLoadingState').style.display = 'block';
+        document.getElementById('statsErrorState').style.display = 'none';
+        document.getElementById('statsContent').style.display = 'none';
+
+        try {
+            const response = await fetch(`/api/rx-users/${this.userId}/stats`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                }
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message || 'Failed to load stats');
+            this.stats = result.data;
+            document.getElementById('statOrdersCount').textContent = this.stats.orders_count;
+            document.getElementById('statMedsCount').textContent = this.stats.medications_count;
+            document.getElementById('statBookingsCount').textContent = this.stats.bookings_count;
+            document.getElementById('statServicesCount').textContent = this.stats.services_used_count;
+            document.getElementById('statMemberSince').textContent = this.formatDateTime(this.stats.member_since);
+            document.getElementById('statLastOrder').textContent = this.formatDateTime(this.stats.last_order_at);
+            document.getElementById('statLastBooking').textContent = this.formatDateTime(this.stats.last_booking_at);
+            document.getElementById('statsContent').style.display = 'block';
+        } catch (error) {
+            console.error(error);
+            document.getElementById('statsErrorState').style.display = 'block';
+        } finally {
+            document.getElementById('statsLoadingState').style.display = 'none';
+        }
+    }
+
+    async loadMedications() {
+        document.getElementById('medsLoadingState').style.display = 'block';
+        document.getElementById('medsErrorState').style.display = 'none';
+        document.getElementById('medsEmptyState').style.display = 'none';
+        document.getElementById('medsTableContainer').style.display = 'none';
+
+        try {
+            const response = await fetch(`/api/rx-users/${this.userId}/medications`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                }
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message || 'Failed to load medications');
+            this.medications = result.data || [];
+            this.medicationsLoaded = true;
+
+            if (this.medications.length === 0) {
+                document.getElementById('medsEmptyState').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('medsTableBody').innerHTML = this.medications.map(med => `
+                <tr>
+                    <td>${med.name || '—'}</td>
+                    <td>${med.times_ordered}</td>
+                    <td>${med.total_quantity}</td>
+                    <td>${med.last_ordered_at || '—'}</td>
+                </tr>
+            `).join('');
+            document.getElementById('medsTableContainer').style.display = 'block';
+        } catch (error) {
+            console.error(error);
+            document.getElementById('medsErrorState').style.display = 'block';
+        } finally {
+            document.getElementById('medsLoadingState').style.display = 'none';
+        }
     }
 
     async loadOrders() {
@@ -332,6 +520,7 @@ class RxUserViewManager {
             
             if (result.success) {
                 this.orders = result.data;
+                this.ordersLoaded = true;
                 this.renderOrders();
             } else {
                 throw new Error(result.message || 'Failed to load orders');
@@ -401,6 +590,7 @@ class RxUserViewManager {
             
             if (result.success) {
                 this.bookings = result.data;
+                this.bookingsLoaded = true;
                 this.renderBookings();
             } else {
                 throw new Error(result.message || 'Failed to load bookings');
@@ -444,6 +634,38 @@ class RxUserViewManager {
         `).join('');
 
         this.showBookingsTable();
+    }
+
+    async loadTimeline() {
+        document.getElementById('timelineLoadingState').style.display = 'block';
+        document.getElementById('timelineContent').style.display = 'none';
+        document.getElementById('timelineEmpty').style.display = 'none';
+        try {
+            const response = await fetch(`/api/rx-users/${this.userId}/timeline`, { headers: { Accept: 'application/json' } });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message || 'Failed');
+            this.timelineLoaded = true;
+            const items = result.data || [];
+            if (!items.length) {
+                document.getElementById('timelineEmpty').style.display = 'block';
+                return;
+            }
+            document.getElementById('timelineContent').innerHTML = items.map(item => `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                        <span class="badge bg-light text-dark text-capitalize">${item.type}</span>
+                        <span class="text-muted small">${item.occurred_at}</span>
+                    </div>
+                    <div class="fw-semibold mt-1">${item.title}</div>
+                    <div class="text-muted small">${item.subtitle || ''}</div>
+                </div>`).join('');
+            document.getElementById('timelineContent').style.display = 'block';
+        } catch (e) {
+            document.getElementById('timelineEmpty').textContent = e.message;
+            document.getElementById('timelineEmpty').style.display = 'block';
+        } finally {
+            document.getElementById('timelineLoadingState').style.display = 'none';
+        }
     }
 
     getStatusBadgeClass(status) {
@@ -733,11 +955,28 @@ async function showBookingDetails(bookingId) {
 document.addEventListener('DOMContentLoaded', function() {
     const userId = {{ $id }};
     window.rxUserViewManager = new RxUserViewManager(userId);
-    
-    // Load bookings when bookings tab is clicked
+
+    document.getElementById('orders-tab').addEventListener('click', function() {
+        if (window.rxUserViewManager && !window.rxUserViewManager.ordersLoaded) {
+            window.rxUserViewManager.loadOrders();
+        }
+    });
+
     document.getElementById('bookings-tab').addEventListener('click', function() {
-        if (window.rxUserViewManager && window.rxUserViewManager.bookings.length === 0) {
+        if (window.rxUserViewManager && !window.rxUserViewManager.bookingsLoaded) {
             window.rxUserViewManager.loadBookings();
+        }
+    });
+
+    document.getElementById('medications-tab').addEventListener('click', function() {
+        if (window.rxUserViewManager && !window.rxUserViewManager.medicationsLoaded) {
+            window.rxUserViewManager.loadMedications();
+        }
+    });
+
+    document.getElementById('timeline-tab').addEventListener('click', function() {
+        if (window.rxUserViewManager && !window.rxUserViewManager.timelineLoaded) {
+            window.rxUserViewManager.loadTimeline();
         }
     });
 });

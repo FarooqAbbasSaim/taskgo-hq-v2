@@ -62,13 +62,6 @@
                 </li>
             @endif
 
-            <li class="side-nav-item">
-                <a href="{{ route('admin.system-settings') }}" class="side-nav-link">
-                    <span class="menu-icon"><i data-lucide="settings"></i></span>
-                    <span class="menu-text">System Settings</span>
-                </a>
-            </li>
-
             @if(config('features.disposable_email_audit_logs'))
             <li class="side-nav-item">
                 <a href="{{ route('admin.disposable-email-audit-logs') }}" class="side-nav-link">
@@ -104,6 +97,13 @@
                 </a>
             </li>
             @endif
+
+            <li class="side-nav-item">
+                <a href="{{ route('admin.system-settings') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="settings"></i></span>
+                    <span class="menu-text">System Settings</span>
+                </a>
+            </li>
 
             @if(env('RUNNING_LOCALLY', false))
             <li class="side-nav-item">

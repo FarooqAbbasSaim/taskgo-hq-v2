@@ -14,6 +14,22 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <div class="row mb-3 g-2 align-items-end">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="ti ti-search"></i></span>
+                                <input type="text" class="form-control" id="searchRxUsers" placeholder="Search name, email, phone, PPS...">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="filterPharmacy"><option value="">All pharmacies</option></select>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="filterHasOrders"><label class="form-check-label" for="filterHasOrders">Has orders</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="filterHasBookings"><label class="form-check-label" for="filterHasBookings">Has bookings</label></div>
+                        </div>
+                    </div>
+
                     <!-- Loading State -->
                     <div id="loadingState" class="text-center py-5">
                         <div class="spinner-border text-primary" role="status">
@@ -40,7 +56,7 @@
                             <i class="ti ti-users" style="font-size: 3rem;"></i>
                         </div>
                         <h5 class="text-muted">No Rx Users Found</h5>
-                        <p class="text-muted">There are no Rx users in the system yet.</p>
+                        <p class="text-muted" id="emptyStateMessage">There are no Rx users in the system yet.</p>
                     </div>
 
                     <!-- Table -->
@@ -62,6 +78,10 @@
                                     <!-- Data will be loaded here -->
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div class="text-muted small">Showing <span id="showingCount">0</span> of <span id="totalCount">0</span></div>
+                            <div class="btn-group btn-group-sm" id="paginationControls"></div>
                         </div>
                     </div>
                 </div>
@@ -102,48 +122,65 @@
 class RxUsersManager {
     constructor() {
         this.rxUsers = [];
+        this.meta = { page: 1, per_page: 25, total: 0, last_page: 1 };
+        this.searchTimer = null;
         this.init();
     }
 
     init() {
-        this.bindEvents();
+        this.loadPharmacies();
+        document.getElementById('searchRxUsers')?.addEventListener('input', () => {
+            clearTimeout(this.searchTimer);
+            this.searchTimer = setTimeout(() => { this.meta.page = 1; this.loadRxUsers(); }, 300);
+        });
+        ['filterPharmacy','filterHasOrders','filterHasBookings'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', () => { this.meta.page = 1; this.loadRxUsers(); });
+        });
         this.loadRxUsers();
     }
 
-    bindEvents() {
-        // Any additional event bindings can go here
+    async loadPharmacies() {
+        try {
+            const response = await fetch('/api/rx-users/pharmacies/active', { headers: { Accept: 'application/json' } });
+            const result = await response.json();
+            const select = document.getElementById('filterPharmacy');
+            if (select && result.success) {
+                result.data.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = p.pharmacy_name;
+                    select.appendChild(opt);
+                });
+            }
+        } catch (e) { /* optional */ }
+    }
+
+    buildQuery() {
+        const params = new URLSearchParams();
+        params.set('page', this.meta.page);
+        params.set('per_page', this.meta.per_page);
+        const search = document.getElementById('searchRxUsers')?.value.trim();
+        if (search) params.set('search', search);
+        const pharmacyId = document.getElementById('filterPharmacy')?.value;
+        if (pharmacyId) params.set('pharmacy_id', pharmacyId);
+        if (document.getElementById('filterHasOrders')?.checked) params.set('has_orders', '1');
+        if (document.getElementById('filterHasBookings')?.checked) params.set('has_bookings', '1');
+        return params.toString();
     }
 
     async loadRxUsers() {
         this.showLoading(true);
-        this.hideError();
-        this.hideEmpty();
-        this.hideTable();
-
+        this.hideError(); this.hideEmpty(); this.hideTable();
         try {
-            const response = await fetch('/api/rx-users', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Accept': 'application/json'
-                }
+            const response = await fetch('/api/rx-users?' + this.buildQuery(), {
+                headers: { Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
             const result = await response.json();
-            
-            if (result.success) {
-                this.rxUsers = result.data;
-                this.renderTable();
-            } else {
-                throw new Error(result.message || 'Failed to load Rx users');
-            }
+            if (!result.success) throw new Error(result.message || 'Failed to load');
+            this.rxUsers = result.data || [];
+            this.meta = { ...this.meta, ...(result.meta || {}) };
+            this.renderTable();
         } catch (error) {
-            console.error('Error loading Rx users:', error);
             this.showError(error.message);
         } finally {
             this.showLoading(false);
@@ -152,110 +189,51 @@ class RxUsersManager {
 
     renderTable() {
         const tbody = document.getElementById('rxUsersTableBody');
-        
-        if (this.rxUsers.length === 0) {
+        if (!this.rxUsers.length) {
+            document.getElementById('emptyStateMessage').textContent = 'Try adjusting your search or filters.';
             this.showEmpty();
             return;
         }
-
-        tbody.innerHTML = this.rxUsers.map(user => `
-            <tr>
-                <td>
-                    <a href="/admin/rx-users/${user.id}" class="text-primary fw-semibold">
-                        ${user.full_name}
-                    </a>
-                </td>
-                <td>${user.email || '-'}</td>
-                <td>${user.phone || '-'}</td>
-                <td>${user.pps_no || '-'}</td>
-                <td>${user.dob || '-'}</td>
-                <td>${user.nominated_pharmacy || '-'}</td>
-                <td>
-                    <div class="btn-group" role="group">
-                        <a href="/admin/rx-users/${user.id}" class="btn btn-sm btn-outline-primary">
-                            <i class="ti ti-eye"></i> View
-                        </a>
-                        <a href="/admin/rx-users/${user.id}/edit" class="btn btn-sm btn-primary">
-                            <i class="ti ti-edit"></i> Edit
-                        </a>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
-
+        this.hideEmpty();
+        tbody.innerHTML = this.rxUsers.map(user => `<tr>
+            <td><a href="/admin/rx-users/${user.id}" class="text-primary fw-semibold">${user.full_name}</a></td>
+            <td>${user.email || '-'}</td><td>${user.phone || '-'}</td><td>${user.pps_no || '-'}</td>
+            <td>${user.dob || '-'}</td><td>${user.nominated_pharmacy || '-'}</td>
+            <td><a href="/admin/rx-users/${user.id}" class="btn btn-sm btn-outline-primary">View</a>
+            <a href="/admin/rx-users/${user.id}/edit" class="btn btn-sm btn-primary">Edit</a></td></tr>`).join('');
+        document.getElementById('showingCount').textContent = this.rxUsers.length;
+        document.getElementById('totalCount').textContent = this.meta.total || 0;
+        this.renderPagination();
         this.showTable();
     }
 
-    showLoading(show) {
-        const loadingState = document.getElementById('loadingState');
-        loadingState.style.display = show ? 'block' : 'none';
+    renderPagination() {
+        const controls = document.getElementById('paginationControls');
+        const page = this.meta.page || 1;
+        const last = this.meta.last_page || 1;
+        controls.innerHTML = `
+            <button class="btn btn-outline-secondary" ${page <= 1 ? 'disabled' : ''} onclick="rxUsersManager.goPage(${page - 1})">Prev</button>
+            <button class="btn btn-outline-secondary disabled">${page} / ${last}</button>
+            <button class="btn btn-outline-secondary" ${page >= last ? 'disabled' : ''} onclick="rxUsersManager.goPage(${page + 1})">Next</button>`;
     }
 
-    showError(message) {
-        const errorState = document.getElementById('errorState');
-        const errorMessage = document.getElementById('errorMessage');
-        errorMessage.textContent = message;
-        errorState.style.display = 'block';
+    goPage(page) {
+        this.meta.page = page;
+        this.loadRxUsers();
     }
 
-    hideError() {
-        const errorState = document.getElementById('errorState');
-        errorState.style.display = 'none';
-    }
-
-    showEmpty() {
-        const emptyState = document.getElementById('emptyState');
-        emptyState.style.display = 'block';
-    }
-
-    hideEmpty() {
-        const emptyState = document.getElementById('emptyState');
-        emptyState.style.display = 'none';
-    }
-
-    showTable() {
-        const tableContainer = document.getElementById('tableContainer');
-        tableContainer.style.display = 'block';
-    }
-
-    hideTable() {
-        const tableContainer = document.getElementById('tableContainer');
-        tableContainer.style.display = 'none';
-    }
-
-    showSuccess(message) {
-        const toast = document.getElementById('successToast');
-        const toastBody = document.getElementById('successToastBody');
-        toastBody.textContent = message;
-        
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-    }
-
-    showErrorToast(message) {
-        const toast = document.getElementById('errorToast');
-        const toastBody = document.getElementById('errorToastBody');
-        toastBody.textContent = message;
-        
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-    }
+    showLoading(show) { document.getElementById('loadingState').style.display = show ? 'block' : 'none'; }
+    showError(message) { document.getElementById('errorMessage').textContent = message; document.getElementById('errorState').style.display = 'block'; }
+    hideError() { document.getElementById('errorState').style.display = 'none'; }
+    showEmpty() { document.getElementById('emptyState').style.display = 'block'; document.getElementById('tableContainer').style.display = 'none'; }
+    hideEmpty() { document.getElementById('emptyState').style.display = 'none'; }
+    showTable() { document.getElementById('tableContainer').style.display = 'block'; }
+    hideTable() { document.getElementById('tableContainer').style.display = 'none'; }
 }
 
-// Global functions
-function refreshTable() {
-    if (window.rxUsersManager) {
-        window.rxUsersManager.loadRxUsers();
-    }
-}
+function refreshTable() { window.rxUsersManager?.loadRxUsers(); }
+function loadRxUsers() { window.rxUsersManager?.loadRxUsers(); }
 
-function loadRxUsers() {
-    if (window.rxUsersManager) {
-        window.rxUsersManager.loadRxUsers();
-    }
-}
-
-// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     window.rxUsersManager = new RxUsersManager();
 });

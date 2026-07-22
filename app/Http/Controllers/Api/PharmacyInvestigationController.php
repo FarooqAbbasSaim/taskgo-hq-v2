@@ -77,7 +77,11 @@ class PharmacyInvestigationController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error fetching pharmacy investigation data: ' . $e->getMessage());
+            \Log::error('Error fetching pharmacy investigation data: ' . $e->getMessage(), [
+                'customer_id' => $customerId,
+                'pharmacy_id' => $pharmacyId,
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -230,21 +234,26 @@ class PharmacyInvestigationController extends Controller
 
     private function findCustomer(int $customerId): ?object
     {
+        $select = [
+            'users.id',
+            'users.name',
+            'users.email',
+            'users.status',
+            'users.email_verified_at',
+            'pharmacy_subscriptions.pharmacy_name',
+            'pharmacy_subscriptions.status as subscription_status',
+        ];
+
+        if (Schema::hasColumn('users', 'healthmail_enabled')) {
+            $select[] = 'users.healthmail_enabled';
+        }
+
         return DB::table('users')
             ->where('users.id', $customerId)
             ->where('users.user_type', 'admin')
             ->whereNotNull('users.pharmacy_subscription_id')
             ->leftJoin('pharmacy_subscriptions', 'users.pharmacy_subscription_id', '=', 'pharmacy_subscriptions.id')
-            ->select(
-                'users.id',
-                'users.name',
-                'users.email',
-                'users.status',
-                'users.email_verified_at',
-                'users.healthmail_enabled',
-                'pharmacy_subscriptions.pharmacy_name',
-                'pharmacy_subscriptions.status as subscription_status'
-            )
+            ->select($select)
             ->first();
     }
 
@@ -290,16 +299,19 @@ class PharmacyInvestigationController extends Controller
             ->orderBy('name')
             ->get();
 
-        $reliefAssignments = DB::table('relief_pharmacist_pharmacies')
-            ->join('pharmacies', 'relief_pharmacist_pharmacies.pharmacy_id', '=', 'pharmacies.id')
-            ->select(
-                'relief_pharmacist_pharmacies.user_id',
-                'relief_pharmacist_pharmacies.pharmacy_id',
-                'pharmacies.pharmacy_name'
-            )
-            ->whereIn('relief_pharmacist_pharmacies.user_id', $staffUsers->pluck('id'))
-            ->get()
-            ->groupBy('user_id');
+        $reliefAssignments = collect();
+        if (Schema::hasTable('relief_pharmacist_pharmacies') && $staffUsers->isNotEmpty()) {
+            $reliefAssignments = DB::table('relief_pharmacist_pharmacies')
+                ->join('pharmacies', 'relief_pharmacist_pharmacies.pharmacy_id', '=', 'pharmacies.id')
+                ->select(
+                    'relief_pharmacist_pharmacies.user_id',
+                    'relief_pharmacist_pharmacies.pharmacy_id',
+                    'pharmacies.pharmacy_name'
+                )
+                ->whereIn('relief_pharmacist_pharmacies.user_id', $staffUsers->pluck('id'))
+                ->get()
+                ->groupBy('user_id');
+        }
 
         $formatted = $staffUsers->map(function ($user) use ($pharmacyIds, $pharmacyNameMap, $reliefAssignments) {
             $role = $this->formatUserRole($user->user_type);

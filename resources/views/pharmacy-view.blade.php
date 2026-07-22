@@ -103,7 +103,10 @@ class PharmacyViewManager {
         try {
             const response = await fetch(`/api/customers/${this.customerId}/pharmacies/${this.pharmacyId}`, { headers: { Accept: 'application/json' } });
             const result = await response.json();
-            if (!result.success) throw new Error(result.message || 'Failed to load pharmacy');
+            if (!result.success) {
+                const detail = result.error ? `${result.message}: ${result.error}` : (result.message || 'Failed to load pharmacy');
+                throw new Error(detail);
+            }
             this.data = result.data;
             this.render();
             document.getElementById('loadingSpinner').style.display = 'none';

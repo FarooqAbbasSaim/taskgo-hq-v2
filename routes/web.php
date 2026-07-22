@@ -117,6 +117,7 @@ Route::prefix('api/rx-users')->group(function () {
     Route::get('/{id}/bookings', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserBookings']);
     Route::get('/{id}/stats', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserStats']);
     Route::get('/{id}/medications', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserMedications']);
+    Route::get('/{id}/dosage-reminders', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserDosageReminders']);
     Route::get('/{id}/timeline', [\App\Http\Controllers\Api\RxUserController::class, 'getRxUserTimeline']);
     Route::get('/orders/{orderId}/prescription-image', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderPrescriptionImage']);
     Route::get('/orders/{orderId}', [\App\Http\Controllers\Api\RxUserController::class, 'getOrderDetails']);

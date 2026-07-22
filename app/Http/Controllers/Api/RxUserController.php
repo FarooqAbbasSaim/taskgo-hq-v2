@@ -879,18 +879,27 @@ class RxUserController extends Controller
     public function getOrderDetails($orderId)
     {
         try {
+            $select = [
+                'id',
+                'user_id',
+                'nominated_pharmacy_id',
+                'status',
+                'collection_method',
+                'nominated_pharmacy',
+                'additional_info',
+                'created_at',
+                'updated_at',
+            ];
+
+            if (Schema::hasColumn('rx_orders', 'dosage_reminder')) {
+                $select[] = 'dosage_reminder';
+            }
+            if (Schema::hasColumn('rx_orders', 'dosage_frequency')) {
+                $select[] = 'dosage_frequency';
+            }
+
             $order = DB::table('rx_orders')
-                ->select([
-                    'id',
-                    'user_id',
-                    'nominated_pharmacy_id',
-                    'status',
-                    'collection_method',
-                    'nominated_pharmacy',
-                    'additional_info',
-                    'created_at',
-                    'updated_at'
-                ])
+                ->select($select)
                 ->where('id', $orderId)
                 ->first();
 
@@ -927,6 +936,9 @@ class RxUserController extends Controller
             $prescriptionImageLength = (int) DB::table('rx_orders')->where('id', $orderId)->value(DB::raw('LENGTH(prescription_image)'));
             $hasPrescriptionImage = $prescriptionImageLength > 0;
 
+            $dosageReminder = property_exists($order, 'dosage_reminder') ? (bool) $order->dosage_reminder : null;
+            $dosageFrequency = property_exists($order, 'dosage_frequency') ? $order->dosage_frequency : null;
+
             $orderData = [
                 'id' => $order->id,
                 'order_no' => 'RX-' . $order->id,
@@ -935,6 +947,9 @@ class RxUserController extends Controller
                 'status' => ucfirst($order->status),
                 'collection_method' => $order->collection_method ?: 'Not Specified',
                 'additional_info' => $order->additional_info ?: 'No additional information',
+                'dosage_reminder' => $dosageReminder,
+                'dosage_frequency' => $dosageFrequency !== null ? (int) $dosageFrequency : null,
+                'dosage_schedule' => $this->dosageScheduleLabel($dosageFrequency),
                 'created_at' => Carbon::parse($order->created_at)->format('j F Y g:i A'),
                 'updated_at' => Carbon::parse($order->updated_at)->format('j F Y g:i A'),
                 'has_prescription_image' => $hasPrescriptionImage,
@@ -963,6 +978,195 @@ class RxUserController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Dosage reminder send history + opt-in orders for a patient (investigation).
+     * Source of truth: reminder_confirmations written by Rx app:send-dosage-reminders.
+     */
+    public function getRxUserDosageReminders($id)
+    {
+        try {
+            $user = DB::table('rx_users')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rx user not found',
+                ], 404);
+            }
+
+            $hasDosageReminderCol = Schema::hasColumn('rx_orders', 'dosage_reminder');
+            $hasDosageFrequencyCol = Schema::hasColumn('rx_orders', 'dosage_frequency');
+            $hasConfirmationsTable = Schema::hasTable('reminder_confirmations');
+
+            $enabledOrders = [];
+            if ($hasDosageReminderCol) {
+                $orderSelect = ['id', 'status', 'created_at'];
+                if ($hasDosageFrequencyCol) {
+                    $orderSelect[] = 'dosage_frequency';
+                }
+
+                $enabledOrders = DB::table('rx_orders')
+                    ->select($orderSelect)
+                    ->where('user_id', $id)
+                    ->where('dosage_reminder', 1)
+                    ->orderByDesc('created_at')
+                    ->get()
+                    ->map(function ($order) use ($hasDosageFrequencyCol) {
+                        $frequency = $hasDosageFrequencyCol ? $order->dosage_frequency : null;
+
+                        return [
+                            'id' => $order->id,
+                            'order_no' => 'RX-' . $order->id,
+                            'status' => ucfirst($order->status),
+                            'dosage_frequency' => $frequency !== null ? (int) $frequency : null,
+                            'dosage_schedule' => $this->dosageScheduleLabel($frequency),
+                            'created_at' => $order->created_at
+                                ? Carbon::parse($order->created_at)->format('j F Y g:i A')
+                                : null,
+                        ];
+                    })
+                    ->values()
+                    ->all();
+            }
+
+            $history = [];
+            $duplicateSameSlotCount = 0;
+
+            if ($hasConfirmationsTable) {
+                $query = DB::table('reminder_confirmations as rc')
+                    ->join('rx_orders as o', 'o.id', '=', 'rc.order_id')
+                    ->where('o.user_id', $id)
+                    ->orderByDesc('rc.reminder_date')
+                    ->orderByDesc('rc.reminder_time')
+                    ->orderByDesc('rc.id')
+                    ->limit(200);
+
+                $select = [
+                    'rc.id',
+                    'rc.order_id',
+                    'rc.reminder_date',
+                    'rc.reminder_time',
+                    'rc.confirmed',
+                    'rc.confirmed_at',
+                    'rc.created_at',
+                    'rc.updated_at',
+                ];
+
+                foreach ([
+                    'consecutive_missed_days',
+                    'escalation_sent_3_days',
+                    'escalation_sent_6_days',
+                    'escalation_sent_9_days',
+                    'service_disabled',
+                ] as $optionalCol) {
+                    if (Schema::hasColumn('reminder_confirmations', $optionalCol)) {
+                        $select[] = 'rc.' . $optionalCol;
+                    }
+                }
+
+                if ($hasDosageFrequencyCol) {
+                    $select[] = 'o.dosage_frequency';
+                }
+                if ($hasDosageReminderCol) {
+                    $select[] = 'o.dosage_reminder';
+                }
+
+                $rows = $query->select($select)->get();
+
+                // Spot same order+date+time appearing more than once (should be blocked by unique index).
+                $slotCounts = [];
+                foreach ($rows as $row) {
+                    $slotKey = $row->order_id . '|' . $row->reminder_date . '|' . substr((string) $row->reminder_time, 0, 5);
+                    $slotCounts[$slotKey] = ($slotCounts[$slotKey] ?? 0) + 1;
+                }
+                foreach ($slotCounts as $count) {
+                    if ($count > 1) {
+                        $duplicateSameSlotCount += $count;
+                    }
+                }
+
+                $history = $rows->map(function ($row) use ($slotCounts, $hasDosageFrequencyCol) {
+                    $timeRaw = $row->reminder_time !== null ? substr((string) $row->reminder_time, 0, 5) : null;
+                    $slotKey = $row->order_id . '|' . $row->reminder_date . '|' . ($timeRaw ?? '');
+                    $frequency = $hasDosageFrequencyCol && property_exists($row, 'dosage_frequency')
+                        ? $row->dosage_frequency
+                        : null;
+
+                    $sentAt = $row->created_at ? Carbon::parse($row->created_at) : null;
+
+                    return [
+                        'id' => $row->id,
+                        'order_id' => $row->order_id,
+                        'order_no' => 'RX-' . $row->order_id,
+                        'reminder_date' => $row->reminder_date
+                            ? Carbon::parse($row->reminder_date)->format('j F Y')
+                            : null,
+                        'reminder_time' => $timeRaw,
+                        'sent_at' => $sentAt ? $sentAt->format('j F Y g:i A') : null,
+                        'sent_at_raw' => $sentAt ? $sentAt->toDateTimeString() : null,
+                        'confirmed' => (bool) $row->confirmed,
+                        'confirmed_at' => $row->confirmed_at
+                            ? Carbon::parse($row->confirmed_at)->format('j F Y g:i A')
+                            : null,
+                        'consecutive_missed_days' => property_exists($row, 'consecutive_missed_days')
+                            ? (int) $row->consecutive_missed_days
+                            : null,
+                        'service_disabled' => property_exists($row, 'service_disabled')
+                            ? (bool) $row->service_disabled
+                            : false,
+                        'escalation_3' => property_exists($row, 'escalation_sent_3_days')
+                            ? (bool) $row->escalation_sent_3_days
+                            : false,
+                        'escalation_6' => property_exists($row, 'escalation_sent_6_days')
+                            ? (bool) $row->escalation_sent_6_days
+                            : false,
+                        'escalation_9' => property_exists($row, 'escalation_sent_9_days')
+                            ? (bool) $row->escalation_sent_9_days
+                            : false,
+                        'dosage_frequency' => $frequency !== null ? (int) $frequency : null,
+                        'dosage_schedule' => $this->dosageScheduleLabel($frequency),
+                        'possible_duplicate_slot' => ($slotCounts[$slotKey] ?? 0) > 1,
+                    ];
+                })->values()->all();
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'available' => $hasConfirmationsTable || $hasDosageReminderCol,
+                    'enabled_orders' => $enabledOrders,
+                    'history' => $history,
+                    'duplicate_same_slot_count' => $duplicateSameSlotCount,
+                    'schedule_note' => 'Rx sends hourly (Europe/Dublin). Freq 1: 09:00 · 2: 09:00 & 21:00 · 3: 09:00, 14:00, 21:00 · 4: 08:00, 12:00, 18:00, 22:00.',
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching Rx user dosage reminders: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch dosage reminders',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function dosageScheduleLabel($frequency): ?string
+    {
+        if ($frequency === null || $frequency === '') {
+            return null;
+        }
+
+        $map = [
+            1 => 'Once a day (09:00)',
+            2 => 'Twice a day (09:00, 21:00)',
+            3 => 'Three times a day (09:00, 14:00, 21:00)',
+            4 => 'Four times a day (08:00, 12:00, 18:00, 22:00)',
+        ];
+
+        $key = (int) $frequency;
+
+        return $map[$key] ?? ('Frequency ' . $key);
     }
 
     /**

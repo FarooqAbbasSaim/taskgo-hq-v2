@@ -72,6 +72,11 @@
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="dosage-reminders-tab" data-bs-toggle="tab" data-bs-target="#dosage-reminders" type="button" role="tab" aria-controls="dosage-reminders" aria-selected="false">
+                                <i class="ti ti-bell me-1"></i> Dosage Reminders
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
                             <button class="nav-link" id="bookings-tab" data-bs-toggle="tab" data-bs-target="#bookings" type="button" role="tab" aria-controls="bookings" aria-selected="false">
                                 <i class="ti ti-calendar me-1"></i> Service Bookings
                             </button>
@@ -206,6 +211,64 @@
                                         <tbody id="ordersTableBody">
                                             <!-- Orders data will be loaded here -->
                                         </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dosage Reminders Tab -->
+                        <div class="tab-pane fade" id="dosage-reminders" role="tabpanel" aria-labelledby="dosage-reminders-tab">
+                            <div id="remindersLoadingState" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Loading dosage reminders...</p>
+                            </div>
+                            <div id="remindersErrorState" class="text-center py-4" style="display: none;">
+                                <h6 class="text-danger">Failed to load dosage reminders</h6>
+                                <p class="text-muted" id="remindersErrorMessage">An error occurred while loading reminders.</p>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="rxUserViewManager.loadDosageReminders()">Try Again</button>
+                            </div>
+                            <div id="remindersContent" style="display: none;">
+                                <p class="text-muted small mb-3" id="remindersScheduleNote"></p>
+                                <div id="remindersDuplicateAlert" class="alert alert-warning py-2" style="display: none;"></div>
+
+                                <h6 class="mb-2">Orders with dosage reminders enabled</h6>
+                                <div id="remindersEnabledEmpty" class="text-muted small mb-3" style="display: none;">No orders currently have dosage reminders enabled.</div>
+                                <div class="table-responsive mb-4" id="remindersEnabledTableWrap" style="display: none;">
+                                    <table class="table table-sm table-striped">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Order</th>
+                                                <th>Status</th>
+                                                <th>Expected schedule</th>
+                                                <th>Order created</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="remindersEnabledBody"></tbody>
+                                    </table>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">Send history</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="rxUserViewManager.loadDosageReminders(true)">
+                                        <i class="ti ti-refresh me-1"></i> Refresh
+                                    </button>
+                                </div>
+                                <div id="remindersHistoryEmpty" class="text-muted small" style="display: none;">No reminder sends recorded for this patient.</div>
+                                <div class="table-responsive" id="remindersHistoryTableWrap" style="display: none;">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Order</th>
+                                                <th>Reminder date</th>
+                                                <th>Slot</th>
+                                                <th>Sent at</th>
+                                                <th>Confirmed</th>
+                                                <th>Flags</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="remindersHistoryBody"></tbody>
                                     </table>
                                 </div>
                             </div>
@@ -356,10 +419,12 @@ class RxUserViewManager {
         this.orders = [];
         this.bookings = [];
         this.medications = [];
+        this.dosageReminders = null;
         this.stats = null;
         this.ordersLoaded = false;
         this.bookingsLoaded = false;
         this.medicationsLoaded = false;
+        this.dosageRemindersLoaded = false;
         this.timelineLoaded = false;
         this.init();
     }
@@ -494,6 +559,102 @@ class RxUserViewManager {
         } finally {
             document.getElementById('medsLoadingState').style.display = 'none';
         }
+    }
+
+    async loadDosageReminders(force = false) {
+        if (this.dosageRemindersLoaded && !force) {
+            return;
+        }
+
+        document.getElementById('remindersLoadingState').style.display = 'block';
+        document.getElementById('remindersErrorState').style.display = 'none';
+        document.getElementById('remindersContent').style.display = 'none';
+
+        try {
+            const response = await fetch(`/api/rx-users/${this.userId}/dosage-reminders`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                }
+            });
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.message || result.error || 'Failed to load dosage reminders');
+            }
+
+            this.dosageReminders = result.data || {};
+            this.dosageRemindersLoaded = true;
+            this.renderDosageReminders();
+            document.getElementById('remindersContent').style.display = 'block';
+        } catch (error) {
+            console.error(error);
+            document.getElementById('remindersErrorMessage').textContent = error.message || 'An error occurred while loading reminders.';
+            document.getElementById('remindersErrorState').style.display = 'block';
+        } finally {
+            document.getElementById('remindersLoadingState').style.display = 'none';
+        }
+    }
+
+    renderDosageReminders() {
+        const data = this.dosageReminders || {};
+        const enabled = data.enabled_orders || [];
+        const history = data.history || [];
+
+        document.getElementById('remindersScheduleNote').textContent = data.schedule_note || '';
+
+        const dupAlert = document.getElementById('remindersDuplicateAlert');
+        if (data.duplicate_same_slot_count > 0) {
+            dupAlert.style.display = 'block';
+            dupAlert.textContent = `Possible duplicate sends detected: ${data.duplicate_same_slot_count} rows share the same order + date + slot. That should not happen if the unique index is present.`;
+        } else {
+            dupAlert.style.display = 'none';
+        }
+
+        if (enabled.length === 0) {
+            document.getElementById('remindersEnabledEmpty').style.display = 'block';
+            document.getElementById('remindersEnabledTableWrap').style.display = 'none';
+        } else {
+            document.getElementById('remindersEnabledEmpty').style.display = 'none';
+            document.getElementById('remindersEnabledTableWrap').style.display = 'block';
+            document.getElementById('remindersEnabledBody').innerHTML = enabled.map(order => `
+                <tr>
+                    <td><a href="#" class="text-primary fw-semibold" onclick="showOrderDetails(${order.id}); return false;">${order.order_no}</a></td>
+                    <td><span class="badge ${this.getStatusBadgeClass(order.status)}">${order.status}</span></td>
+                    <td>${order.dosage_schedule || '—'}</td>
+                    <td>${order.created_at || '—'}</td>
+                </tr>
+            `).join('');
+        }
+
+        if (history.length === 0) {
+            document.getElementById('remindersHistoryEmpty').style.display = 'block';
+            document.getElementById('remindersHistoryTableWrap').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('remindersHistoryEmpty').style.display = 'none';
+        document.getElementById('remindersHistoryTableWrap').style.display = 'block';
+        document.getElementById('remindersHistoryBody').innerHTML = history.map(row => {
+            const flags = [];
+            if (row.possible_duplicate_slot) flags.push('<span class="badge bg-danger">Duplicate slot</span>');
+            if (row.service_disabled) flags.push('<span class="badge bg-dark">Service disabled</span>');
+            if (row.escalation_3) flags.push('<span class="badge bg-warning text-dark">Esc 3d</span>');
+            if (row.escalation_6) flags.push('<span class="badge bg-warning text-dark">Esc 6d</span>');
+            if (row.escalation_9) flags.push('<span class="badge bg-danger">Esc 9d</span>');
+            if (row.consecutive_missed_days > 0) flags.push(`<span class="badge bg-secondary">Missed ${row.consecutive_missed_days}d</span>`);
+
+            const rowClass = row.possible_duplicate_slot ? 'table-danger' : '';
+            return `
+                <tr class="${rowClass}">
+                    <td><a href="#" class="text-primary fw-semibold" onclick="showOrderDetails(${row.order_id}); return false;">${row.order_no}</a></td>
+                    <td>${row.reminder_date || '—'}</td>
+                    <td><code>${row.reminder_time || '—'}</code></td>
+                    <td>${row.sent_at || '—'}</td>
+                    <td>${row.confirmed ? `<span class="badge bg-success">Yes</span><div class="small text-muted">${row.confirmed_at || ''}</div>` : '<span class="badge bg-secondary">No</span>'}</td>
+                    <td>${flags.join(' ') || '—'}</td>
+                </tr>
+            `;
+        }).join('');
     }
 
     async loadOrders() {
@@ -871,6 +1032,8 @@ async function showOrderDetails(orderId) {
                             <tr><td><strong>User:</strong></td><td>${order.user_name}</td></tr>
                             <tr><td><strong>Pharmacy:</strong></td><td>${order.pharmacy_name}</td></tr>
                             <tr><td><strong>Status:</strong></td><td><span class="badge ${window.rxUserViewManager.getStatusBadgeClass(order.status)}">${order.status}</span></td></tr>
+                            <tr><td><strong>Dosage reminder:</strong></td><td>${order.dosage_reminder === true ? 'Enabled' : (order.dosage_reminder === false ? 'Disabled' : '—')}</td></tr>
+                            <tr><td><strong>Dosage schedule:</strong></td><td>${order.dosage_schedule || '—'}</td></tr>
                             <tr><td><strong>Total Items:</strong></td><td>${totalItems}</td></tr>
                             <tr><td><strong>Created:</strong></td><td>${order.created_at}</td></tr>
                             <tr><td><strong>Updated:</strong></td><td>${order.updated_at}</td></tr>
@@ -971,6 +1134,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('medications-tab').addEventListener('click', function() {
         if (window.rxUserViewManager && !window.rxUserViewManager.medicationsLoaded) {
             window.rxUserViewManager.loadMedications();
+        }
+    });
+
+    document.getElementById('dosage-reminders-tab').addEventListener('click', function() {
+        if (window.rxUserViewManager && !window.rxUserViewManager.dosageRemindersLoaded) {
+            window.rxUserViewManager.loadDosageReminders();
         }
     });
 

@@ -494,16 +494,22 @@ class CustomerController extends Controller
                 $assignedPharmacyIds = [];
                 $pharmacyNames = [];
                 $pharmaciesDisplay = 'Not Assigned';
+                $usesCrmReliefFallback = false;
 
                 if ($isAdmin) {
                     $assignedPharmacyIds = $pharmacyIds;
                     $pharmacyNames = ['All'];
                     $pharmaciesDisplay = 'All';
                 } elseif ($user->user_type === 'relief_pharmacist') {
-                    $assigned = collect($reliefAssignments->get($user->id, []));
-                    $assignedPharmacyIds = $assigned->pluck('pharmacy_id')->map(fn ($id) => (int) $id)->values()->all();
-                    $pharmacyNames = $assigned->pluck('pharmacy_name')->values()->all();
-                    $pharmaciesDisplay = !empty($pharmacyNames) ? implode(', ', $pharmacyNames) : 'Not Assigned';
+                    $relief = \App\Support\StaffPharmacyAssignment::forReliefPharmacist(
+                        $reliefAssignments->get($user->id, []),
+                        $pharmacyIds,
+                        $pharmacyNameMap
+                    );
+                    $assignedPharmacyIds = $relief['pharmacy_ids'];
+                    $pharmacyNames = $relief['pharmacy_names'];
+                    $pharmaciesDisplay = $relief['pharmacies_display'];
+                    $usesCrmReliefFallback = $relief['uses_crm_relief_fallback'];
                 } elseif (in_array($user->user_type, $multiPharmacyTypes, true)) {
                     $assigned = collect($staffPharmacyAssignments->get($user->id, []));
                     $assignedPharmacyIds = $assigned->pluck('pharmacy_id')->map(fn ($id) => (int) $id)->values()->all();
@@ -531,6 +537,7 @@ class CustomerController extends Controller
                     'pharmacy_ids' => $assignedPharmacyIds,
                     'pharmacy_names' => $pharmacyNames,
                     'pharmacies_display' => $pharmaciesDisplay,
+                    'uses_crm_relief_fallback' => $usesCrmReliefFallback,
                 ];
             })->values();
 

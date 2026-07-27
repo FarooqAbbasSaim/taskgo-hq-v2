@@ -225,9 +225,19 @@ class StaffViewManager {
             return;
         }
 
-        container.innerHTML = names.map((name) =>
+        const chips = names.map((name) =>
             `<span class="badge rounded-pill text-bg-secondary">${this.esc(name)}</span>`
         ).join('');
+
+        if (user.uses_crm_relief_fallback) {
+            container.innerHTML =
+                '<span class="badge rounded-pill text-bg-info me-1">CRM fallback: all org pharmacies</span>' +
+                '<span class="text-muted small me-2">(no explicit relief assignment)</span>' +
+                chips;
+            return;
+        }
+
+        container.innerHTML = chips;
     }
 
     esc(value) {

@@ -77,10 +77,40 @@
                         <div class="table-responsive"><table class="table table-sm table-hover"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th></th></tr></thead><tbody id="patientsTableBody"></tbody></table></div>
                     </div>
                     <div class="tab-pane fade" id="ordersTab"><div class="table-responsive"><table class="table table-sm table-hover"><thead><tr><th>Order</th><th>Patient</th><th>Status</th><th>Items</th><th>Created</th><th></th></tr></thead><tbody id="ordersTableBody"></tbody></table></div></div>
-                    <div class="tab-pane fade" id="bookingsTab"><div class="table-responsive"><table class="table table-sm table-hover"><thead><tr><th>Service</th><th>Patient</th><th>Date</th><th>Status</th></tr></thead><tbody id="bookingsTableBody"></tbody></table></div></div>
+                    <div class="tab-pane fade" id="bookingsTab"><div class="table-responsive"><table class="table table-sm table-hover"><thead><tr><th>Service</th><th>Patient</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody id="bookingsTableBody"></tbody></table></div></div>
                     <div class="tab-pane fade" id="servicesTab"><div id="servicesList"></div></div>
                     <div class="tab-pane fade" id="gapsTab"><div id="serviceGapsList" class="small text-muted">Loading...</div></div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="orderDetailsModalLabel">Order Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="orderDetailsModalBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="bookingDetailsModal" tabindex="-1" aria-labelledby="bookingDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bookingDetailsModalLabel">Booking Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="bookingDetailsModalBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -167,8 +197,10 @@ class PharmacyViewManager {
         el.innerHTML = items.map(item => {
             const label = type === 'order' ? item.order_no : item.service;
             const sub = type === 'order' ? `${item.patient_name} · ${item.status}` : `${item.patient_name} · ${item.date || ''}`;
-            const link = item.user_id ? `/admin/rx-users/${item.user_id}` : '#';
-            return `<a href="${link}" class="list-group-item list-group-item-action"><div class="fw-semibold">${this.esc(label)}</div><div class="text-muted">${this.esc(sub)}</div></a>`;
+            const click = type === 'order'
+                ? `showPharmacyOrder(${item.id}); return false;`
+                : `showPharmacyBooking(${item.id}); return false;`;
+            return `<a href="#" onclick="${click}" class="list-group-item list-group-item-action"><div class="fw-semibold">${this.esc(label)}</div><div class="text-muted">${this.esc(sub)}</div></a>`;
         }).join('');
     }
 
@@ -207,16 +239,20 @@ class PharmacyViewManager {
 
     renderOrders(orders) {
         document.getElementById('ordersTableBody').innerHTML = orders.map(o => `<tr>
-            <td><a href="#" onclick="showPharmacyOrder(${o.id}); return false;">${this.esc(o.order_no)}</a></td>
+            <td><a href="#" class="text-primary fw-semibold" onclick="showPharmacyOrder(${o.id}); return false;">${this.esc(o.order_no)}</a></td>
             <td><a href="/admin/rx-users/${o.user_id}">${this.esc(o.patient_name)}</a></td>
-            <td>${this.esc(o.status)}</td><td>${o.item_count}</td><td>${this.esc(o.created_at)}</td>
-            <td><button class="btn btn-sm btn-outline-primary" onclick="showPharmacyOrder(${o.id})">Details</button></td></tr>`).join('') || '<tr><td colspan="6" class="text-muted text-center">No orders</td></tr>';
+            <td><span class="badge ${this.getStatusBadgeClass(o.status)}">${this.esc(o.status)}</span></td>
+            <td>${o.item_count}</td><td>${this.esc(o.created_at)}</td>
+            <td><button type="button" class="btn btn-sm btn-outline-primary" onclick="showPharmacyOrder(${o.id})"><i class="ti ti-eye"></i> Details</button></td></tr>`).join('') || '<tr><td colspan="6" class="text-muted text-center">No orders</td></tr>';
     }
 
     renderBookings(bookings) {
         document.getElementById('bookingsTableBody').innerHTML = bookings.map(b => `<tr>
-            <td>${this.esc(b.service)}</td><td><a href="/admin/rx-users/${b.user_id}">${this.esc(b.patient_name)}</a></td>
-            <td>${this.esc(b.date)} ${this.esc(b.time || '')}</td><td>${this.esc(b.status)}</td></tr>`).join('') || '<tr><td colspan="4" class="text-muted text-center">No bookings</td></tr>';
+            <td><a href="#" class="text-primary fw-semibold" onclick="showPharmacyBooking(${b.id}); return false;">${this.esc(b.service)}</a></td>
+            <td><a href="/admin/rx-users/${b.user_id}">${this.esc(b.patient_name)}</a></td>
+            <td>${this.esc(b.date)} ${this.esc(b.time || '')}</td>
+            <td><span class="badge ${this.getStatusBadgeClass(b.status)}">${this.esc(b.status)}</span></td>
+            <td><button type="button" class="btn btn-sm btn-outline-primary" onclick="showPharmacyBooking(${b.id})"><i class="ti ti-eye"></i> Details</button></td></tr>`).join('') || '<tr><td colspan="5" class="text-muted text-center">No bookings</td></tr>';
     }
 
     renderServices(services) {
@@ -229,17 +265,148 @@ class PharmacyViewManager {
         document.getElementById('serviceGapsList').innerHTML = gaps.length ? `<ul class="mb-0">${gaps.map(g => `<li>${this.esc(g.name)} <span class="text-muted">(${g.mode || '—'})</span></li>`).join('')}</ul>` : '<p class="mb-0">All published org services are assigned to this pharmacy.</p>';
     }
 
+    getStatusBadgeClass(status) {
+        const statusLower = String(status || '').toLowerCase();
+        switch (statusLower) {
+            case 'complete':
+            case 'completed':
+                return 'bg-success';
+            case 'confirmed':
+                return 'bg-info';
+            case 'pending':
+                return 'bg-warning';
+            case 'reject':
+            case 'rejected':
+            case 'cancelled':
+                return 'bg-danger';
+            default:
+                return 'bg-secondary';
+        }
+    }
+
     esc(v) { return SupportTools.escapeHtml(v); }
 }
 
-async function showPharmacyOrder(orderId) {
-    const response = await fetch(`/api/rx-users/orders/${orderId}`, { headers: { Accept: 'application/json' } });
-    const result = await response.json();
-    if (!result.success) { alert(result.message || 'Failed'); return; }
-    const order = result.data;
-    alert(`Order ${order.order_no}\nPatient: ${order.user_name}\nStatus: ${order.status}\nItems: ${(order.items || []).length}`);
+function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 }
 
-document.addEventListener('DOMContentLoaded', () => new PharmacyViewManager({{ (int) $customerId }}, {{ (int) $pharmacyId }}));
+async function showPharmacyOrder(orderId) {
+    try {
+        const response = await fetch(`/api/rx-users/orders/${orderId}`, {
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+        });
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to load order details');
+        }
+
+        const order = result.data;
+        const esc = (v) => SupportTools.escapeHtml(v);
+        const totalItems = Array.isArray(order.items) ? order.items.length : (order.total_items ?? order.item_count ?? 'N/A');
+        const items = Array.isArray(order.items) ? order.items : [];
+        const hasPrescriptionImage = order.has_prescription_image === true && order.prescription_image_url;
+        const badgeClass = window.pharmacyViewManager
+            ? window.pharmacyViewManager.getStatusBadgeClass(order.status)
+            : 'bg-secondary';
+
+        const rightColumnContent = hasPrescriptionImage
+            ? `<h6>Prescription Image</h6>
+                <div class="border rounded p-2 bg-light text-center">
+                    <img src="${esc(order.prescription_image_url)}" alt="Prescription Image" class="img-fluid" style="max-height: 400px; object-fit: contain;" />
+                </div>`
+            : `<h6>Order Items</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Medication</th><th>Quantity</th></tr></thead>
+                        <tbody>
+                            ${items.length ? items.map(item => `
+                                <tr>
+                                    <td>${esc(item.medication_name || 'N/A')}</td>
+                                    <td>${esc(item.quantity ?? 'N/A')}</td>
+                                </tr>`).join('') : '<tr><td colspan="2" class="text-muted">No medications listed</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>`;
+
+        document.getElementById('orderDetailsModalBody').innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Order Information</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Order No:</strong></td><td>${esc(order.order_no)}</td></tr>
+                        <tr><td><strong>User:</strong></td><td>${esc(order.user_name)}</td></tr>
+                        <tr><td><strong>Pharmacy:</strong></td><td>${esc(order.pharmacy_name)}</td></tr>
+                        <tr><td><strong>Status:</strong></td><td><span class="badge ${badgeClass}">${esc(order.status)}</span></td></tr>
+                        <tr><td><strong>Dosage reminder:</strong></td><td>${order.dosage_reminder === true ? 'Enabled' : (order.dosage_reminder === false ? 'Disabled' : '—')}</td></tr>
+                        <tr><td><strong>Dosage schedule:</strong></td><td>${esc(order.dosage_schedule || '—')}</td></tr>
+                        <tr><td><strong>Total Items:</strong></td><td>${esc(totalItems)}</td></tr>
+                        <tr><td><strong>Created:</strong></td><td>${esc(order.created_at)}</td></tr>
+                        <tr><td><strong>Updated:</strong></td><td>${esc(order.updated_at)}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">${rightColumnContent}</div>
+            </div>`;
+
+        new bootstrap.Modal(document.getElementById('orderDetailsModal')).show();
+    } catch (error) {
+        console.error(error);
+        alert(error.message || 'Failed to load order details');
+    }
+}
+
+async function showPharmacyBooking(bookingId) {
+    try {
+        const response = await fetch(`/api/rx-users/bookings/${bookingId}`, {
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+        });
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to load booking details');
+        }
+
+        const booking = result.data;
+        const esc = (v) => SupportTools.escapeHtml(v);
+        const badgeClass = window.pharmacyViewManager
+            ? window.pharmacyViewManager.getStatusBadgeClass(booking.status)
+            : 'bg-secondary';
+
+        document.getElementById('bookingDetailsModalBody').innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Booking Information</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>User:</strong></td><td>${esc(booking.user_name)}</td></tr>
+                        <tr><td><strong>Service:</strong></td><td>${esc(booking.service_name)}</td></tr>
+                        <tr><td><strong>Status:</strong></td><td><span class="badge ${badgeClass}">${esc(booking.status)}</span></td></tr>
+                        <tr><td><strong>Date:</strong></td><td>${esc(booking.date)}</td></tr>
+                        <tr><td><strong>Time:</strong></td><td>${esc(booking.start_time)} - ${esc(booking.end_time)}</td></tr>
+                        <tr><td><strong>Duration:</strong></td><td>${esc(booking.service_duration)} minutes</td></tr>
+                        <tr><td><strong>Price:</strong></td><td>€${esc(booking.service_price)}</td></tr>
+                        <tr><td><strong>Created:</strong></td><td>${esc(booking.created_at)}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6>Service Description</h6>
+                    <p class="text-muted">${esc(booking.service_description || 'No description available.')}</p>
+                </div>
+            </div>`;
+
+        new bootstrap.Modal(document.getElementById('bookingDetailsModal')).show();
+    } catch (error) {
+        console.error(error);
+        alert(error.message || 'Failed to load booking details');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.pharmacyViewManager = new PharmacyViewManager({{ (int) $customerId }}, {{ (int) $pharmacyId }});
+});
 </script>
 @endsection

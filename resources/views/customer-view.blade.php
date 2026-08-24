@@ -52,12 +52,24 @@
                             <!-- <h6 class="text-muted mb-3">Personal Information</h6> -->
                             <div class="row g-3">
                                 <div class="col-6">
+                                    <label class="form-label">Customer ID</label>
+                                    <input type="text" class="form-control" id="customerIdField" readonly>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Account created</label>
+                                    <input type="text" class="form-control" id="accountCreated" readonly>
+                                </div>
+                                <div class="col-6">
                                     <label class="form-label">Full Name</label>
                                     <input type="text" class="form-control" id="fullName" readonly>
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label">Organisation Name</label>
                                     <input type="text" class="form-control" id="organisationName" readonly>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Account updated</label>
+                                    <input type="text" class="form-control" id="accountUpdated" readonly>
                                 </div>
                             </div>
                         </div>
@@ -99,16 +111,25 @@
 
                 <!-- Pharmacies Card -->
                 <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Pharmacies</h5>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">CRM pharmacies owned by this customer</h5>
+                        <span class="badge bg-secondary" id="pharmacyCountBadge">0</span>
                     </div>
                     <div class="card-body">
+                        <div class="alert alert-warning mb-3" id="isolationNote" role="alert">
+                            Loading isolation details…
+                        </div>
                         <div class="table-responsive">
                             <table class="table table-sm">
                                 <thead>
                                     <tr>
+                                        <th>ID</th>
                                         <th>Name</th>
                                         <th>Status</th>
+                                        <th>CD registers</th>
+                                        <th>CD activity logs</th>
+                                        <th>Last CD activity</th>
+                                        <th>Pharmacy created</th>
                                         <th></th>
                                     </tr>
                                 </thead>
@@ -117,7 +138,39 @@
                                 </tbody>
                             </table>
                         </div>
-                        <p class="text-muted small mb-0 mt-2">Open a pharmacy to view staff, patients, services, and opening hours.</p>
+                        <p class="text-muted small mb-0 mt-2">These are the pharmacies CD Register Full Log History can show for this login. Open Investigate for full pharmacy detail.</p>
+                    </div>
+                </div>
+
+                <!-- Organisation users Card -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Organisation users</h5>
+                        <span class="badge bg-secondary" id="staffCountBadge">0</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Super-admin plus every user with <code>created_by</code> under this customer. Unexpected familiar staff names (Wilsons / Tobin’s) usually mean the email was applied to the wrong org account.
+                        </p>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Pharmacies</th>
+                                        <th>Created</th>
+                                        <th>Last login</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="staffTable">
+                                    <!-- Staff will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -248,10 +301,24 @@ class CustomerViewManager {
         document.getElementById('rxLink').value = rxLink;
         
         // Customer Information
+        document.getElementById('customerIdField').value = this.customer.id;
         document.getElementById('fullName').value = this.customer.name;
         document.getElementById('organisationName').value = this.customer.pharmacy_name || 'N/A';
         // document.getElementById('emailAddress').value = this.customer.email;
         document.getElementById('pharmacyAddress').value = this.customer.pharmacy_address || 'N/A';
+        document.getElementById('accountCreated').value = this.customer.created_at
+            ? this.formatDateTime(this.customer.created_at)
+            : 'N/A';
+        document.getElementById('accountUpdated').value = this.customer.updated_at
+            ? this.formatDateTime(this.customer.updated_at)
+            : 'N/A';
+
+        const isolationNote = document.getElementById('isolationNote');
+        if (isolationNote) {
+            isolationNote.textContent = (this.customer.isolation && this.customer.isolation.note)
+                ? this.customer.isolation.note
+                : `CD Register data for this login is scoped to pharmacies owned by customer #${this.customer.id}.`;
+        }
         
         // Superintendent Information
         document.getElementById('psiNumber').value = this.customer.registration_number || 'N/A';
@@ -259,8 +326,9 @@ class CustomerViewManager {
         document.getElementById('superintendentEmail').value = this.customer.superintendent_email || 'N/A';
         document.getElementById('superintendentContact').value = this.customer.superintendent_contact || 'N/A';
         
-        // Pharmacies
+        // Pharmacies + org users
         this.populatePharmaciesTable();
+        this.populateStaffTable();
         } catch (error) {
             console.error('Error populating customer data:', error);
             this.showError('Error displaying customer data. Please try again.');
@@ -320,9 +388,14 @@ class CustomerViewManager {
     populatePharmaciesTable() {
         const pharmaciesTable = document.getElementById('pharmaciesTable');
         pharmaciesTable.innerHTML = '';
+        const pharmacyCountBadge = document.getElementById('pharmacyCountBadge');
+        const pharmacies = this.customer.pharmacies || [];
+        if (pharmacyCountBadge) {
+            pharmacyCountBadge.textContent = String(pharmacies.length);
+        }
 
-        if (this.customer.pharmacies && this.customer.pharmacies.length > 0) {
-            this.customer.pharmacies.forEach(pharmacy => {
+        if (pharmacies.length > 0) {
+            pharmacies.forEach(pharmacy => {
                 const row = document.createElement('tr');
                 
                 // Status badge
@@ -335,13 +408,25 @@ class CustomerViewManager {
                     statusBadge = '<span class="badge bg-danger">Inactive</span>';
                 }
 
+                const lastActivity = pharmacy.last_cd_activity_at
+                    ? this.formatDateTime(pharmacy.last_cd_activity_at)
+                    : '—';
+                const createdAt = pharmacy.created_at
+                    ? this.formatDateTime(pharmacy.created_at)
+                    : '—';
+
                 row.innerHTML = `
+                    <td>${pharmacy.id}</td>
                     <td>
                         <a href="/admin/customers/${this.customerId}/pharmacies/${pharmacy.id}" class="text-primary fw-semibold text-decoration-none">
-                            ${pharmacy.pharmacy_name}
+                            ${this.escapeHtml(pharmacy.pharmacy_name)}
                         </a>
                     </td>
                     <td>${statusBadge}</td>
+                    <td>${pharmacy.cd_register_count ?? 0}</td>
+                    <td>${pharmacy.cd_activity_count ?? 0}</td>
+                    <td>${lastActivity}</td>
+                    <td>${createdAt}</td>
                     <td>
                         <a href="/admin/customers/${this.customerId}/pharmacies/${pharmacy.id}" class="btn btn-sm btn-outline-primary">
                             Investigate
@@ -353,9 +438,66 @@ class CustomerViewManager {
             });
         } else {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="3" class="text-center text-muted">No pharmacies found</td>';
+            row.innerHTML = '<td colspan="8" class="text-center text-muted">No pharmacies found with created_by set to this customer</td>';
             pharmaciesTable.appendChild(row);
         }
+    }
+
+    populateStaffTable() {
+        const staffTable = document.getElementById('staffTable');
+        if (!staffTable) {
+            return;
+        }
+        staffTable.innerHTML = '';
+        const staff = this.customer.staff || [];
+        const staffCountBadge = document.getElementById('staffCountBadge');
+        if (staffCountBadge) {
+            staffCountBadge.textContent = String(staff.length);
+        }
+
+        if (staff.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="8" class="text-center text-muted">No organisation users found</td>';
+            staffTable.appendChild(row);
+            return;
+        }
+
+        staff.forEach(member => {
+            const row = document.createElement('tr');
+            if (member.is_super_admin) {
+                row.classList.add('table-info');
+            }
+            const createdAt = member.created_at ? this.formatDateTime(member.created_at) : '—';
+            const lastLogin = member.last_login_at ? this.formatDateTime(member.last_login_at) : 'Never';
+            const badge = member.is_super_admin
+                ? ' <span class="badge bg-primary">Super admin</span>'
+                : '';
+
+            row.innerHTML = `
+                <td>${member.id}</td>
+                <td>${this.escapeHtml(member.name || '')}${badge}</td>
+                <td>${this.escapeHtml(member.email || '')}</td>
+                <td>${this.escapeHtml(member.role || member.user_type || '')}</td>
+                <td>${this.escapeHtml(member.pharmacies_display || '—')}</td>
+                <td>${createdAt}</td>
+                <td>${lastLogin}</td>
+                <td>
+                    <a href="/admin/customers/${this.customerId}/staff/${member.id}" class="btn btn-sm btn-outline-primary">
+                        View
+                    </a>
+                </td>
+            `;
+            staffTable.appendChild(row);
+        });
+    }
+
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 }
 

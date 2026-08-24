@@ -390,6 +390,7 @@ class CustomerController extends Controller
                     'users.email_verified_at',
                     'users.last_login_at',
                     'users.created_at',
+                    'users.updated_at',
                     'users.total_credit',
                     'users.openai_cost',
                     'users.sms_cost',
@@ -412,7 +413,7 @@ class CustomerController extends Controller
                 ], 404);
             }
 
-            // Get pharmacies from database
+            // Get pharmacies from database (owned by this customer — drives CD Register scoping)
             $pharmacies = DB::table('pharmacies')
                 ->leftJoin('users', 'pharmacies.id', '=', 'users.user_pharmacy')
                 ->select(
@@ -426,15 +427,65 @@ class CustomerController extends Controller
                     'pharmacies.website',
                     'pharmacies.email',
                     'pharmacies.status',
+                    'pharmacies.created_at',
                     DB::raw('COUNT(users.id) as users_count')
                 )
                 ->where('pharmacies.created_by', $customer->id)
-                ->groupBy('pharmacies.id', 'pharmacies.pharmacy_name', 'pharmacies.address', 'pharmacies.town', 'pharmacies.county', 'pharmacies.eir_code', 'pharmacies.simple_phone', 'pharmacies.website', 'pharmacies.email', 'pharmacies.status')
+                ->groupBy(
+                    'pharmacies.id',
+                    'pharmacies.pharmacy_name',
+                    'pharmacies.address',
+                    'pharmacies.town',
+                    'pharmacies.county',
+                    'pharmacies.eir_code',
+                    'pharmacies.simple_phone',
+                    'pharmacies.website',
+                    'pharmacies.email',
+                    'pharmacies.status',
+                    'pharmacies.created_at'
+                )
                 ->orderBy('pharmacies.created_at', 'desc')
                 ->get();
 
-            $pharmacyIds = $pharmacies->pluck('id')->all();
+            $pharmacyIds = $pharmacies->pluck('id')->map(fn ($id) => (int) $id)->all();
             $pharmacyNameMap = $pharmacies->pluck('pharmacy_name', 'id');
+
+            $cdRegisterCounts = [];
+            $cdActivityByPharmacy = [];
+            if ($pharmacyIds !== [] && Schema::hasTable('cd_registers')) {
+                $cdRegisterCounts = DB::table('cd_registers')
+                    ->select('pharmacy_id', DB::raw('COUNT(*) as register_count'))
+                    ->whereIn('pharmacy_id', $pharmacyIds)
+                    ->groupBy('pharmacy_id')
+                    ->pluck('register_count', 'pharmacy_id')
+                    ->map(fn ($count) => (int) $count)
+                    ->all();
+            }
+            if ($pharmacyIds !== [] && Schema::hasTable('cd_register_activity_logs')) {
+                $cdActivityByPharmacy = DB::table('cd_register_activity_logs')
+                    ->select(
+                        'pharmacy_id',
+                        DB::raw('COUNT(*) as activity_count'),
+                        DB::raw('MAX(created_at) as last_activity_at')
+                    )
+                    ->whereIn('pharmacy_id', $pharmacyIds)
+                    ->groupBy('pharmacy_id')
+                    ->get()
+                    ->keyBy('pharmacy_id')
+                    ->map(fn ($row) => [
+                        'activity_count' => (int) $row->activity_count,
+                        'last_activity_at' => $row->last_activity_at,
+                    ])
+                    ->all();
+            }
+
+            $pharmacies = collect(
+                \App\Support\CustomerCdIsolationSummary::enrichPharmacies(
+                    $pharmacies,
+                    $cdRegisterCounts,
+                    $cdActivityByPharmacy
+                )
+            );
 
             $childAdminIds = DB::table('users')
                 ->where('created_by', $customer->id)
@@ -442,7 +493,17 @@ class CustomerController extends Controller
                 ->pluck('id');
 
             $staffUsersQuery = DB::table('users')
-                ->select('id', 'name', 'email', 'user_type', 'user_pharmacy', 'created_by')
+                ->select(
+                    'id',
+                    'name',
+                    'email',
+                    'user_type',
+                    'status',
+                    'user_pharmacy',
+                    'created_by',
+                    'created_at',
+                    'last_login_at'
+                )
                 ->where(function ($query) use ($customer) {
                     $query->where('id', $customer->id)
                         ->orWhere('created_by', $customer->id);
@@ -488,7 +549,7 @@ class CustomerController extends Controller
 
             $multiPharmacyTypes = ['dispensary', 'fos', 'locum_pharmacist'];
 
-            $formattedStaff = $staffUsers->map(function ($user) use ($pharmacyIds, $pharmacyNameMap, $reliefAssignments, $staffPharmacyAssignments, $multiPharmacyTypes) {
+            $formattedStaff = $staffUsers->map(function ($user) use ($customer, $pharmacyIds, $pharmacyNameMap, $reliefAssignments, $staffPharmacyAssignments, $multiPharmacyTypes) {
                 $role = $this->formatUserRole($user->user_type);
                 $isAdmin = $user->user_type === 'admin';
                 $assignedPharmacyIds = [];
@@ -533,11 +594,15 @@ class CustomerController extends Controller
                     'email' => $user->email,
                     'role' => $role,
                     'user_type' => $user->user_type,
+                    'status' => $user->status,
                     'is_admin' => $isAdmin,
+                    'is_super_admin' => (int) $user->id === (int) $customer->id,
                     'pharmacy_ids' => $assignedPharmacyIds,
                     'pharmacy_names' => $pharmacyNames,
                     'pharmacies_display' => $pharmaciesDisplay,
                     'uses_crm_relief_fallback' => $usesCrmReliefFallback,
+                    'created_at' => $user->created_at,
+                    'last_login_at' => $user->last_login_at,
                 ];
             })->values();
 
@@ -559,12 +624,19 @@ class CustomerController extends Controller
                 'start_date' => $customer->start_date,
                 'expiry_date' => $customer->expiry_date,
                 'created_at' => $customer->created_at,
+                'updated_at' => $customer->updated_at ?? null,
                 'superintendent_name' => $customer->superintendent_name ?? null,
                 'superintendent_email' => $customer->superintendent_email ?? null,
                 'superintendent_contact' => $customer->superintendent_contact ?? null,
                 'pharmacy_address' => $customer->pharmacy_address ?? null,
-                'pharmacies' => $pharmacies,
+                'pharmacies' => $pharmacies->values()->all(),
                 'staff' => $formattedStaff,
+                'isolation' => [
+                    'customer_id' => (int) $customer->id,
+                    'pharmacy_count' => $pharmacies->count(),
+                    'staff_count' => $formattedStaff->count(),
+                    'note' => \App\Support\CustomerCdIsolationSummary::investigationNote((int) $customer->id),
+                ],
             ];
 
             return response()->json([

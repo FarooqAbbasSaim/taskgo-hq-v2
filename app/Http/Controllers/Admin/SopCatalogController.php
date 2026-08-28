@@ -197,7 +197,13 @@ class SopCatalogController extends Controller
         $relativePath = 'images/hq-sop-catalog/' . $name;
 
         if ($this->usesCloudStorage()) {
-            Storage::disk('s3')->putFileAs('images/hq-sop-catalog', $file, $name, 'public');
+            $stored = Storage::disk('s3')->putFileAs('images/hq-sop-catalog', $file, $name, [
+                'visibility' => 'public',
+            ]);
+
+            if (! $stored) {
+                throw new \RuntimeException('Could not upload HQ SOP catalog document to S3. Check AWS credentials and league/flysystem-aws-s3-v3.');
+            }
         } else {
             $directory = rtrim(config('taskgo.crm_public_path'), '/') . '/images/hq-sop-catalog';
 
@@ -241,8 +247,11 @@ class SopCatalogController extends Controller
 
     private function usesCloudStorage(): bool
     {
-        return config('filesystems.default') === 's3'
-            && (string) config('filesystems.disks.s3.bucket') !== '';
+        $default = (string) config('filesystems.default');
+        $bucket = (string) config('filesystems.disks.s3.bucket');
+
+        // Match CRM: prefer explicit S3 default, also accept FILESYSTEM_DISK/DRIVER=s3.
+        return $bucket !== '' && in_array($default, ['s3'], true);
     }
 
     private function normalizeDocumentPath(?string $path): string

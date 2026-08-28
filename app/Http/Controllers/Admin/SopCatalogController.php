@@ -197,12 +197,28 @@ class SopCatalogController extends Controller
         $relativePath = 'images/hq-sop-catalog/' . $name;
 
         if ($this->usesCloudStorage()) {
-            $stored = Storage::disk('s3')->putFileAs('images/hq-sop-catalog', $file, $name, [
-                'visibility' => 'public',
-            ]);
+            try {
+                // Do not set ACL=public-read — staging buckets usually block public ACLs
+                // and rely on a bucket policy for GetObject instead.
+                $stored = Storage::disk('s3')->putFileAs(
+                    'images/hq-sop-catalog',
+                    $file,
+                    $name
+                );
+            } catch (\Throwable $e) {
+                report($e);
+
+                throw new \RuntimeException(
+                    'Could not upload HQ SOP catalog document to S3: ' . $e->getMessage(),
+                    0,
+                    $e
+                );
+            }
 
             if (! $stored) {
-                throw new \RuntimeException('Could not upload HQ SOP catalog document to S3. Check AWS credentials and league/flysystem-aws-s3-v3.');
+                throw new \RuntimeException(
+                    'Could not upload HQ SOP catalog document to S3 (put returned empty). Check AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, AWS_BUCKET on HQ Forge env, then run: php artisan config:clear && php artisan config:cache'
+                );
             }
         } else {
             $directory = rtrim(config('taskgo.crm_public_path'), '/') . '/images/hq-sop-catalog';

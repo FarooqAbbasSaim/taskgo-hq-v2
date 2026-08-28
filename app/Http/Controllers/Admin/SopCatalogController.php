@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PredefinedSop;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SopCatalogController extends Controller
@@ -111,14 +112,14 @@ class SopCatalogController extends Controller
     private function streamCatalogDocument(int $id, bool $asDownload): StreamedResponse
     {
         $item = $this->findCatalogItem($id);
-        $absolutePath = $this->absoluteDocumentPath($item->document_path);
+        $relativePath = $this->normalizeDocumentPath($item->document_path);
 
-        if (! $item->document_path || ! is_file($absolutePath)) {
+        if ($relativePath === '' || ! $this->catalogDocumentExists($relativePath)) {
             abort(404, 'Catalog document file is missing.');
         }
 
         $downloadName = $item->original_file_name
-            ?: basename((string) $item->document_path)
+            ?: basename($relativePath)
             ?: 'sop-document.docx';
 
         $mime = $item->mime_type ?: 'application/octet-stream';
@@ -129,7 +130,23 @@ class SopCatalogController extends Controller
             $mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         }
 
-        return response()->streamDownload(function () use ($absolutePath) {
+        return response()->streamDownload(function () use ($relativePath) {
+            if ($this->usesCloudStorage()) {
+                $stream = Storage::disk('s3')->readStream($relativePath);
+                if (! is_resource($stream)) {
+                    return;
+                }
+
+                while (! feof($stream)) {
+                    echo fread($stream, 8192);
+                }
+
+                fclose($stream);
+
+                return;
+            }
+
+            $absolutePath = $this->absoluteDocumentPath($relativePath);
             $handle = fopen($absolutePath, 'rb');
             if ($handle === false) {
                 return;
@@ -173,39 +190,72 @@ class SopCatalogController extends Controller
 
     private function storeCatalogDocument($file): array
     {
-        $directory = rtrim(config('taskgo.crm_public_path'), '/') . '/images/hq-sop-catalog';
-
-        if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
-            throw new \RuntimeException('Could not create HQ SOP catalog storage directory.');
-        }
-
         $extension = strtolower($file->getClientOriginalExtension() ?: 'docx');
         $name = time() . '-' . mt_rand(1000, 9999) . '.' . $extension;
         $originalName = $file->getClientOriginalName();
         $mimeType = $file->getClientMimeType();
-        $file->move($directory, $name);
+        $relativePath = 'images/hq-sop-catalog/' . $name;
+
+        if ($this->usesCloudStorage()) {
+            Storage::disk('s3')->putFileAs('images/hq-sop-catalog', $file, $name, 'public');
+        } else {
+            $directory = rtrim(config('taskgo.crm_public_path'), '/') . '/images/hq-sop-catalog';
+
+            if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
+                throw new \RuntimeException('Could not create HQ SOP catalog storage directory.');
+            }
+
+            $file->move($directory, $name);
+        }
 
         return [
-            'path' => 'images/hq-sop-catalog/' . $name,
+            'path' => $relativePath,
             'name' => $originalName,
             'mime_type' => $mimeType,
         ];
     }
 
-    private function absoluteDocumentPath(?string $path): string
+    private function absoluteDocumentPath(string $path): string
     {
-        return rtrim(config('taskgo.crm_public_path'), '/') . '/' . ltrim((string) $path, '/');
+        return rtrim(config('taskgo.crm_public_path'), '/') . '/' . ltrim($path, '/');
     }
 
     private function deleteLocalDocument(?string $path): void
     {
-        if (! $path) {
+        $relativePath = $this->normalizeDocumentPath($path);
+        if ($relativePath === '') {
             return;
         }
 
-        $absolutePath = $this->absoluteDocumentPath($path);
+        if ($this->usesCloudStorage()) {
+            Storage::disk('s3')->delete($relativePath);
+
+            return;
+        }
+
+        $absolutePath = $this->absoluteDocumentPath($relativePath);
         if (is_file($absolutePath)) {
             @unlink($absolutePath);
         }
+    }
+
+    private function usesCloudStorage(): bool
+    {
+        return config('filesystems.default') === 's3'
+            && (string) config('filesystems.disks.s3.bucket') !== '';
+    }
+
+    private function normalizeDocumentPath(?string $path): string
+    {
+        return ltrim(str_replace('\\', '/', (string) $path), '/');
+    }
+
+    private function catalogDocumentExists(string $relativePath): bool
+    {
+        if ($this->usesCloudStorage()) {
+            return Storage::disk('s3')->exists($relativePath);
+        }
+
+        return is_file($this->absoluteDocumentPath($relativePath));
     }
 }

@@ -126,6 +126,34 @@
         </div>
     </div>
 </div>
+
+<!-- Password reset confirm modal -->
+<div class="modal fade" id="passwordResetModal" tabindex="-1" aria-labelledby="passwordResetModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="passwordResetModalLabel">Confirm Action</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <div class="mb-3">
+                        <i class="ti ti-key text-warning" style="font-size: 3rem;"></i>
+                    </div>
+                    <h3 class="mb-1" id="passwordResetModalTitle">Reset password?</h3>
+                    <p class="text-muted mb-0" id="passwordResetModalMessage">A password reset email will be sent to this user.</p>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="confirmPasswordResetAction">
+                    <span class="btn-label">Send reset email</span>
+                    <span class="spinner-border spinner-border-sm d-none ms-1" role="status" aria-hidden="true" id="confirmPasswordResetSpinner"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -135,7 +163,17 @@ class StaffViewManager {
         this.customerId = customerId;
         this.userId = userId;
         this.user = null;
+        this.pendingPasswordReset = false;
         this.load();
+
+        document.getElementById('confirmPasswordResetAction')?.addEventListener('click', () => {
+            this.executeSendPasswordReset();
+        });
+
+        document.getElementById('passwordResetModal')?.addEventListener('hidden.bs.modal', () => {
+            this.pendingPasswordReset = false;
+            this.setPasswordResetLoading(false);
+        });
     }
 
     async load() {
@@ -186,7 +224,7 @@ class StaffViewManager {
         if (resetBtn) {
             if (user.email) {
                 resetBtn.style.display = '';
-                resetBtn.onclick = () => this.sendPasswordReset();
+                resetBtn.onclick = () => this.openPasswordResetModal();
             } else {
                 resetBtn.style.display = 'none';
             }
@@ -222,15 +260,27 @@ class StaffViewManager {
         </tr>`).join('') : '<tr><td colspan="5" class="text-muted text-center">No auth events recorded</td></tr>';
     }
 
-    async sendPasswordReset() {
+    openPasswordResetModal() {
         if (!this.user?.email) {
             return;
         }
 
         const displayName = this.user.name || this.user.email;
-        if (!confirm(`Send a password reset email to ${displayName}?`)) {
+        this.pendingPasswordReset = true;
+        document.getElementById('passwordResetModalTitle').innerHTML =
+            `Reset password for <strong>${this.esc(displayName)}</strong>?`;
+        document.getElementById('passwordResetModalMessage').textContent =
+            'A password reset email will be sent to this user.';
+        this.setPasswordResetLoading(false);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('passwordResetModal')).show();
+    }
+
+    async executeSendPasswordReset() {
+        if (!this.pendingPasswordReset) {
             return;
         }
+
+        this.setPasswordResetLoading(true);
 
         try {
             const response = await fetch(`/api/customers/${this.customerId}/users/${this.userId}/send-password-reset`, {
@@ -241,8 +291,10 @@ class StaffViewManager {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 },
             });
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
             if (response.ok && data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('passwordResetModal'))?.hide();
+                this.pendingPasswordReset = false;
                 alert(data.message || 'Password reset email sent.');
                 return;
             }
@@ -250,7 +302,19 @@ class StaffViewManager {
         } catch (error) {
             console.error(error);
             alert('Failed to send password reset email. Please try again.');
+        } finally {
+            this.setPasswordResetLoading(false);
         }
+    }
+
+    setPasswordResetLoading(isLoading) {
+        const button = document.getElementById('confirmPasswordResetAction');
+        const spinner = document.getElementById('confirmPasswordResetSpinner');
+        if (!button || !spinner) {
+            return;
+        }
+        button.disabled = isLoading;
+        spinner.classList.toggle('d-none', !isLoading);
     }
 
     renderAssignedPharmacies(user) {

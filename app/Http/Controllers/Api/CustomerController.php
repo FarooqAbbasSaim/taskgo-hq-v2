@@ -103,6 +103,13 @@ class CustomerController extends Controller
                 'hq_actor_name' => $hqUser?->name,
             ]);
 
+        \Log::info('HQ password reset proxy response', [
+            'customer_id' => $customerId,
+            'user_id' => $userId,
+            'status' => $response->status(),
+            'body' => $response->json(),
+        ]);
+
         if ($response->failed()) {
             return response()->json([
                 'success' => false,

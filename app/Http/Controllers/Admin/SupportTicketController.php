@@ -88,11 +88,10 @@ class SupportTicketController extends Controller
             'closed_at' => $validated['status'] === 'closed' ? ($ticket->closed_at ?: now()) : null,
             'customer_unread' => true,
         ]);
-        if ($previousStatus !== $ticket->status) {
-            $this->sendStatusUpdate($ticket);
-        }
+        $mailFailed = $previousStatus !== $ticket->status && !$this->sendStatusUpdate($ticket);
 
-        return back()->with('success', 'Ticket details updated.');
+        $response = back()->with('success', 'Ticket details updated.');
+        return $mailFailed ? $response->with('warning', 'The ticket was updated, but the email notification could not be delivered.') : $response;
     }
 
     public function assignToMe(SupportTicket $ticket)
@@ -105,11 +104,10 @@ class SupportTicketController extends Controller
             'status' => $ticket->status === 'new' ? 'assigned' : $ticket->status,
             'customer_unread' => true,
         ]);
-        if ($previousStatus !== $ticket->status) {
-            $this->sendStatusUpdate($ticket);
-        }
+        $mailFailed = $previousStatus !== $ticket->status && !$this->sendStatusUpdate($ticket);
 
-        return back()->with('success', 'Ticket assigned to you.');
+        $response = back()->with('success', 'Ticket assigned to you.');
+        return $mailFailed ? $response->with('warning', 'The ticket was assigned, but the email notification could not be delivered.') : $response;
     }
 
     public function reply(Request $request, SupportTicket $ticket)
@@ -118,7 +116,7 @@ class SupportTicketController extends Controller
             'body' => 'required|string|max:20000',
             'is_internal' => 'nullable|boolean',
             'status_after_reply' => 'nullable|in:in_progress,waiting_for_customer,resolved',
-            'attachments.*' => 'nullable|file|max:5120',
+            'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
         $user = Auth::guard('hq')->user();
         $internal = (bool) ($validated['is_internal'] ?? false);
@@ -131,7 +129,7 @@ class SupportTicketController extends Controller
             'is_internal' => $internal,
         ]);
 
-        foreach ($request->file('attachments', []) as $file) {
+        foreach ($request->hasFile('attachment') ? [$request->file('attachment')] : [] as $file) {
             SupportTicketAttachment::create([
                 'support_ticket_id' => $ticket->id,
                 'support_ticket_message_id' => $message->id,
@@ -142,6 +140,7 @@ class SupportTicketController extends Controller
             ]);
         }
 
+        $mailFailed = false;
         if (!$internal) {
             $status = $validated['status_after_reply'] ?? 'waiting_for_customer';
             $ticket->update([
@@ -149,16 +148,20 @@ class SupportTicketController extends Controller
                 'resolved_at' => $status === 'resolved' ? now() : null,
                 'customer_unread' => true,
             ]);
-            $replyAddress = 'support+' . $ticket->public_token . '@' . config('support.reply_domain');
             $ticketMessage = $message;
-            Mail::send('emails.support-ticket-reply', compact('ticket', 'ticketMessage'), function ($mail) use ($ticket, $replyAddress) {
-                $mail->to($ticket->requester_email, $ticket->requester_name)
-                    ->replyTo($replyAddress, 'Taskgo Support')
-                    ->subject("Update on {$ticket->reference}: {$ticket->subject}");
-            });
+            try {
+                Mail::send('emails.support-ticket-reply', compact('ticket', 'ticketMessage'), function ($mail) use ($ticket) {
+                    $mail->to($ticket->requester_email, $ticket->requester_name)
+                        ->subject("Update on {$ticket->reference}: {$ticket->subject}");
+                });
+            } catch (\Throwable $exception) {
+                report($exception);
+                $mailFailed = true;
+            }
         }
 
-        return back()->with('success', $internal ? 'Private note added.' : 'Reply sent to the customer.');
+        $response = back()->with('success', $internal ? 'Private note added.' : 'Reply saved and sent to the customer.');
+        return $mailFailed ? $response->with('warning', 'The reply was saved, but the email notification could not be delivered.') : $response;
     }
 
     public function attachment(SupportTicketAttachment $attachment)
@@ -169,13 +172,17 @@ class SupportTicketController extends Controller
         ]);
     }
 
-    private function sendStatusUpdate(SupportTicket $ticket): void
+    private function sendStatusUpdate(SupportTicket $ticket): bool
     {
-        $replyAddress = 'support+' . $ticket->public_token . '@' . config('support.reply_domain');
-        Mail::send('emails.support-ticket-status', compact('ticket'), function ($mail) use ($ticket, $replyAddress) {
-            $mail->to($ticket->requester_email, $ticket->requester_name)
-                ->replyTo($replyAddress, 'Taskgo Support')
-                ->subject("Status update for {$ticket->reference}: " . ucwords(str_replace('_', ' ', $ticket->status)));
-        });
+        try {
+            Mail::send('emails.support-ticket-status', compact('ticket'), function ($mail) use ($ticket) {
+                $mail->to($ticket->requester_email, $ticket->requester_name)
+                    ->subject("Status update for {$ticket->reference}: " . ucwords(str_replace('_', ' ', $ticket->status)));
+            });
+            return true;
+        } catch (\Throwable $exception) {
+            report($exception);
+            return false;
+        }
     }
 }

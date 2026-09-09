@@ -24,6 +24,6 @@ class SupportTicket extends Model
 
     public function messages()
     {
-        return $this->hasMany(SupportTicketMessage::class)->orderBy('created_at');
+        return $this->hasMany(SupportTicketMessage::class)->orderBy('created_at')->orderBy('id');
     }
 }

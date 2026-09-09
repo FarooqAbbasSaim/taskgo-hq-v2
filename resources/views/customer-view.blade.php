@@ -213,8 +213,8 @@
                         <button class="btn btn-outline-primary btn-sm" onclick="impersonateUser()">
                             <i class="ti ti-user-check me-2"></i>Impersonate User
                         </button>
-                        <button class="btn btn-outline-warning btn-sm" onclick="changePassword()">
-                            <i class="ti ti-key me-2"></i>Change Password
+                        <button class="btn btn-outline-warning btn-sm" id="resetPasswordBtn" onclick="changePassword()">
+                            <i class="ti ti-key me-2"></i>Reset password
                         </button>
                         <button class="btn btn-outline-danger btn-sm" onclick="freezeUser()">
                             <i class="ti ti-lock me-2"></i>Freeze User
@@ -482,13 +482,49 @@ class CustomerViewManager {
                 <td>${createdAt}</td>
                 <td>${lastLogin}</td>
                 <td>
-                    <a href="/admin/customers/${this.customerId}/staff/${member.id}" class="btn btn-sm btn-outline-primary">
-                        View
-                    </a>
+                    <div class="d-flex flex-wrap gap-1">
+                        <a href="/admin/customers/${this.customerId}/staff/${member.id}" class="btn btn-sm btn-outline-primary">
+                            View
+                        </a>
+                        ${member.email ? `
+                        <button type="button" class="btn btn-sm btn-outline-warning"
+                            onclick="sendStaffPasswordReset(${member.id}, ${JSON.stringify(member.name || member.email)})">
+                            Reset password
+                        </button>` : ''}
+                    </div>
                 </td>
             `;
             staffTable.appendChild(row);
         });
+    }
+
+    async sendPasswordReset(userId, displayName) {
+        if (!confirm(`Send a password reset email to ${displayName}?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/customers/${this.customerId}/users/${userId}/send-password-reset`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                this.showSuccess(data.message || 'Password reset email sent.');
+                return;
+            }
+
+            this.showError(data.message || 'Failed to send password reset email.');
+        } catch (error) {
+            console.error('Error sending password reset email:', error);
+            this.showError('Failed to send password reset email. Please try again.');
+        }
     }
 
     escapeHtml(value) {
@@ -514,7 +550,15 @@ function impersonateUser() {
 }
 
 function changePassword() {
-    customerViewManager.showSuccess('Change password functionality coming soon.');
+    if (!customerViewManager?.customer) {
+        return;
+    }
+    const customer = customerViewManager.customer;
+    customerViewManager.sendPasswordReset(customer.id, customer.name || customer.email);
+}
+
+function sendStaffPasswordReset(userId, displayName) {
+    customerViewManager.sendPasswordReset(userId, displayName);
 }
 
 function freezeUser() {

@@ -28,9 +28,12 @@
                         <h4 class="mb-1" id="staffName">—</h4>
                         <p class="text-muted mb-0" id="staffEmail">—</p>
                     </div>
-                    <div class="text-end">
+                    <div class="text-end d-flex flex-wrap gap-2 align-items-center justify-content-end">
                         <span class="badge bg-primary me-1" id="staffRole">—</span>
                         <span class="badge bg-success" id="staffStatus">—</span>
+                        <button type="button" class="btn btn-outline-warning btn-sm" id="resetPasswordBtn" style="display: none;">
+                            <i class="ti ti-key me-1"></i>Reset password
+                        </button>
                     </div>
                 </div>
             </div>
@@ -131,6 +134,7 @@ class StaffViewManager {
     constructor(customerId, userId) {
         this.customerId = customerId;
         this.userId = userId;
+        this.user = null;
         this.load();
     }
 
@@ -163,6 +167,7 @@ class StaffViewManager {
 
     render(data) {
         const user = data.user;
+        this.user = user;
         const stats = data.stats;
 
         const ref = document.referrer || '';
@@ -176,6 +181,16 @@ class StaffViewManager {
         const statusEl = document.getElementById('staffStatus');
         statusEl.textContent = status;
         statusEl.className = 'badge ' + (status === 'active' ? 'bg-success' : status === 'freeze' ? 'bg-warning' : 'bg-secondary');
+
+        const resetBtn = document.getElementById('resetPasswordBtn');
+        if (resetBtn) {
+            if (user.email) {
+                resetBtn.style.display = '';
+                resetBtn.onclick = () => this.sendPasswordReset();
+            } else {
+                resetBtn.style.display = 'none';
+            }
+        }
 
         document.getElementById('staffPhone').value = user.phone || '—';
         document.getElementById('staffPsi').value = user.psi_number || '—';
@@ -205,6 +220,37 @@ class StaffViewManager {
         tbody.innerHTML = events.length ? events.map(e => `<tr>
             <td>${e.created_at || '—'}</td><td>${e.action}</td><td>${e.result}</td><td>${e.ip || '—'}</td><td>${e.channel || '—'}</td>
         </tr>`).join('') : '<tr><td colspan="5" class="text-muted text-center">No auth events recorded</td></tr>';
+    }
+
+    async sendPasswordReset() {
+        if (!this.user?.email) {
+            return;
+        }
+
+        const displayName = this.user.name || this.user.email;
+        if (!confirm(`Send a password reset email to ${displayName}?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/customers/${this.customerId}/users/${this.userId}/send-password-reset`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+            });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                alert(data.message || 'Password reset email sent.');
+                return;
+            }
+            alert(data.message || 'Failed to send password reset email.');
+        } catch (error) {
+            console.error(error);
+            alert('Failed to send password reset email. Please try again.');
+        }
     }
 
     renderAssignedPharmacies(user) {

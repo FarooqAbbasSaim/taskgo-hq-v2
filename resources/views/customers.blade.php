@@ -723,6 +723,14 @@ class CustomersManager {
                 <i class="ti ti-link me-2"></i>Copy Rx Link
             </a></li>
         `;
+
+        if (customer.email) {
+            menuItems += `
+                <li><a class="dropdown-item" href="#" onclick="customersManager.handleSendPasswordReset(${customer.id}, ${customer.id}, ${JSON.stringify(customer.name || customer.email)}); return false;">
+                    <i class="ti ti-key me-2"></i>Reset password
+                </a></li>
+            `;
+        }
         
         return menuItems;
     }
@@ -752,6 +760,35 @@ class CustomersManager {
         } catch (error) {
             console.error('Error resending activation email:', error);
             this.showError('Failed to resend activation email. Please try again.');
+        }
+    }
+
+    async handleSendPasswordReset(customerId, userId, displayName) {
+        if (!confirm(`Send a password reset email to ${displayName}?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/customers/${customerId}/users/${userId}/send-password-reset`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                this.showSuccess(data.message || 'Password reset email sent.');
+                return;
+            }
+
+            this.showError(data.message || 'Failed to send password reset email.');
+        } catch (error) {
+            console.error('Error sending password reset email:', error);
+            this.showError('Failed to send password reset email. Please try again.');
         }
     }
 

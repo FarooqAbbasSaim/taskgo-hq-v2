@@ -78,6 +78,49 @@ class CustomerController extends Controller
     }
 
     /**
+     * Send a Laravel password-reset link for a pharmacy org user via CRM.
+     */
+    public function sendPasswordReset(int $customerId, int $userId)
+    {
+        $crmUrl = rtrim((string) config('services.taskgo_crm.url'), '/');
+        $token = (string) config('services.taskgo_crm.hq_api_token');
+
+        if ($crmUrl === '' || $token === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'CRM onboarding is not configured. Set TASKGO_CRM_URL and HQ_ONBOARDING_API_TOKEN.',
+            ], 503);
+        }
+
+        $hqUser = auth('hq')->user();
+
+        $response = Http::timeout(30)
+            ->withToken($token)
+            ->acceptJson()
+            ->post($crmUrl . '/api/hq/customers/' . $customerId . '/users/' . $userId . '/send-password-reset', [
+                'hq_actor_id' => $hqUser?->id,
+                'hq_actor_email' => $hqUser?->email,
+                'hq_actor_name' => $hqUser?->name,
+            ]);
+
+        \Log::info('HQ password reset proxy response', [
+            'customer_id' => $customerId,
+            'user_id' => $userId,
+            'status' => $response->status(),
+            'body' => $response->json(),
+        ]);
+
+        if ($response->failed()) {
+            return response()->json([
+                'success' => false,
+                'message' => $response->json('message') ?? 'Failed to send password reset email.',
+            ], $response->status());
+        }
+
+        return response()->json($response->json(), $response->status());
+    }
+
+    /**
      * Get customers data for the customers page
      */
     public function getCustomersData()

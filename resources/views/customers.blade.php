@@ -211,6 +211,34 @@
         </div>
     </div>
 
+    <!-- Password reset confirm modal -->
+    <div class="modal fade" id="passwordResetModal" tabindex="-1" aria-labelledby="passwordResetModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="passwordResetModalLabel">Confirm Action</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <div class="mb-3">
+                            <i class="ti ti-key text-warning" style="font-size: 3rem;"></i>
+                        </div>
+                        <h3 class="mb-1" id="passwordResetModalTitle">Reset password?</h3>
+                        <p class="text-muted mb-0" id="passwordResetModalMessage">A password reset email will be sent to this user.</p>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" id="confirmPasswordResetAction">
+                        <span class="btn-label">Send reset email</span>
+                        <span class="spinner-border spinner-border-sm d-none ms-1" role="status" aria-hidden="true" id="confirmPasswordResetSpinner"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
         <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
@@ -404,6 +432,23 @@ class CustomersManager {
             this.createCustomer();
         });
 
+        document.getElementById('customersTableBody').addEventListener('click', (e) => {
+            const resetLink = e.target.closest('[data-action="send-password-reset"]');
+            if (!resetLink) {
+                return;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const customerId = Number(resetLink.getAttribute('data-customer-id'));
+            const userId = Number(resetLink.getAttribute('data-user-id'));
+            const customer = this.customers.find((row) => Number(row.id) === customerId);
+            const displayName = customer?.name || customer?.email || `user #${userId}`;
+
+            this.handleSendPasswordReset(customerId, userId, displayName);
+        });
+
         // Modal confirm buttons
         document.getElementById('confirmFreezeAction').addEventListener('click', () => {
             if (this.pendingAction) {
@@ -427,6 +472,15 @@ class CustomersManager {
                 bootstrap.Modal.getInstance(document.getElementById('upgradeModal')).hide();
                 this.pendingAction = null;
             }
+        });
+
+        document.getElementById('confirmPasswordResetAction').addEventListener('click', () => {
+            this.executeSendPasswordReset();
+        });
+
+        document.getElementById('passwordResetModal').addEventListener('hidden.bs.modal', () => {
+            this.pendingPasswordReset = null;
+            this.setPasswordResetLoading(false);
         });
 
         // Handle modal cancel (when user clicks outside or presses escape)
@@ -723,6 +777,14 @@ class CustomersManager {
                 <i class="ti ti-link me-2"></i>Copy Rx Link
             </a></li>
         `;
+
+        if (customer.email) {
+            menuItems += `
+                <li><a class="dropdown-item" href="#" data-action="send-password-reset" data-customer-id="${customer.id}" data-user-id="${customer.id}">
+                    <i class="ti ti-key me-2"></i>Reset password
+                </a></li>
+            `;
+        }
         
         return menuItems;
     }
@@ -753,6 +815,74 @@ class CustomersManager {
             console.error('Error resending activation email:', error);
             this.showError('Failed to resend activation email. Please try again.');
         }
+    }
+
+    handleSendPasswordReset(customerId, userId, displayName = null) {
+        const label = displayName || `user #${userId}`;
+        this.pendingPasswordReset = { customerId, userId, displayName: label };
+
+        document.getElementById('passwordResetModalTitle').innerHTML =
+            `Reset password for <strong>${this.escapeHtml(label)}</strong>?`;
+        document.getElementById('passwordResetModalMessage').textContent =
+            'A password reset email will be sent to this user.';
+        this.setPasswordResetLoading(false);
+
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('passwordResetModal')).show();
+    }
+
+    async executeSendPasswordReset() {
+        if (!this.pendingPasswordReset) {
+            return;
+        }
+
+        const { customerId, userId } = this.pendingPasswordReset;
+        this.setPasswordResetLoading(true);
+
+        try {
+            const response = await fetch(`/api/customers/${customerId}/users/${userId}/send-password-reset`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (response.ok && data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('passwordResetModal'))?.hide();
+                this.pendingPasswordReset = null;
+                this.showSuccess(data.message || 'Password reset email sent.');
+                return;
+            }
+
+            this.showError(data.message || `Failed to send password reset email (${response.status}).`);
+        } catch (error) {
+            console.error('Error sending password reset email:', error);
+            this.showError('Failed to send password reset email. Please try again.');
+        } finally {
+            this.setPasswordResetLoading(false);
+        }
+    }
+
+    setPasswordResetLoading(isLoading) {
+        const button = document.getElementById('confirmPasswordResetAction');
+        const spinner = document.getElementById('confirmPasswordResetSpinner');
+        if (!button || !spinner) {
+            return;
+        }
+        button.disabled = isLoading;
+        spinner.classList.toggle('d-none', !isLoading);
+    }
+
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     // Handle freeze/unfreeze button click

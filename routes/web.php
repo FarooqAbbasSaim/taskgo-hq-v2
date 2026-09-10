@@ -92,6 +92,7 @@ Route::middleware(['auth:hq'])->prefix('api/customers')->group(function () {
     Route::post('/update-package/{customer}', [\App\Http\Controllers\Api\CustomerController::class, 'updatePackagePlan']);
     Route::post('/change-subscription-status', [\App\Http\Controllers\Api\CustomerController::class, 'changeSubscriptionStatus']);
     Route::post('/{id}/resend-activation', [\App\Http\Controllers\Api\CustomerController::class, 'resendActivation']);
+    Route::post('/{customerId}/users/{userId}/send-password-reset', [\App\Http\Controllers\Api\CustomerController::class, 'sendPasswordReset']);
     Route::get('/{customerId}/pharmacies/{pharmacyId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getPharmacy']);
     Route::get('/{customerId}/pharmacies/{pharmacyId}/export/{type}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'exportPharmacy']);
     Route::get('/{customerId}/staff/{userId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getStaff']);

@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CrmAuthEventsController;
 use App\Http\Controllers\Admin\PatientAuthEventsController;
 use App\Http\Controllers\Admin\PlatformInsightsController;
 use App\Http\Controllers\Admin\SopCatalogController;
+use App\Http\Controllers\Admin\SupportTicketController;
 
 // Test route
 Route::get('/test', function () {
@@ -167,6 +168,12 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     Route::put('/announcements', [\App\Http\Controllers\Admin\AnnouncementController::class, 'update'])->name('admin.announcements.update');
 
     Route::get('/sop-catalog', [SopCatalogController::class, 'index'])->name('admin.sop-catalog');
+    Route::get('/support', [SupportTicketController::class, 'index'])->name('admin.support.index');
+    Route::get('/support/attachments/{attachment}', [SupportTicketController::class, 'attachment'])->name('admin.support.attachments');
+    Route::get('/support/{ticket}', [SupportTicketController::class, 'show'])->name('admin.support.show');
+    Route::put('/support/{ticket}', [SupportTicketController::class, 'update'])->name('admin.support.update');
+    Route::post('/support/{ticket}/assign', [SupportTicketController::class, 'assignToMe'])->name('admin.support.assign');
+    Route::post('/support/{ticket}/replies', [SupportTicketController::class, 'reply'])->name('admin.support.reply');
     
     Route::get('/customers/active', function() {
         return view('customers', ['status' => 'active']);

@@ -53,6 +53,15 @@
                 </a>
             </li>
 
+            <li class="side-nav-item">
+                <a href="{{ route('admin.support.index') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="life-buoy"></i></span>
+                    <span class="menu-text">Support</span>
+                    @php($newSupportTickets = \Illuminate\Support\Facades\Schema::hasTable('support_tickets') ? \App\Models\SupportTicket::where('status', 'new')->count() : 0)
+                    @if($newSupportTickets)<span class="badge text-bg-warning">{{ $newSupportTickets }}</span>@endif
+                </a>
+            </li>
+
             @if(config('features.corporate_registrations'))
                 <li class="side-nav-item">
                     <a href="{{ route('admin.corporate-registrations') }}" class="side-nav-link">

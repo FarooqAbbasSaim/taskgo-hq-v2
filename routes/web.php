@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\PatientAuthEventsController;
 use App\Http\Controllers\Admin\PlatformInsightsController;
 use App\Http\Controllers\Admin\SopCatalogController;
 use App\Http\Controllers\Admin\SupportTicketController;
+use App\Http\Controllers\Admin\SupportViewSessionsController;
 
 // Test route
 Route::get('/test', function () {
@@ -230,6 +231,9 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
 
     Route::get('/crm-auth-events', [CrmAuthEventsController::class, 'index'])
         ->name('admin.crm-auth-events');
+
+    Route::get('/support-view-sessions', [SupportViewSessionsController::class, 'index'])
+        ->name('admin.support-view-sessions');
 
     Route::get('/platform-insights', [PlatformInsightsController::class, 'index'])
         ->name('admin.platform-insights');

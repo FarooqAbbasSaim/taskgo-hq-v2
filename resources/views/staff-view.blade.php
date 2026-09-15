@@ -31,6 +31,9 @@
                     <div class="text-end d-flex flex-wrap gap-2 align-items-center justify-content-end">
                         <span class="badge bg-primary me-1" id="staffRole">—</span>
                         <span class="badge bg-success" id="staffStatus">—</span>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="supportViewBtn" style="display: none;">
+                            <i class="ti ti-user-check me-1"></i>Support View
+                        </button>
                         <button type="button" class="btn btn-outline-warning btn-sm" id="resetPasswordBtn" style="display: none;">
                             <i class="ti ti-key me-1"></i>Reset password
                         </button>
@@ -154,6 +157,31 @@
         </div>
     </div>
 </div>
+
+<!-- Support View reason modal -->
+<div class="modal fade" id="supportViewModal" tabindex="-1" aria-labelledby="supportViewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="supportViewModalLabel">Start Support View</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2" id="supportViewModalIntro">Open CRM as this user for a short audited support session (read-only by default).</p>
+                <label for="supportViewReason" class="form-label">Reason <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="supportViewReason" rows="3" maxlength="1000" placeholder="e.g. Investigating reported CD Register issue"></textarea>
+                <div class="form-text">Minimum 5 characters. Session expires after about 30 minutes.</div>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSupportViewAction">
+                    <span class="btn-label">Open Support View</span>
+                    <span class="spinner-border spinner-border-sm d-none ms-1" role="status" aria-hidden="true" id="confirmSupportViewSpinner"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -173,6 +201,19 @@ class StaffViewManager {
         document.getElementById('passwordResetModal')?.addEventListener('hidden.bs.modal', () => {
             this.pendingPasswordReset = false;
             this.setPasswordResetLoading(false);
+        });
+
+        document.getElementById('confirmSupportViewAction')?.addEventListener('click', () => {
+            this.executeSupportView();
+        });
+
+        document.getElementById('supportViewModal')?.addEventListener('hidden.bs.modal', () => {
+            this.pendingSupportView = false;
+            this.setSupportViewLoading(false);
+            const reason = document.getElementById('supportViewReason');
+            if (reason) {
+                reason.value = '';
+            }
         });
     }
 
@@ -227,6 +268,16 @@ class StaffViewManager {
                 resetBtn.onclick = () => this.openPasswordResetModal();
             } else {
                 resetBtn.style.display = 'none';
+            }
+        }
+
+        const supportBtn = document.getElementById('supportViewBtn');
+        if (supportBtn) {
+            if (user.email) {
+                supportBtn.style.display = '';
+                supportBtn.onclick = () => this.openSupportViewModal();
+            } else {
+                supportBtn.style.display = 'none';
             }
         }
 
@@ -310,6 +361,73 @@ class StaffViewManager {
     setPasswordResetLoading(isLoading) {
         const button = document.getElementById('confirmPasswordResetAction');
         const spinner = document.getElementById('confirmPasswordResetSpinner');
+        if (!button || !spinner) {
+            return;
+        }
+        button.disabled = isLoading;
+        spinner.classList.toggle('d-none', !isLoading);
+    }
+
+    openSupportViewModal() {
+        if (!this.user?.email) {
+            return;
+        }
+
+        const displayName = this.user.name || this.user.email;
+        this.pendingSupportView = true;
+        document.getElementById('supportViewModalIntro').innerHTML =
+            `Open CRM as <strong>${this.esc(displayName)}</strong> for a short audited support session (read-only by default).`;
+        const reason = document.getElementById('supportViewReason');
+        if (reason) {
+            reason.value = '';
+        }
+        this.setSupportViewLoading(false);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('supportViewModal')).show();
+    }
+
+    async executeSupportView() {
+        if (!this.pendingSupportView) {
+            return;
+        }
+
+        const reason = (document.getElementById('supportViewReason')?.value || '').trim();
+        if (reason.length < 5) {
+            alert('Please enter a reason (at least 5 characters).');
+            return;
+        }
+
+        this.setSupportViewLoading(true);
+
+        try {
+            const response = await fetch(`/api/customers/${this.customerId}/users/${this.userId}/support-view`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+                body: JSON.stringify({ reason }),
+            });
+            const data = await response.json().catch(() => ({}));
+            const url = data?.data?.url;
+            if (response.ok && data.success && url) {
+                bootstrap.Modal.getInstance(document.getElementById('supportViewModal'))?.hide();
+                this.pendingSupportView = false;
+                window.open(url, '_blank', 'noopener');
+                return;
+            }
+            alert(data.message || 'Failed to start Support View.');
+        } catch (error) {
+            console.error(error);
+            alert('Failed to start Support View. Please try again.');
+        } finally {
+            this.setSupportViewLoading(false);
+        }
+    }
+
+    setSupportViewLoading(isLoading) {
+        const button = document.getElementById('confirmSupportViewAction');
+        const spinner = document.getElementById('confirmSupportViewSpinner');
         if (!button || !spinner) {
             return;
         }

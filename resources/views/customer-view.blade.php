@@ -210,8 +210,8 @@
                     
                     <!-- Action Buttons -->
                     <div class="d-grid gap-2 justify-content-start">
-                        <button class="btn btn-outline-primary btn-sm" onclick="impersonateUser()">
-                            <i class="ti ti-user-check me-2"></i>Impersonate User
+                        <button class="btn btn-outline-primary btn-sm" onclick="startSupportView()">
+                            <i class="ti ti-user-check me-2"></i>Support View
                         </button>
                         <button class="btn btn-outline-warning btn-sm" id="resetPasswordBtn" onclick="changePassword()">
                             <i class="ti ti-key me-2"></i>Reset password
@@ -281,6 +281,31 @@
         </div>
     </div>
 </div>
+
+<!-- Support View reason modal -->
+<div class="modal fade" id="supportViewModal" tabindex="-1" aria-labelledby="supportViewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="supportViewModalLabel">Start Support View</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2" id="supportViewModalIntro">Open CRM as this user for a short audited support session (read-only by default).</p>
+                <label for="supportViewReason" class="form-label">Reason <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="supportViewReason" rows="3" maxlength="1000" placeholder="e.g. Investigating reported CD Register issue"></textarea>
+                <div class="form-text">Minimum 5 characters. Session expires after about 30 minutes.</div>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSupportViewAction">
+                    <span class="btn-label">Open Support View</span>
+                    <span class="spinner-border spinner-border-sm d-none ms-1" role="status" aria-hidden="true" id="confirmSupportViewSpinner"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -297,14 +322,22 @@ class CustomerViewManager {
         const staffTable = document.getElementById('staffTable');
         if (staffTable) {
             staffTable.addEventListener('click', (e) => {
-                const btn = e.target.closest('[data-action="send-password-reset"]');
-                if (!btn) {
+                const resetBtn = e.target.closest('[data-action="send-password-reset"]');
+                if (resetBtn) {
+                    const userId = Number(resetBtn.getAttribute('data-user-id'));
+                    const member = (this.customer?.staff || []).find((row) => Number(row.id) === userId);
+                    const displayName = member?.name || member?.email || `user #${userId}`;
+                    this.openPasswordResetModal(userId, displayName);
                     return;
                 }
-                const userId = Number(btn.getAttribute('data-user-id'));
-                const member = (this.customer?.staff || []).find((row) => Number(row.id) === userId);
-                const displayName = member?.name || member?.email || `user #${userId}`;
-                this.openPasswordResetModal(userId, displayName);
+
+                const supportBtn = e.target.closest('[data-action="support-view"]');
+                if (supportBtn) {
+                    const userId = Number(supportBtn.getAttribute('data-user-id'));
+                    const member = (this.customer?.staff || []).find((row) => Number(row.id) === userId);
+                    const displayName = member?.name || member?.email || `user #${userId}`;
+                    this.openSupportViewModal(userId, displayName);
+                }
             });
         }
 
@@ -315,6 +348,19 @@ class CustomerViewManager {
         document.getElementById('passwordResetModal')?.addEventListener('hidden.bs.modal', () => {
             this.pendingPasswordReset = null;
             this.setPasswordResetLoading(false);
+        });
+
+        document.getElementById('confirmSupportViewAction')?.addEventListener('click', () => {
+            this.executeSupportView();
+        });
+
+        document.getElementById('supportViewModal')?.addEventListener('hidden.bs.modal', () => {
+            this.pendingSupportView = null;
+            this.setSupportViewLoading(false);
+            const reason = document.getElementById('supportViewReason');
+            if (reason) {
+                reason.value = '';
+            }
         });
     }
 
@@ -541,6 +587,11 @@ class CustomerViewManager {
                             data-action="send-password-reset"
                             data-user-id="${member.id}">
                             Reset password
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                            data-action="support-view"
+                            data-user-id="${member.id}">
+                            Support View
                         </button>` : ''}
                     </div>
                 </td>
@@ -605,6 +656,74 @@ class CustomerViewManager {
         spinner.classList.toggle('d-none', !isLoading);
     }
 
+    openSupportViewModal(userId, displayName) {
+        this.pendingSupportView = { userId, displayName };
+        document.getElementById('supportViewModalIntro').innerHTML =
+            `Open CRM as <strong>${this.escapeHtml(displayName)}</strong> for a short audited support session (read-only by default).`;
+        const reason = document.getElementById('supportViewReason');
+        if (reason) {
+            reason.value = '';
+            reason.focus();
+        }
+        this.setSupportViewLoading(false);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('supportViewModal')).show();
+    }
+
+    async executeSupportView() {
+        if (!this.pendingSupportView) {
+            return;
+        }
+
+        const reason = (document.getElementById('supportViewReason')?.value || '').trim();
+        if (reason.length < 5) {
+            this.showErrorToast('Please enter a reason (at least 5 characters).');
+            return;
+        }
+
+        const { userId } = this.pendingSupportView;
+        this.setSupportViewLoading(true);
+
+        try {
+            const response = await fetch(`/api/customers/${this.customerId}/users/${userId}/support-view`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+                body: JSON.stringify({ reason }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            const url = data?.data?.url;
+
+            if (response.ok && data.success && url) {
+                bootstrap.Modal.getInstance(document.getElementById('supportViewModal'))?.hide();
+                this.pendingSupportView = null;
+                window.open(url, '_blank', 'noopener');
+                this.showSuccess(data.message || 'Support View opened in a new tab.');
+                return;
+            }
+
+            this.showErrorToast(data.message || `Failed to start Support View (${response.status}).`);
+        } catch (error) {
+            console.error('Error starting Support View:', error);
+            this.showErrorToast('Failed to start Support View. Please try again.');
+        } finally {
+            this.setSupportViewLoading(false);
+        }
+    }
+
+    setSupportViewLoading(isLoading) {
+        const button = document.getElementById('confirmSupportViewAction');
+        const spinner = document.getElementById('confirmSupportViewSpinner');
+        if (!button || !spinner) {
+            return;
+        }
+        button.disabled = isLoading;
+        spinner.classList.toggle('d-none', !isLoading);
+    }
+
     escapeHtml(value) {
         return String(value ?? '')
             .replace(/&/g, '&amp;')
@@ -623,8 +742,15 @@ function copyRxLink() {
     customerViewManager.showSuccess('Rx link copied successfully.');
 }
 
-function impersonateUser() {
-    customerViewManager.showSuccess('Impersonate user functionality coming soon.');
+function startSupportView() {
+    if (!customerViewManager?.customer) {
+        if (customerViewManager?.showErrorToast) {
+            customerViewManager.showErrorToast('Customer data is still loading. Please try again in a moment.');
+        }
+        return;
+    }
+    const customer = customerViewManager.customer;
+    customerViewManager.openSupportViewModal(customer.id, customer.name || customer.email);
 }
 
 function changePassword() {

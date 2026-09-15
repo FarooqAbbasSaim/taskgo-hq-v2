@@ -5,6 +5,7 @@ return [
     'corporate_registrations' => env('HQ_CORPORATE_REGISTRATIONS_ENABLED', false),
     'patient_auth_events_log' => env('PATIENT_AUTH_EVENTS_LOG_ENABLED', false),
     'crm_auth_events_log' => env('CRM_AUTH_EVENTS_LOG_ENABLED', false),
+    'support_view_sessions_log' => env('HQ_SUPPORT_VIEW_SESSIONS_LOG_ENABLED', true),
     'platform_insights' => env('HQ_PLATFORM_INSIGHTS_ENABLED', false),
     'support_investigation' => env('HQ_SUPPORT_INVESTIGATION_ENABLED', true),
     'support_search' => env('HQ_SUPPORT_SEARCH_ENABLED', true),

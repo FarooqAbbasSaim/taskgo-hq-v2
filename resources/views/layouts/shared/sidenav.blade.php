@@ -107,6 +107,15 @@
             </li>
             @endif
 
+            @if(config('features.support_view_sessions_log'))
+            <li class="side-nav-item">
+                <a href="{{ route('admin.support-view-sessions') }}" class="side-nav-link">
+                    <span class="menu-icon"><i data-lucide="eye"></i></span>
+                    <span class="menu-text">Support View Sessions</span>
+                </a>
+            </li>
+            @endif
+
             <li class="side-nav-item">
                 <a href="{{ route('admin.system-settings') }}" class="side-nav-link">
                     <span class="menu-icon"><i data-lucide="settings"></i></span>

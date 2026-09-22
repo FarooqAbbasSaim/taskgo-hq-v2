@@ -1005,6 +1005,8 @@ class CustomerMvpController extends Controller
     }
 
     /**
+     * HQ edit screen only shows edits made from HQ (not CRM pharmacy/register audits).
+     *
      * @return list<array<string, mixed>>
      */
     private function historyFor(string $formType, int $formId): array
@@ -1016,6 +1018,7 @@ class CustomerMvpController extends Controller
         return DB::table('mvp_form_edit_histories')
             ->where('form_type', $formType)
             ->where('form_id', $formId)
+            ->where('edit_reason', 'like', '[HQ:%')
             ->orderByDesc('id')
             ->limit(25)
             ->get()
@@ -1034,9 +1037,18 @@ class CustomerMvpController extends Controller
                     }
                 }
 
+                $rawReason = (string) $row->edit_reason;
+                $hqActor = null;
+                $reason = $rawReason;
+                if (preg_match('/^\[HQ:([^\]]+)\]\s*(.*)$/s', $rawReason, $matches)) {
+                    $hqActor = trim($matches[1]);
+                    $reason = trim($matches[2]);
+                }
+
                 return [
                     'id' => (int) $row->id,
-                    'edit_reason' => $row->edit_reason,
+                    'hq_actor' => $hqActor,
+                    'edit_reason' => $reason !== '' ? $reason : $rawReason,
                     'created_at' => $row->created_at
                         ? Carbon::parse($row->created_at)->toIso8601String()
                         : null,

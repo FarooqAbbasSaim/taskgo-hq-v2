@@ -289,9 +289,13 @@ class CustomerMvpEditor {
             const changes = (entry.changes || []).map((c) => `
                 <div class="small"><span class="fw-semibold">${this.esc(c.field)}</span>: ${this.esc(c.before ?? '—')} → ${this.esc(c.after ?? '—')}</div>
             `).join('');
+            const actor = entry.hq_actor
+                ? `<div class="small text-muted mb-1">HQ: ${this.esc(entry.hq_actor)}</div>`
+                : '';
             return `
                 <div class="border rounded p-2 mb-2">
                     <div class="small text-muted">${this.esc(entry.created_at || '')}</div>
+                    ${actor}
                     <div class="mb-1">${this.esc(entry.edit_reason || '')}</div>
                     ${changes || '<div class="small text-muted">No field diff stored.</div>'}
                 </div>

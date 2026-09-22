@@ -142,6 +142,21 @@
                     </div>
                 </div>
 
+                <!-- MyVaccinePortal Card -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">MyVaccinePortal</h5>
+                        <a href="/admin/customers/{{ $id }}/mvp" class="btn btn-sm btn-primary" id="mvpModuleLink">
+                            Open MVP module
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-0">
+                            Open schools or companies for this customer, then edit organisation or participant details with confirmation popups and audit history.
+                        </p>
+                    </div>
+                </div>
+
                 <!-- Organisation users Card -->
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">

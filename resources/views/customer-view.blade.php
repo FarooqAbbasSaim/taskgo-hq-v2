@@ -142,6 +142,7 @@
                     </div>
                 </div>
 
+                @if(config('features.customer_mvp'))
                 <!-- MyVaccinePortal Card -->
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
@@ -156,6 +157,7 @@
                         </p>
                     </div>
                 </div>
+                @endif
 
                 <!-- Organisation users Card -->
                 <div class="card mb-4">

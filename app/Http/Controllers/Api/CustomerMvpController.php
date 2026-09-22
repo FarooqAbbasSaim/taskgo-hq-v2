@@ -16,8 +16,14 @@ class CustomerMvpController extends Controller
     public const FORM_TYPE_SCHOOL_OPT_IN = 'school_opt_in';
     public const FORM_TYPE_CORPORATE_OPT_IN = 'corporate_opt_in';
 
+    private function ensureEnabled(): void
+    {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+    }
+
     public function overview(int $customerId)
     {
+        $this->ensureEnabled();
         $this->assertCustomer($customerId);
         $scope = $this->customerScope($customerId);
 
@@ -55,6 +61,7 @@ class CustomerMvpController extends Controller
 
     public function schools(Request $request, int $customerId)
     {
+        $this->ensureEnabled();
         $this->assertCustomer($customerId);
         if (! Schema::hasTable('mvp_school_opt_ins')) {
             return response()->json(['success' => true, 'data' => []]);
@@ -100,6 +107,7 @@ class CustomerMvpController extends Controller
 
     public function companies(Request $request, int $customerId)
     {
+        $this->ensureEnabled();
         $this->assertCustomer($customerId);
         if (! Schema::hasTable('mvp_corporate_opt_ins')) {
             return response()->json(['success' => true, 'data' => []]);
@@ -143,6 +151,7 @@ class CustomerMvpController extends Controller
 
     public function participants(Request $request, int $customerId)
     {
+        $this->ensureEnabled();
         $this->assertCustomer($customerId);
         $scope = $this->customerScope($customerId);
         $q = trim((string) $request->query('q', ''));
@@ -267,6 +276,7 @@ class CustomerMvpController extends Controller
 
     public function showSchool(int $customerId, int $id)
     {
+        $this->ensureEnabled();
         $this->assertCustomer($customerId);
         $row = $this->findSchoolOptIn($customerId, $id);
         if (! $row) {
@@ -295,6 +305,7 @@ class CustomerMvpController extends Controller
 
     public function showCompany(int $customerId, int $id)
     {
+        $this->ensureEnabled();
         $this->assertCustomer($customerId);
         $row = $this->findCorporateOptIn($customerId, $id);
         if (! $row) {
@@ -322,6 +333,7 @@ class CustomerMvpController extends Controller
 
     public function showParticipant(int $customerId, string $type, int $id)
     {
+        $this->ensureEnabled();
         $this->assertCustomer($customerId);
 
         if ($type === 'school_parent') {
@@ -382,6 +394,7 @@ class CustomerMvpController extends Controller
 
     public function updateSchool(Request $request, int $customerId, int $id)
     {
+        $this->ensureEnabled();
         $this->assertCustomer($customerId);
         $row = $this->findSchoolOptIn($customerId, $id);
         if (! $row) {
@@ -457,6 +470,7 @@ class CustomerMvpController extends Controller
 
     public function updateCompany(Request $request, int $customerId, int $id)
     {
+        $this->ensureEnabled();
         $this->assertCustomer($customerId);
         $row = $this->findCorporateOptIn($customerId, $id);
         if (! $row) {
@@ -511,6 +525,7 @@ class CustomerMvpController extends Controller
 
     public function updateParticipant(Request $request, int $customerId, string $type, int $id)
     {
+        $this->ensureEnabled();
         $this->assertCustomer($customerId);
 
         if ($type === 'school_parent') {

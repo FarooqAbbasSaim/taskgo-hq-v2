@@ -267,6 +267,7 @@ class CustomerMvpEditor {
             });
             this.confirmModal.hide();
             this.showToast('success', result.message || 'Updated successfully.');
+            this.clearValidation();
             document.getElementById('editReason').value = '';
             await this.load();
         } catch (error) {
@@ -277,6 +278,13 @@ class CustomerMvpEditor {
             button.innerHTML = 'Confirm and Save';
             this.pendingPayload = null;
         }
+    }
+
+    clearValidation() {
+        const form = document.getElementById('mvpEditForm');
+        form.classList.remove('was-validated');
+        form.querySelectorAll('.is-invalid').forEach((el) => el.classList.remove('is-invalid'));
+        form.querySelectorAll('.is-valid').forEach((el) => el.classList.remove('is-valid'));
     }
 
     renderHistory(history) {

@@ -9,5 +9,6 @@ return [
     'platform_insights' => env('HQ_PLATFORM_INSIGHTS_ENABLED', false),
     'support_investigation' => env('HQ_SUPPORT_INVESTIGATION_ENABLED', true),
     'support_search' => env('HQ_SUPPORT_SEARCH_ENABLED', true),
+    'customer_mvp' => env('HQ_CUSTOMER_MVP_ENABLED', false),
 ];
 

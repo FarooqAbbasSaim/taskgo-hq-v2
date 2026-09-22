@@ -212,10 +212,14 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     })->name('admin.staff.view');
 
     Route::get('/customers/{customerId}/mvp', function ($customerId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
         return view('customer-mvp', compact('customerId'));
     })->name('admin.customer.mvp');
 
     Route::get('/customers/{customerId}/mvp/schools/{orgId}', function ($customerId, $orgId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
         return view('customer-mvp-org', [
             'customerId' => $customerId,
             'orgKind' => 'school',
@@ -224,6 +228,8 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     })->name('admin.customer.mvp.school');
 
     Route::get('/customers/{customerId}/mvp/companies/{orgId}', function ($customerId, $orgId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
         return view('customer-mvp-org', [
             'customerId' => $customerId,
             'orgKind' => 'company',
@@ -232,6 +238,8 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     })->name('admin.customer.mvp.company');
 
     Route::get('/customers/{customerId}/mvp/schools/{entityId}/edit', function ($customerId, $entityId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
         return view('customer-mvp-edit', [
             'customerId' => $customerId,
             'entityKind' => 'school',
@@ -241,6 +249,8 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     })->name('admin.customer.mvp.school.edit');
 
     Route::get('/customers/{customerId}/mvp/companies/{entityId}/edit', function ($customerId, $entityId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
         return view('customer-mvp-edit', [
             'customerId' => $customerId,
             'entityKind' => 'company',
@@ -250,6 +260,8 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     })->name('admin.customer.mvp.company.edit');
 
     Route::get('/customers/{customerId}/mvp/participants/{entityType}/{entityId}/edit', function ($customerId, $entityType, $entityId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
         return view('customer-mvp-edit', [
             'customerId' => $customerId,
             'entityKind' => 'participant',

@@ -96,6 +96,16 @@ Route::middleware(['auth:hq'])->prefix('api/customers')->group(function () {
     Route::post('/{id}/resend-activation', [\App\Http\Controllers\Api\CustomerController::class, 'resendActivation']);
     Route::post('/{customerId}/users/{userId}/send-password-reset', [\App\Http\Controllers\Api\CustomerController::class, 'sendPasswordReset']);
     Route::post('/{customerId}/users/{userId}/support-view', [\App\Http\Controllers\Api\CustomerController::class, 'createSupportView']);
+    Route::get('/{customerId}/mvp/overview', [\App\Http\Controllers\Api\CustomerMvpController::class, 'overview']);
+    Route::get('/{customerId}/mvp/schools', [\App\Http\Controllers\Api\CustomerMvpController::class, 'schools']);
+    Route::get('/{customerId}/mvp/companies', [\App\Http\Controllers\Api\CustomerMvpController::class, 'companies']);
+    Route::get('/{customerId}/mvp/participants', [\App\Http\Controllers\Api\CustomerMvpController::class, 'participants']);
+    Route::get('/{customerId}/mvp/schools/{id}', [\App\Http\Controllers\Api\CustomerMvpController::class, 'showSchool']);
+    Route::put('/{customerId}/mvp/schools/{id}', [\App\Http\Controllers\Api\CustomerMvpController::class, 'updateSchool']);
+    Route::get('/{customerId}/mvp/companies/{id}', [\App\Http\Controllers\Api\CustomerMvpController::class, 'showCompany']);
+    Route::put('/{customerId}/mvp/companies/{id}', [\App\Http\Controllers\Api\CustomerMvpController::class, 'updateCompany']);
+    Route::get('/{customerId}/mvp/participants/{type}/{id}', [\App\Http\Controllers\Api\CustomerMvpController::class, 'showParticipant']);
+    Route::put('/{customerId}/mvp/participants/{type}/{id}', [\App\Http\Controllers\Api\CustomerMvpController::class, 'updateParticipant']);
     Route::get('/{customerId}/pharmacies/{pharmacyId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getPharmacy']);
     Route::get('/{customerId}/pharmacies/{pharmacyId}/export/{type}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'exportPharmacy']);
     Route::get('/{customerId}/staff/{userId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getStaff']);
@@ -200,6 +210,65 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     Route::get('/customers/{customerId}/staff/{userId}', function ($customerId, $userId) {
         return view('staff-view', compact('customerId', 'userId'));
     })->name('admin.staff.view');
+
+    Route::get('/customers/{customerId}/mvp', function ($customerId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
+        return view('customer-mvp', compact('customerId'));
+    })->name('admin.customer.mvp');
+
+    Route::get('/customers/{customerId}/mvp/schools/{orgId}', function ($customerId, $orgId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
+        return view('customer-mvp-org', [
+            'customerId' => $customerId,
+            'orgKind' => 'school',
+            'orgId' => $orgId,
+        ]);
+    })->name('admin.customer.mvp.school');
+
+    Route::get('/customers/{customerId}/mvp/companies/{orgId}', function ($customerId, $orgId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
+        return view('customer-mvp-org', [
+            'customerId' => $customerId,
+            'orgKind' => 'company',
+            'orgId' => $orgId,
+        ]);
+    })->name('admin.customer.mvp.company');
+
+    Route::get('/customers/{customerId}/mvp/schools/{entityId}/edit', function ($customerId, $entityId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
+        return view('customer-mvp-edit', [
+            'customerId' => $customerId,
+            'entityKind' => 'school',
+            'entityType' => null,
+            'entityId' => $entityId,
+        ]);
+    })->name('admin.customer.mvp.school.edit');
+
+    Route::get('/customers/{customerId}/mvp/companies/{entityId}/edit', function ($customerId, $entityId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
+        return view('customer-mvp-edit', [
+            'customerId' => $customerId,
+            'entityKind' => 'company',
+            'entityType' => null,
+            'entityId' => $entityId,
+        ]);
+    })->name('admin.customer.mvp.company.edit');
+
+    Route::get('/customers/{customerId}/mvp/participants/{entityType}/{entityId}/edit', function ($customerId, $entityType, $entityId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
+        return view('customer-mvp-edit', [
+            'customerId' => $customerId,
+            'entityKind' => 'participant',
+            'entityType' => $entityType,
+            'entityId' => $entityId,
+        ]);
+    })->name('admin.customer.mvp.participant.edit');
     
     Route::get('/customers/{id}', function($id) {
         return view('customer-view', compact('id'));

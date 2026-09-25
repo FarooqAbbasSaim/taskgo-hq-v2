@@ -13,7 +13,12 @@
             <h4 class="mb-1">MyVaccinePortal</h4>
             <p class="text-muted mb-0">Open a school or company to view and edit its participants, with confirm + audit history.</p>
         </div>
-        <a href="/admin/customers/{{ $customerId }}" class="btn btn-light"><i class="ti ti-arrow-left me-1"></i> Back to customer</a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="/admin/customers/{{ $customerId }}/mvp/schedule/activity-logs" class="btn btn-outline-primary">
+                <i class="ti ti-history me-1"></i> Schedule activity
+            </a>
+            <a href="/admin/customers/{{ $customerId }}" class="btn btn-light"><i class="ti ti-arrow-left me-1"></i> Back to customer</a>
+        </div>
     </div>
 
     <div id="mvpLoading" class="text-center py-5">

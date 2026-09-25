@@ -1072,4 +1072,191 @@ class CustomerMvpController extends Controller
             })
             ->all();
     }
+
+    public function scheduleActivityLogs(Request $request, int $customerId)
+    {
+        $this->ensureEnabled();
+        $this->assertCustomer($customerId);
+
+        if (! Schema::hasTable('mvp_schedule_activity_logs')) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'items' => [],
+                    'meta' => [
+                        'current_page' => 1,
+                        'last_page' => 1,
+                        'per_page' => 50,
+                        'total' => 0,
+                    ],
+                    'table_ready' => false,
+                ],
+            ]);
+        }
+
+        $scope = $this->customerScope($customerId);
+        $perPage = max(1, min(200, (int) $request->query('per_page', 50)));
+        $page = max(1, (int) $request->query('page', 1));
+
+        $query = DB::table('mvp_schedule_activity_logs as l')
+            ->leftJoin('users as u', 'u.id', '=', 'l.performed_by')
+            ->leftJoin('pharmacies as p', 'p.id', '=', 'l.pharmacy_id')
+            ->leftJoin('mvp_schedule_campaigns as c', 'c.id', '=', 'l.campaign_id')
+            ->select([
+                'l.id',
+                'l.schedule_id',
+                'l.campaign_id',
+                'l.pharmacy_id',
+                'l.performed_by',
+                'l.action',
+                'l.summary',
+                'l.clinic_date',
+                'l.before_snapshot',
+                'l.after_snapshot',
+                'l.changed_fields',
+                'l.meta',
+                'l.created_at',
+                'u.name as performer_name',
+                'u.email as performer_email',
+                'p.pharmacy_name',
+                'c.name as campaign_name',
+            ])
+            ->where(function ($q) use ($scope) {
+                if ($scope['pharmacy_ids'] !== []) {
+                    $q->orWhereIn('l.pharmacy_id', $scope['pharmacy_ids']);
+                    $q->orWhereIn('c.pharmacy_id', $scope['pharmacy_ids']);
+                }
+                if ($scope['reg_nos'] !== [] && Schema::hasColumn('mvp_schedule_campaigns', 'reg_no')) {
+                    $q->orWhereIn('c.reg_no', $scope['reg_nos']);
+                }
+                if ($scope['pharmacy_ids'] === [] && $scope['reg_nos'] === []) {
+                    $q->whereRaw('1 = 0');
+                }
+            })
+            ->orderByDesc('l.id');
+
+        if ($request->filled('schedule_id')) {
+            $query->where('l.schedule_id', (int) $request->query('schedule_id'));
+        }
+        if ($request->filled('user_id')) {
+            $query->where('l.performed_by', (int) $request->query('user_id'));
+        }
+        if ($request->filled('pharmacy_id')) {
+            $query->where('l.pharmacy_id', (int) $request->query('pharmacy_id'));
+        }
+        if ($request->filled('action')) {
+            $query->where('l.action', (string) $request->query('action'));
+        }
+        if ($request->filled('campaign_id')) {
+            $query->where('l.campaign_id', (int) $request->query('campaign_id'));
+        }
+
+        $total = (clone $query)->count();
+        $rows = $query->forPage($page, $perPage)->get();
+
+        $items = $rows->map(function ($row) {
+            $changed = $this->decodeJsonColumn($row->changed_fields);
+            if (! is_array($changed)) {
+                $changed = [];
+            }
+            $before = $this->decodeJsonColumn($row->before_snapshot);
+            $after = $this->decodeJsonColumn($row->after_snapshot);
+            $meta = $this->decodeJsonColumn($row->meta);
+
+            $changeDetails = [];
+            foreach ($changed as $field) {
+                $field = (string) $field;
+                $b = is_array($before) ? ($before[$field] ?? null) : null;
+                $a = is_array($after) ? ($after[$field] ?? null) : null;
+                if (in_array($field, ['school_opt_in_id', 'corporate_opt_in_id'], true)) {
+                    $b = is_array($before) ? ($before['organisation_label'] ?? $b) : $b;
+                    $a = is_array($after) ? ($after['organisation_label'] ?? $a) : $a;
+                }
+                $changeDetails[] = [
+                    'field' => $field,
+                    'label' => $this->scheduleActivityFieldLabel($field),
+                    'before' => $b,
+                    'after' => $a,
+                ];
+            }
+
+            return [
+                'id' => (int) $row->id,
+                'schedule_id' => $row->schedule_id !== null ? (int) $row->schedule_id : null,
+                'campaign_id' => $row->campaign_id !== null ? (int) $row->campaign_id : null,
+                'campaign_name' => $row->campaign_name,
+                'pharmacy_id' => $row->pharmacy_id !== null ? (int) $row->pharmacy_id : null,
+                'pharmacy_name' => $row->pharmacy_name,
+                'performed_by' => $row->performed_by !== null ? (int) $row->performed_by : null,
+                'performer_name' => $row->performer_name,
+                'performer_email' => $row->performer_email,
+                'action' => (string) $row->action,
+                'summary' => (string) $row->summary,
+                'clinic_date' => $row->clinic_date
+                    ? Carbon::parse($row->clinic_date)->format('Y-m-d')
+                    : null,
+                'clinic_date_label' => $row->clinic_date
+                    ? Carbon::parse($row->clinic_date)->format('d-m-Y')
+                    : null,
+                'changed_fields' => array_values(array_map(fn ($f) => $this->scheduleActivityFieldLabel((string) $f), $changed)),
+                'change_details' => $changeDetails,
+                'meta' => is_array($meta) ? $meta : null,
+                'created_at' => $row->created_at
+                    ? Carbon::parse($row->created_at)->toIso8601String()
+                    : null,
+                'created_at_label' => $row->created_at
+                    ? Carbon::parse($row->created_at)->format('d-m-Y H:i:s')
+                    : null,
+            ];
+        })->values()->all();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'items' => $items,
+                'meta' => [
+                    'current_page' => $page,
+                    'last_page' => max(1, (int) ceil($total / $perPage)),
+                    'per_page' => $perPage,
+                    'total' => $total,
+                ],
+                'table_ready' => true,
+            ],
+        ]);
+    }
+
+    /**
+     * @param  mixed  $value
+     * @return array<string, mixed>|list<mixed>|null
+     */
+    private function decodeJsonColumn($value)
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_string($value) && $value !== '') {
+            $decoded = json_decode($value, true);
+
+            return is_array($decoded) ? $decoded : null;
+        }
+
+        return null;
+    }
+
+    private function scheduleActivityFieldLabel(string $key): string
+    {
+        return match ($key) {
+            'org_type' => 'Organisation type',
+            'school_opt_in_id', 'school_registration_id' => 'School',
+            'corporate_opt_in_id', 'corporate_registration_id' => 'Corporate',
+            'clinic_time' => 'Clinic time',
+            'registration_deadline_at' => 'Registration deadline',
+            'notified' => 'Notified',
+            'assigned_vaccinator_user_id', 'assigned_vaccinator_name' => 'Vaccinator',
+            'assigned_assistant_user_id', 'assigned_assistant_name' => 'Assistant',
+            'status' => 'Campaign status',
+            default => $key,
+        };
+    }
 }
+

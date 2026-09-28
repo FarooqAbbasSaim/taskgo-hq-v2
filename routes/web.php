@@ -106,6 +106,7 @@ Route::middleware(['auth:hq'])->prefix('api/customers')->group(function () {
     Route::put('/{customerId}/mvp/companies/{id}', [\App\Http\Controllers\Api\CustomerMvpController::class, 'updateCompany']);
     Route::get('/{customerId}/mvp/participants/{type}/{id}', [\App\Http\Controllers\Api\CustomerMvpController::class, 'showParticipant']);
     Route::put('/{customerId}/mvp/participants/{type}/{id}', [\App\Http\Controllers\Api\CustomerMvpController::class, 'updateParticipant']);
+    Route::get('/{customerId}/mvp/schedule/activity-logs', [\App\Http\Controllers\Api\CustomerMvpController::class, 'scheduleActivityLogs']);
     Route::get('/{customerId}/pharmacies/{pharmacyId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getPharmacy']);
     Route::get('/{customerId}/pharmacies/{pharmacyId}/export/{type}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'exportPharmacy']);
     Route::get('/{customerId}/staff/{userId}', [\App\Http\Controllers\Api\PharmacyInvestigationController::class, 'getStaff']);
@@ -216,6 +217,12 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
 
         return view('customer-mvp', compact('customerId'));
     })->name('admin.customer.mvp');
+
+    Route::get('/customers/{customerId}/mvp/schedule/activity-logs', function ($customerId) {
+        abort_unless((bool) config('features.customer_mvp', false), 404);
+
+        return view('customer-mvp-schedule-activity-logs', compact('customerId'));
+    })->name('admin.customer.mvp.schedule.activity-logs');
 
     Route::get('/customers/{customerId}/mvp/schools/{orgId}', function ($customerId, $orgId) {
         abort_unless((bool) config('features.customer_mvp', false), 404);

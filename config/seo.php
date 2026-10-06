@@ -22,7 +22,7 @@ return [
 
     'staging_hosts' => array_values(array_filter(array_map('trim', explode(',', env(
         'SEO_STAGING_HOSTS',
-        'taskgo-test.com'
+        'taskgo-test.com,on-forge.com'
     ))))),
 
 ];

@@ -47,7 +47,16 @@
                                     {{ number_format($insights['dispensing_error_logs_total']) }}
                                 @endif
                             </div>
-                            <div class="text-muted small mt-2">All records in dispensing_error_logs.</div>
+                            @if(!empty($insights['dispensing_error_top_reasons']))
+                                <div class="text-muted small mt-2 mb-1">Top 3 reasons (dropdown type)</div>
+                                <ul class="small text-muted mb-0 ps-3">
+                                    @foreach($insights['dispensing_error_top_reasons'] as $row)
+                                        <li>{{ $row['name'] }}: {{ number_format((int) ($row['count'] ?? 0)) }}</li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <div class="text-muted small mt-2">All records in dispensing_error_logs.</div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -72,6 +81,89 @@
                             @if(!empty($insights['whatsapp']['note']))
                                 <div class="text-muted small mt-2">{{ $insights['whatsapp']['note'] }}</div>
                             @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small mb-1">MVP opt-ins (all time)</div>
+                            <div class="fs-3 fw-semibold">
+                                @if(($insights['mvp_opt_ins']['total'] ?? null) === null)
+                                    <span class="text-muted">N/A</span>
+                                @else
+                                    {{ number_format($insights['mvp_opt_ins']['total']) }}
+                                @endif
+                            </div>
+                            <ul class="small text-muted mb-0 mt-2 ps-3">
+                                <li>
+                                    Schools:
+                                    @if(($insights['mvp_opt_ins']['schools'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_opt_ins']['schools']) }}
+                                    @endif
+                                </li>
+                                <li>
+                                    Corporates:
+                                    @if(($insights['mvp_opt_ins']['corporates'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_opt_ins']['corporates']) }}
+                                    @endif
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small mb-1">MVP registered participants (all time)</div>
+                            <div class="fs-3 fw-semibold">
+                                @if(($insights['mvp_participants']['total'] ?? null) === null)
+                                    <span class="text-muted">N/A</span>
+                                @else
+                                    {{ number_format($insights['mvp_participants']['total']) }}
+                                @endif
+                            </div>
+                            <ul class="small text-muted mb-0 mt-2 ps-3">
+                                <li>
+                                    Children:
+                                    @if(($insights['mvp_participants']['children'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_participants']['children']) }}
+                                    @endif
+                                </li>
+                                <li>
+                                    Teachers:
+                                    @if(($insights['mvp_participants']['teachers'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_participants']['teachers']) }}
+                                    @endif
+                                </li>
+                                <li>
+                                    Students (18+):
+                                    @if(($insights['mvp_participants']['students'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_participants']['students']) }}
+                                    @endif
+                                </li>
+                                <li>
+                                    Employees:
+                                    @if(($insights['mvp_participants']['employees'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_participants']['employees']) }}
+                                    @endif
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>

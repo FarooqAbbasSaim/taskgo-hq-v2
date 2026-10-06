@@ -128,6 +128,165 @@ class PlatformInsightsService
     }
 
     /**
+     * Top reasons from the dispensing error "type" dropdown.
+     *
+     * @return array{data: array<int, array{rank: int, name: string, count: int}>, error: string|null}
+     */
+    public function topDispensingErrorReasons(int $limit = 3): array
+    {
+        if (! Schema::hasTable('dispensing_error_logs') || ! Schema::hasColumn('dispensing_error_logs', 'type')) {
+            return ['data' => [], 'error' => null];
+        }
+
+        try {
+            $rows = DB::table('dispensing_error_logs')
+                ->whereNotNull('type')
+                ->where('type', '!=', '')
+                ->selectRaw('TRIM(type) as reason')
+                ->selectRaw('COUNT(*) as total')
+                ->groupByRaw('TRIM(type)')
+                ->orderByRaw('COUNT(*) DESC')
+                ->limit($limit)
+                ->get();
+
+            return [
+                'data' => $this->rankRows($rows, 'reason', [
+                    'count' => 'total',
+                ]),
+                'error' => null,
+            ];
+        } catch (Throwable $e) {
+            Log::error('PlatformInsightsService::topDispensingErrorReasons failed', ['exception' => $e->getMessage()]);
+
+            return ['data' => [], 'error' => 'Could not load top dispensing error reasons.'];
+        }
+    }
+
+    /**
+     * Platform-wide MVP opt-in counts (schools + corporates).
+     *
+     * @return array{
+     *     schools: int|null,
+     *     corporates: int|null,
+     *     total: int|null,
+     *     error: string|null
+     * }
+     */
+    public function mvpOptIns(): array
+    {
+        $schools = null;
+        $corporates = null;
+        $errors = [];
+
+        if (Schema::hasTable('mvp_school_opt_ins')) {
+            try {
+                $schools = (int) DB::table('mvp_school_opt_ins')->count();
+            } catch (Throwable $e) {
+                Log::error('PlatformInsightsService::mvpOptIns schools failed', ['exception' => $e->getMessage()]);
+                $errors[] = 'Could not load school opt-in total.';
+            }
+        }
+
+        if (Schema::hasTable('mvp_corporate_opt_ins')) {
+            try {
+                $corporates = (int) DB::table('mvp_corporate_opt_ins')->count();
+            } catch (Throwable $e) {
+                Log::error('PlatformInsightsService::mvpOptIns corporates failed', ['exception' => $e->getMessage()]);
+                $errors[] = 'Could not load corporate opt-in total.';
+            }
+        }
+
+        $total = null;
+        if ($schools !== null || $corporates !== null) {
+            $total = (int) ($schools ?? 0) + (int) ($corporates ?? 0);
+        }
+
+        return [
+            'schools' => $schools,
+            'corporates' => $corporates,
+            'total' => $total,
+            'error' => $errors !== [] ? implode(' ', $errors) : null,
+        ];
+    }
+
+    /**
+     * Platform-wide MVP registered participants by type.
+     *
+     * @return array{
+     *     children: int|null,
+     *     teachers: int|null,
+     *     students: int|null,
+     *     employees: int|null,
+     *     total: int|null,
+     *     error: string|null
+     * }
+     */
+    public function mvpParticipants(): array
+    {
+        $children = null;
+        $teachers = null;
+        $students = null;
+        $employees = null;
+        $errors = [];
+
+        if (Schema::hasTable('mvp_school_parent_forms')) {
+            try {
+                $hasParticipantType = Schema::hasColumn('mvp_school_parent_forms', 'participant_type');
+
+                if ($hasParticipantType) {
+                    $teachers = (int) DB::table('mvp_school_parent_forms')
+                        ->where('participant_type', 'teacher')
+                        ->count();
+                    $students = (int) DB::table('mvp_school_parent_forms')
+                        ->where('participant_type', 'student_18_plus')
+                        ->count();
+                    $children = (int) DB::table('mvp_school_parent_forms')
+                        ->where(function ($q) {
+                            $q->whereNull('participant_type')
+                                ->orWhere('participant_type', '')
+                                ->orWhere('participant_type', 'child');
+                        })
+                        ->count();
+                } else {
+                    $children = (int) DB::table('mvp_school_parent_forms')->count();
+                    $teachers = 0;
+                    $students = 0;
+                }
+            } catch (Throwable $e) {
+                Log::error('PlatformInsightsService::mvpParticipants school forms failed', ['exception' => $e->getMessage()]);
+                $errors[] = 'Could not load school participant totals.';
+            }
+        }
+
+        if (Schema::hasTable('mvp_corporate_employee_forms')) {
+            try {
+                $employees = (int) DB::table('mvp_corporate_employee_forms')->count();
+            } catch (Throwable $e) {
+                Log::error('PlatformInsightsService::mvpParticipants employees failed', ['exception' => $e->getMessage()]);
+                $errors[] = 'Could not load employee participant total.';
+            }
+        }
+
+        $parts = [$children, $teachers, $students, $employees];
+        $total = null;
+        if (array_filter($parts, static fn ($v) => $v !== null) !== []) {
+            $total = (int) ($children ?? 0)
+                + (int) ($teachers ?? 0)
+                + (int) ($students ?? 0)
+                + (int) ($employees ?? 0);
+        }
+
+        return [
+            'children' => $children,
+            'teachers' => $teachers,
+            'students' => $students,
+            'employees' => $employees,
+            'total' => $total,
+            'error' => $errors !== [] ? implode(' ', $errors) : null,
+        ];
+    }
+
+    /**
      * @return array{
      *     total: int|null,
      *     breakdown: array<int, array{label: string, count: int}>,
@@ -301,14 +460,20 @@ class PlatformInsightsService
         $services = $this->topServices();
         $ccs = $this->ccsBookingsTotal();
         $dispensing = $this->dispensingErrorLogsTotal();
+        $dispensingReasons = $this->topDispensingErrorReasons(3);
         $whatsapp = $this->whatsAppMessagesTotal();
+        $mvpOptIns = $this->mvpOptIns();
+        $mvpParticipants = $this->mvpParticipants();
 
         $errors = array_values(array_filter([
             $medications['error'],
             $services['error'],
             $ccs['error'],
             $dispensing['error'],
+            $dispensingReasons['error'],
             $whatsapp['error'],
+            $mvpOptIns['error'],
+            $mvpParticipants['error'],
         ]));
 
         return [
@@ -316,6 +481,19 @@ class PlatformInsightsService
             'top_services' => $services['data'],
             'ccs_bookings_total' => $ccs['value'],
             'dispensing_error_logs_total' => $dispensing['value'],
+            'dispensing_error_top_reasons' => $dispensingReasons['data'],
+            'mvp_opt_ins' => [
+                'schools' => $mvpOptIns['schools'],
+                'corporates' => $mvpOptIns['corporates'],
+                'total' => $mvpOptIns['total'],
+            ],
+            'mvp_participants' => [
+                'children' => $mvpParticipants['children'],
+                'teachers' => $mvpParticipants['teachers'],
+                'students' => $mvpParticipants['students'],
+                'employees' => $mvpParticipants['employees'],
+                'total' => $mvpParticipants['total'],
+            ],
             'whatsapp' => [
                 'total' => $whatsapp['total'],
                 'breakdown' => $whatsapp['breakdown'],

@@ -139,6 +139,13 @@ Route::prefix('api/rx-users')->group(function () {
     Route::get('/bookings/{bookingId}', [\App\Http\Controllers\Api\RxUserController::class, 'getBookingDetails']);
 });
 
+Route::middleware(['auth:hq'])->prefix('api/rx-users')->group(function () {
+    Route::get('/{id}/delete-preview', [\App\Http\Controllers\Api\RxUserController::class, 'deletePreview'])
+        ->name('api.rx-users.delete-preview');
+    Route::delete('/{id}', [\App\Http\Controllers\Api\RxUserController::class, 'destroy'])
+        ->name('api.rx-users.destroy');
+});
+
 // Announcement API route (for taskgo-rx to fetch announcements)
 Route::get('/api/announcements', [\App\Http\Controllers\Admin\AnnouncementController::class, 'getAnnouncement']);
 Route::get('/rx-users/email-change/verify/{id}/{token}', [\App\Http\Controllers\Api\RxUserController::class, 'verifyPendingEmailChange'])

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\RxUserHardDeleteService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class RxUserController extends Controller
 {
@@ -1292,6 +1294,67 @@ class RxUserController extends Controller
                 'success' => false,
                 'message' => 'Failed to fetch booking details',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deletePreview(int $id, RxUserHardDeleteService $hardDelete)
+    {
+        abort_unless((bool) config('features.rx_user_hard_delete', false), 404);
+
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => $hardDelete->preview($id),
+            ]);
+        } catch (RuntimeException $e) {
+            $status = $e->getMessage() === 'Patient not found.' ? 404 : 422;
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $status);
+        } catch (\Exception $e) {
+            \Log::error('Error previewing rx_user hard delete: ' . $e->getMessage(), [
+                'user_id' => $id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load delete preview.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function destroy(int $id, RxUserHardDeleteService $hardDelete)
+    {
+        abort_unless((bool) config('features.rx_user_hard_delete', false), 404);
+
+        try {
+            $summary = $hardDelete->delete($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Patient profile and related orders/appointments deleted.',
+                'data' => $summary,
+            ]);
+        } catch (RuntimeException $e) {
+            $status = $e->getMessage() === 'Patient not found.' ? 404 : 422;
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $status);
+        } catch (\Exception $e) {
+            \Log::error('Error hard-deleting rx_user: ' . $e->getMessage(), [
+                'user_id' => $id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete patient profile.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

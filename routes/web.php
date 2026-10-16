@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\DisposableEmailAuditLogsController;
 use App\Http\Controllers\Admin\CrmAuthEventsController;
 use App\Http\Controllers\Admin\PatientAuthEventsController;
 use App\Http\Controllers\Admin\PlatformInsightsController;
+use App\Http\Controllers\Admin\CcsFormTemplatesController;
 use App\Http\Controllers\Admin\SopCatalogController;
 use App\Http\Controllers\Admin\SupportTicketController;
 use App\Http\Controllers\Admin\SupportViewSessionsController;
@@ -188,6 +189,11 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     Route::put('/announcements', [\App\Http\Controllers\Admin\AnnouncementController::class, 'update'])->name('admin.announcements.update');
 
     Route::get('/sop-catalog', [SopCatalogController::class, 'index'])->name('admin.sop-catalog');
+    Route::get('/ccs-form-templates', [CcsFormTemplatesController::class, 'index'])->name('admin.ccs-form-templates');
+    Route::post('/ccs-form-templates/download-selected', [CcsFormTemplatesController::class, 'downloadSelected'])
+        ->name('admin.ccs-form-templates.download-selected');
+    Route::get('/ccs-form-templates/{key}/download', [CcsFormTemplatesController::class, 'download'])
+        ->name('admin.ccs-form-templates.download');
     Route::get('/support', [SupportTicketController::class, 'index'])->name('admin.support.index');
     Route::get('/support/attachments/{attachment}', [SupportTicketController::class, 'attachment'])->name('admin.support.attachments');
     Route::get('/support/{ticket}', [SupportTicketController::class, 'show'])->name('admin.support.show');

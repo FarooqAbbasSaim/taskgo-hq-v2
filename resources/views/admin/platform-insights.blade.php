@@ -7,9 +7,11 @@
                 $recent = $insights['recent'] ?? [];
                 $filters = $insights['filters'] ?? [];
                 $periodOptions = $insights['period_options'] ?? [];
+                $organizationOptions = $insights['organization_options'] ?? [];
                 $pharmacyOptions = $insights['pharmacy_options'] ?? [];
                 $selectedPeriod = $filters['period'] ?? ($recent['period'] ?? '2m');
-                $selectedPharmacyId = $filters['pharmacy_id'] ?? null;
+                $selectedOrganizationId = $filters['organization_id'] ?? ($recent['organization_id'] ?? null);
+                $selectedPharmacyIds = array_map('intval', $filters['pharmacy_ids'] ?? ($recent['pharmacy_ids'] ?? []));
             @endphp
 
             <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
@@ -35,6 +37,7 @@
                         <h5 class="card-title mb-0">{{ $recent['period_label'] ?? 'Last 2 months' }}</h5>
                         <div class="text-muted small">
                             {{ $recent['from_label'] ?? '—' }} – {{ $recent['to_label'] ?? '—' }}
+                            · {{ $recent['organization_name'] ?? 'All organizations' }}
                             · {{ $recent['pharmacy_name'] ?? 'All pharmacies' }}
                         </div>
                     </div>
@@ -46,40 +49,93 @@
                     </button>
                 </div>
                 <div class="card-body">
-                    <form method="get" action="{{ route('admin.platform-insights') }}" class="row g-2 align-items-end mb-4" id="platformInsightsFilterForm">
-                        <div class="col-md-3">
-                            <label for="insightsPharmacy" class="form-label small text-muted mb-1">Pharmacy</label>
-                            <select name="pharmacy_id" id="insightsPharmacy" class="form-select form-select-sm">
-                                <option value="">All pharmacies</option>
-                                @foreach($pharmacyOptions as $pharmacy)
-                                    <option value="{{ $pharmacy['id'] }}" @selected((int) $selectedPharmacyId === (int) $pharmacy['id'])>
-                                        {{ $pharmacy['name'] }}
-                                    </option>
-                                @endforeach
-                            </select>
+                    <form method="get" action="{{ route('admin.platform-insights') }}" class="mb-4" id="platformInsightsFilterForm">
+                        <div class="row g-3 align-items-start">
+                            <div class="col-lg-3 col-md-6">
+                                <label for="insightsOrganization" class="form-label small text-muted mb-1 insights-filter-label">Organization</label>
+                                <select name="organization_id" id="insightsOrganization" class="form-select form-select-sm">
+                                    <option value="">All organizations</option>
+                                    @foreach($organizationOptions as $organization)
+                                        <option value="{{ $organization['id'] }}" @selected((int) $selectedOrganizationId === (int) $organization['id'])>
+                                            {{ $organization['name'] }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <div class="form-label small text-muted mb-1 insights-filter-label d-flex align-items-center justify-content-between gap-2">
+                                    <span>Pharmacies</span>
+                                    <span class="fw-normal text-nowrap">
+                                        <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="insightsPharmacySelectAll">Select all</button>
+                                        <span class="text-muted">·</span>
+                                        <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="insightsPharmacyClear">Clear</button>
+                                    </span>
+                                </div>
+                                <div class="border rounded bg-body-tertiary px-2 py-1 insights-pharmacy-list" id="insightsPharmacyList">
+                                    @forelse($pharmacyOptions as $pharmacy)
+                                        <div class="form-check mb-1 insights-pharmacy-item"
+                                            data-organization-id="{{ $pharmacy['organization_id'] ?? '' }}">
+                                            <input class="form-check-input insights-pharmacy-check"
+                                                type="checkbox"
+                                                name="pharmacy_ids[]"
+                                                id="insightsPharmacy{{ $pharmacy['id'] }}"
+                                                value="{{ $pharmacy['id'] }}"
+                                                @checked(in_array((int) $pharmacy['id'], $selectedPharmacyIds, true))>
+                                            <label class="form-check-label small" for="insightsPharmacy{{ $pharmacy['id'] }}">
+                                                {{ $pharmacy['name'] }}
+                                            </label>
+                                        </div>
+                                    @empty
+                                        <div class="text-muted small py-1">No pharmacies found.</div>
+                                    @endforelse
+                                    <div class="text-muted small d-none py-1" id="insightsPharmacyEmptyOrg">No pharmacies for this organization.</div>
+                                </div>
+                            </div>
+                            <div class="col-lg-2 col-md-4">
+                                <label for="insightsPeriod" class="form-label small text-muted mb-1 insights-filter-label">Time period</label>
+                                <select name="period" id="insightsPeriod" class="form-select form-select-sm">
+                                    @foreach($periodOptions as $value => $label)
+                                        <option value="{{ $value }}" @selected($selectedPeriod === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-lg-2 col-md-4 insights-custom-dates {{ $selectedPeriod === 'custom' ? '' : 'd-none' }}">
+                                <label for="insightsFrom" class="form-label small text-muted mb-1 insights-filter-label">From</label>
+                                <input type="date" name="from" id="insightsFrom" class="form-control form-control-sm"
+                                    value="{{ $filters['from'] ?? ($recent['from_input'] ?? '') }}">
+                            </div>
+                            <div class="col-lg-2 col-md-4 insights-custom-dates {{ $selectedPeriod === 'custom' ? '' : 'd-none' }}">
+                                <label for="insightsTo" class="form-label small text-muted mb-1 insights-filter-label">To</label>
+                                <input type="date" name="to" id="insightsTo" class="form-control form-control-sm"
+                                    value="{{ $filters['to'] ?? ($recent['to_input'] ?? '') }}">
+                            </div>
+                            <div class="col-lg-auto col-md-4">
+                                <label class="form-label small text-muted mb-1 insights-filter-label d-block">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <label for="insightsPeriod" class="form-label small text-muted mb-1">Time period</label>
-                            <select name="period" id="insightsPeriod" class="form-select form-select-sm">
-                                @foreach($periodOptions as $value => $label)
-                                    <option value="{{ $value }}" @selected($selectedPeriod === $value)>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-2 insights-custom-dates {{ $selectedPeriod === 'custom' ? '' : 'd-none' }}">
-                            <label for="insightsFrom" class="form-label small text-muted mb-1">From</label>
-                            <input type="date" name="from" id="insightsFrom" class="form-control form-control-sm"
-                                value="{{ $filters['from'] ?? ($recent['from_input'] ?? '') }}">
-                        </div>
-                        <div class="col-md-2 insights-custom-dates {{ $selectedPeriod === 'custom' ? '' : 'd-none' }}">
-                            <label for="insightsTo" class="form-label small text-muted mb-1">To</label>
-                            <input type="date" name="to" id="insightsTo" class="form-control form-control-sm"
-                                value="{{ $filters['to'] ?? ($recent['to_input'] ?? '') }}">
-                        </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-primary btn-sm w-100">Apply</button>
+                        <div class="text-muted small mt-2">
+                            Pick an organization to narrow pharmacies. Leave pharmacies empty for all in scope.
                         </div>
                     </form>
+
+                    <style>
+                        #platformInsightsFilterForm .insights-filter-label {
+                            min-height: 1.25rem;
+                            line-height: 1.25rem;
+                            margin-bottom: 0.25rem;
+                        }
+                        #platformInsightsFilterForm .insights-pharmacy-list {
+                            min-height: calc(1.5em + 0.5rem + 2px); /* match form-select-sm */
+                            max-height: 8.5rem;
+                            overflow: auto;
+                        }
+                        #platformInsightsFilterForm .form-select-sm,
+                        #platformInsightsFilterForm .form-control-sm,
+                        #platformInsightsFilterForm .btn-sm {
+                            min-height: calc(1.5em + 0.5rem + 2px);
+                        }
+                    </style>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
@@ -543,6 +599,58 @@
         periodSelect.addEventListener('change', toggleCustomDates);
         toggleCustomDates();
     }
+
+    const organizationSelect = document.getElementById('insightsOrganization');
+    const pharmacyItems = () => Array.from(document.querySelectorAll('.insights-pharmacy-item'));
+    const visiblePharmacyChecks = () => pharmacyItems()
+        .filter((item) => !item.classList.contains('d-none'))
+        .map((item) => item.querySelector('.insights-pharmacy-check'))
+        .filter(Boolean);
+    const pharmacyEmptyOrg = document.getElementById('insightsPharmacyEmptyOrg');
+
+    function filterPharmaciesByOrganization() {
+        const orgId = organizationSelect ? String(organizationSelect.value || '') : '';
+        let visibleCount = 0;
+
+        pharmacyItems().forEach((item) => {
+            const itemOrg = String(item.getAttribute('data-organization-id') || '');
+            const matches = orgId === '' || itemOrg === orgId;
+            item.classList.toggle('d-none', !matches);
+            const check = item.querySelector('.insights-pharmacy-check');
+            if (!matches && check) {
+                check.checked = false;
+            }
+            if (matches) {
+                visibleCount += 1;
+            }
+        });
+
+        if (pharmacyEmptyOrg) {
+            pharmacyEmptyOrg.classList.toggle('d-none', orgId === '' || visibleCount > 0);
+        }
+    }
+
+    organizationSelect?.addEventListener('change', filterPharmaciesByOrganization);
+    filterPharmaciesByOrganization();
+
+    document.getElementById('insightsPharmacySelectAll')?.addEventListener('click', () => {
+        visiblePharmacyChecks().forEach((el) => { el.checked = true; });
+    });
+    document.getElementById('insightsPharmacyClear')?.addEventListener('click', () => {
+        visiblePharmacyChecks().forEach((el) => { el.checked = false; });
+    });
+
+    document.getElementById('platformInsightsFilterForm')?.addEventListener('submit', () => {
+        // Don't submit hidden (out-of-org) pharmacy checkboxes.
+        pharmacyItems().forEach((item) => {
+            if (item.classList.contains('d-none')) {
+                const check = item.querySelector('.insights-pharmacy-check');
+                if (check) {
+                    check.disabled = true;
+                }
+            }
+        });
+    });
 
     async function copyTextToClipboard(text, labelEl, idleLabel) {
         if (!String(text || '').trim()) {

@@ -460,9 +460,9 @@ class PlatformInsightsService
     ];
 
     /**
-     * @return list<array{id: int, name: string}>
+     * @return list<array{id: int, name: string, organization_id: int|null}>
      */
-    public function pharmacyOptions(): array
+    public function pharmacyOptions(?int $organizationId = null): array
     {
         if (! Schema::hasTable('pharmacies') || ! Schema::hasColumn('pharmacies', 'pharmacy_name')) {
             return [];
@@ -475,12 +475,27 @@ class PlatformInsightsService
                     $q->whereNull('status')->orWhere('status', '')->orWhere('status', 'active');
                 });
             }
+            if ($organizationId && Schema::hasColumn('pharmacies', 'created_by')) {
+                $query->where('created_by', $organizationId);
+            }
 
-            return $query->get(['id', 'pharmacy_name'])
-                ->map(static fn ($row) => [
-                    'id' => (int) $row->id,
-                    'name' => (string) $row->pharmacy_name,
-                ])
+            $columns = ['id', 'pharmacy_name'];
+            if (Schema::hasColumn('pharmacies', 'created_by')) {
+                $columns[] = 'created_by';
+            }
+
+            return $query->get($columns)
+                ->map(static function ($row) {
+                    $orgId = isset($row->created_by) && $row->created_by !== null && $row->created_by !== ''
+                        ? (int) $row->created_by
+                        : null;
+
+                    return [
+                        'id' => (int) $row->id,
+                        'name' => (string) $row->pharmacy_name,
+                        'organization_id' => $orgId,
+                    ];
+                })
                 ->values()
                 ->all();
         } catch (Throwable $e) {
@@ -488,6 +503,131 @@ class PlatformInsightsService
 
             return [];
         }
+    }
+
+    /**
+     * Customer/admin organizations that own one or more pharmacies.
+     *
+     * @return list<array{id: int, name: string}>
+     */
+    public function organizationOptions(): array
+    {
+        if (! Schema::hasTable('users')
+            || ! Schema::hasTable('pharmacies')
+            || ! Schema::hasColumn('pharmacies', 'created_by')) {
+            return [];
+        }
+
+        try {
+            $ownerIds = DB::table('pharmacies')
+                ->whereNotNull('created_by')
+                ->where('created_by', '!=', '')
+                ->distinct()
+                ->pluck('created_by')
+                ->map(static fn ($id) => (int) $id)
+                ->filter(static fn ($id) => $id > 0)
+                ->values()
+                ->all();
+
+            if ($ownerIds === []) {
+                return [];
+            }
+
+            $query = DB::table('users')
+                ->whereIn('users.id', $ownerIds)
+                ->orderBy('users.name');
+
+            if (Schema::hasColumn('users', 'user_type')) {
+                $query->where('users.user_type', 'admin');
+            }
+
+            $hasSubscriptionJoin = Schema::hasTable('pharmacy_subscriptions')
+                && Schema::hasColumn('users', 'pharmacy_subscription_id');
+
+            if ($hasSubscriptionJoin) {
+                $query->leftJoin(
+                    'pharmacy_subscriptions',
+                    'users.pharmacy_subscription_id',
+                    '=',
+                    'pharmacy_subscriptions.id'
+                );
+            }
+
+            $select = ['users.id', 'users.name', 'users.email'];
+            if ($hasSubscriptionJoin) {
+                $select[] = 'pharmacy_subscriptions.pharmacy_name as subscription_pharmacy_name';
+            }
+
+            return $query->get($select)
+                ->map(static function ($row) {
+                    $subscriptionName = trim((string) ($row->subscription_pharmacy_name ?? ''));
+                    $name = $subscriptionName !== ''
+                        ? $subscriptionName
+                        : trim((string) ($row->name ?? ''));
+                    if ($name === '') {
+                        $name = 'Organization #' . (int) $row->id;
+                    }
+                    $email = trim((string) ($row->email ?? ''));
+                    if ($email !== '') {
+                        $name .= ' (' . $email . ')';
+                    }
+
+                    return [
+                        'id' => (int) $row->id,
+                        'name' => $name,
+                    ];
+                })
+                ->values()
+                ->all();
+        } catch (Throwable $e) {
+            Log::error('PlatformInsightsService::organizationOptions failed', ['exception' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function pharmacyIdsForOrganization(int $organizationId): array
+    {
+        if ($organizationId <= 0 || ! Schema::hasTable('pharmacies') || ! Schema::hasColumn('pharmacies', 'created_by')) {
+            return [];
+        }
+
+        try {
+            $query = DB::table('pharmacies')->where('created_by', $organizationId);
+            if (Schema::hasColumn('pharmacies', 'status')) {
+                $query->where(function ($q) {
+                    $q->whereNull('status')->orWhere('status', '')->orWhere('status', 'active');
+                });
+            }
+
+            return $query->pluck('id')
+                ->map(static fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * @return array{id: int|null, name: string|null}
+     */
+    public function resolveOrganization(?int $organizationId): array
+    {
+        if (! $organizationId) {
+            return ['id' => null, 'name' => null];
+        }
+
+        foreach ($this->organizationOptions() as $org) {
+            if ((int) $org['id'] === $organizationId) {
+                return ['id' => (int) $org['id'], 'name' => (string) $org['name']];
+            }
+        }
+
+        return ['id' => $organizationId, 'name' => 'Organization #' . $organizationId];
     }
 
     /**
@@ -554,10 +694,77 @@ class PlatformInsightsService
     }
 
     /**
+     * @param  array<string, mixed>  $filters
+     * @return list<int>
+     */
+    public function normalizePharmacyIds(array $filters): array
+    {
+        $raw = $filters['pharmacy_ids'] ?? $filters['pharmacy_id'] ?? [];
+        if (! is_array($raw)) {
+            $raw = [$raw];
+        }
+
+        $ids = [];
+        foreach ($raw as $value) {
+            $id = (int) $value;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+
+        return array_values($ids);
+    }
+
+    /**
+     * @param  list<int>  $pharmacyIds
+     * @return list<array{id: int, name: string, created_by: int|null}>
+     */
+    public function resolvePharmacies(array $pharmacyIds): array
+    {
+        if ($pharmacyIds === [] || ! Schema::hasTable('pharmacies')) {
+            return [];
+        }
+
+        try {
+            return DB::table('pharmacies')
+                ->whereIn('id', $pharmacyIds)
+                ->orderBy('pharmacy_name')
+                ->get(['id', 'pharmacy_name', 'created_by'])
+                ->map(static fn ($row) => [
+                    'id' => (int) $row->id,
+                    'name' => (string) $row->pharmacy_name,
+                    'created_by' => $row->created_by !== null ? (int) $row->created_by : null,
+                ])
+                ->values()
+                ->all();
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * @param  list<array{id: int, name: string}>  $pharmacies
+     */
+    public function pharmacyScopeLabel(array $pharmacies): string
+    {
+        if ($pharmacies === []) {
+            return 'All pharmacies';
+        }
+        if (count($pharmacies) === 1) {
+            return (string) $pharmacies[0]['name'];
+        }
+        if (count($pharmacies) <= 3) {
+            return implode(', ', array_map(static fn ($p) => (string) $p['name'], $pharmacies));
+        }
+
+        return count($pharmacies) . ' pharmacies selected';
+    }
+
+    /**
      * Period metrics with optional pharmacy scope.
      * Appointment channels are not stored separately — combined platform/pharmacy totals.
      *
-     * @param  array{period?: string, from?: string|null, to?: string|null, pharmacy_id?: int|null}  $filters
+     * @param  array{period?: string, from?: string|null, to?: string|null, organization_id?: int|null, pharmacy_ids?: list<int>|int, pharmacy_id?: int|list<int>|null}  $filters
      * @return array<string, mixed>
      */
     public function recentWindowMetrics(array $filters = []): array
@@ -565,12 +772,36 @@ class PlatformInsightsService
         $period = $this->resolvePeriod($filters);
         $from = $period['from'];
         $to = $period['to'];
-        $pharmacyId = isset($filters['pharmacy_id']) ? (int) $filters['pharmacy_id'] : null;
-        if ($pharmacyId !== null && $pharmacyId <= 0) {
-            $pharmacyId = null;
+        $organizationId = isset($filters['organization_id']) ? (int) $filters['organization_id'] : null;
+        if ($organizationId !== null && $organizationId <= 0) {
+            $organizationId = null;
+        }
+        $organization = $this->resolveOrganization($organizationId);
+
+        $pharmacyIds = $this->normalizePharmacyIds($filters);
+        if ($organizationId) {
+            $orgPharmacyIds = $this->pharmacyIdsForOrganization($organizationId);
+            if ($pharmacyIds === []) {
+                $pharmacyIds = $orgPharmacyIds;
+            } else {
+                $allowed = array_flip($orgPharmacyIds);
+                $pharmacyIds = array_values(array_filter(
+                    $pharmacyIds,
+                    static fn ($id) => isset($allowed[$id])
+                ));
+            }
         }
 
-        $pharmacy = $this->resolvePharmacy($pharmacyId);
+        $pharmacies = $this->resolvePharmacies($pharmacyIds);
+        $pharmacyIds = array_map(static fn ($p) => (int) $p['id'], $pharmacies);
+        // Org selected with zero pharmacies must not fall through to "all pharmacies".
+        $forceEmptyScope = $organizationId !== null && $pharmacyIds === [];
+        $pharmacyLabel = $this->pharmacyScopeLabel($pharmacies);
+        if ($forceEmptyScope) {
+            $pharmacyLabel = ($organization['name'] ?: 'Organization') . ' (no pharmacies)';
+        } elseif ($organization['name'] && $pharmacyIds !== []) {
+            $pharmacyLabel = $organization['name'] . ' · ' . $pharmacyLabel;
+        }
 
         $empty = [
             'period' => $period['period'],
@@ -581,8 +812,12 @@ class PlatformInsightsService
             'to_input' => $period['to_input'],
             'from_label' => $period['from_label'],
             'to_label' => $period['to_label'],
-            'pharmacy_id' => $pharmacy['id'],
-            'pharmacy_name' => $pharmacy['name'],
+            'organization_id' => $organization['id'],
+            'organization_name' => $organization['name'],
+            'pharmacy_ids' => $pharmacyIds,
+            'pharmacy_names' => array_map(static fn ($p) => (string) $p['name'], $pharmacies),
+            'pharmacy_id' => count($pharmacyIds) === 1 ? $pharmacyIds[0] : null,
+            'pharmacy_name' => $pharmacyLabel,
             'appointments' => [
                 'total' => null,
                 'non_cancelled' => null,
@@ -597,7 +832,7 @@ class PlatformInsightsService
                 'note' => 'Participants with vaccination_outcome = vaccinated and updated in this window.',
             ],
             'by_service' => [
-                'title' => $pharmacy['name'] ? ($pharmacy['name'] . ' — by service') : 'All pharmacies — by service',
+                'title' => $pharmacyLabel . ' — by service',
                 'total' => null,
                 'rows' => [],
                 'note' => null,
@@ -609,14 +844,20 @@ class PlatformInsightsService
 
         if (Schema::hasTable('appointments')) {
             try {
-                $base = $this->appointmentsQuery($from, $to, $pharmacyId);
-                $empty['appointments']['total'] = (int) (clone $base)->count();
-                $empty['appointments']['non_cancelled'] = (int) (clone $base)
-                    ->where('appointments.status', '!=', 'cancelled')
-                    ->count();
-                $empty['appointments']['booked'] = (int) (clone $base)
-                    ->whereNotIn('appointments.status', ['cancelled', 'waitlist'])
-                    ->count();
+                if ($forceEmptyScope) {
+                    $empty['appointments']['total'] = 0;
+                    $empty['appointments']['non_cancelled'] = 0;
+                    $empty['appointments']['booked'] = 0;
+                } else {
+                    $base = $this->appointmentsQuery($from, $to, $pharmacyIds);
+                    $empty['appointments']['total'] = (int) (clone $base)->count();
+                    $empty['appointments']['non_cancelled'] = (int) (clone $base)
+                        ->where('appointments.status', '!=', 'cancelled')
+                        ->count();
+                    $empty['appointments']['booked'] = (int) (clone $base)
+                        ->whereNotIn('appointments.status', ['cancelled', 'waitlist'])
+                        ->count();
+                }
             } catch (Throwable $e) {
                 Log::error('PlatformInsightsService::recentWindowMetrics appointments failed', [
                     'exception' => $e->getMessage(),
@@ -627,13 +868,17 @@ class PlatformInsightsService
 
         if (Schema::hasTable('mvp_school_opt_ins')) {
             try {
-                $q = DB::table('mvp_school_opt_ins')
-                    ->where('created_at', '>=', $from)
-                    ->where('created_at', '<=', $to);
-                if ($pharmacyId && Schema::hasColumn('mvp_school_opt_ins', 'assigned_pharmacy_id')) {
-                    $q->where('assigned_pharmacy_id', $pharmacyId);
+                if ($forceEmptyScope) {
+                    $empty['mvp_opt_ins']['schools'] = 0;
+                } else {
+                    $q = DB::table('mvp_school_opt_ins')
+                        ->where('created_at', '>=', $from)
+                        ->where('created_at', '<=', $to);
+                    if ($pharmacyIds !== [] && Schema::hasColumn('mvp_school_opt_ins', 'assigned_pharmacy_id')) {
+                        $q->whereIn('assigned_pharmacy_id', $pharmacyIds);
+                    }
+                    $empty['mvp_opt_ins']['schools'] = (int) $q->count();
                 }
-                $empty['mvp_opt_ins']['schools'] = (int) $q->count();
             } catch (Throwable $e) {
                 Log::error('PlatformInsightsService::recentWindowMetrics school opt-ins failed', [
                     'exception' => $e->getMessage(),
@@ -644,13 +889,17 @@ class PlatformInsightsService
 
         if (Schema::hasTable('mvp_corporate_opt_ins')) {
             try {
-                $q = DB::table('mvp_corporate_opt_ins')
-                    ->where('created_at', '>=', $from)
-                    ->where('created_at', '<=', $to);
-                if ($pharmacyId && Schema::hasColumn('mvp_corporate_opt_ins', 'assigned_pharmacy_id')) {
-                    $q->where('assigned_pharmacy_id', $pharmacyId);
+                if ($forceEmptyScope) {
+                    $empty['mvp_opt_ins']['corporates'] = 0;
+                } else {
+                    $q = DB::table('mvp_corporate_opt_ins')
+                        ->where('created_at', '>=', $from)
+                        ->where('created_at', '<=', $to);
+                    if ($pharmacyIds !== [] && Schema::hasColumn('mvp_corporate_opt_ins', 'assigned_pharmacy_id')) {
+                        $q->whereIn('assigned_pharmacy_id', $pharmacyIds);
+                    }
+                    $empty['mvp_opt_ins']['corporates'] = (int) $q->count();
                 }
-                $empty['mvp_opt_ins']['corporates'] = (int) $q->count();
             } catch (Throwable $e) {
                 Log::error('PlatformInsightsService::recentWindowMetrics corporate opt-ins failed', [
                     'exception' => $e->getMessage(),
@@ -665,19 +914,23 @@ class PlatformInsightsService
                 + (int) ($empty['mvp_opt_ins']['corporates'] ?? 0);
         }
 
-        $subscriptionIds = $pharmacyId ? $this->subscriptionIdsForPharmacy($pharmacyId) : [];
+        $subscriptionIds = $pharmacyIds !== [] ? $this->subscriptionIdsForPharmacies($pharmacyIds) : [];
 
         if (Schema::hasTable('mvp_school_parent_forms')
             && Schema::hasColumn('mvp_school_parent_forms', 'vaccination_outcome')) {
             try {
-                $q = DB::table('mvp_school_parent_forms')
-                    ->where('vaccination_outcome', 'vaccinated')
-                    ->where('updated_at', '>=', $from)
-                    ->where('updated_at', '<=', $to);
-                if ($pharmacyId) {
-                    $this->applyPharmacyToParticipantForms($q, 'mvp_school_parent_forms', $pharmacyId, $subscriptionIds);
+                if ($forceEmptyScope) {
+                    $empty['vaccinated']['schools'] = 0;
+                } else {
+                    $q = DB::table('mvp_school_parent_forms')
+                        ->where('vaccination_outcome', 'vaccinated')
+                        ->where('updated_at', '>=', $from)
+                        ->where('updated_at', '<=', $to);
+                    if ($pharmacyIds !== []) {
+                        $this->applyPharmacyToParticipantForms($q, 'mvp_school_parent_forms', $pharmacyIds, $subscriptionIds);
+                    }
+                    $empty['vaccinated']['schools'] = (int) $q->count();
                 }
-                $empty['vaccinated']['schools'] = (int) $q->count();
             } catch (Throwable $e) {
                 Log::error('PlatformInsightsService::recentWindowMetrics school vaccinated failed', [
                     'exception' => $e->getMessage(),
@@ -689,14 +942,18 @@ class PlatformInsightsService
         if (Schema::hasTable('mvp_corporate_employee_forms')
             && Schema::hasColumn('mvp_corporate_employee_forms', 'vaccination_outcome')) {
             try {
-                $q = DB::table('mvp_corporate_employee_forms')
-                    ->where('vaccination_outcome', 'vaccinated')
-                    ->where('updated_at', '>=', $from)
-                    ->where('updated_at', '<=', $to);
-                if ($pharmacyId) {
-                    $this->applyPharmacyToParticipantForms($q, 'mvp_corporate_employee_forms', $pharmacyId, $subscriptionIds);
+                if ($forceEmptyScope) {
+                    $empty['vaccinated']['corporates'] = 0;
+                } else {
+                    $q = DB::table('mvp_corporate_employee_forms')
+                        ->where('vaccination_outcome', 'vaccinated')
+                        ->where('updated_at', '>=', $from)
+                        ->where('updated_at', '<=', $to);
+                    if ($pharmacyIds !== []) {
+                        $this->applyPharmacyToParticipantForms($q, 'mvp_corporate_employee_forms', $pharmacyIds, $subscriptionIds);
+                    }
+                    $empty['vaccinated']['corporates'] = (int) $q->count();
                 }
-                $empty['vaccinated']['corporates'] = (int) $q->count();
             } catch (Throwable $e) {
                 Log::error('PlatformInsightsService::recentWindowMetrics corporate vaccinated failed', [
                     'exception' => $e->getMessage(),
@@ -711,16 +968,23 @@ class PlatformInsightsService
                 + (int) ($empty['vaccinated']['corporates'] ?? 0);
         }
 
-        $byService = $this->bookingsByService($from, $to, $pharmacyId, $pharmacy['name']);
+        $byService = $forceEmptyScope
+            ? [
+                'title' => $pharmacyLabel . ' — by service',
+                'total' => 0,
+                'rows' => [],
+                'note' => 'No pharmacies found for the selected organization.',
+                'error' => null,
+            ]
+            : $this->bookingsByService($from, $to, $pharmacyIds, $pharmacyLabel);
         $empty['by_service'] = [
             'title' => $byService['title'],
             'total' => $byService['total'],
             'rows' => $byService['rows'],
             'note' => $byService['note'],
         ];
-        // Keep legacy key for older copy/tests during transition.
         $empty['drinagh'] = [
-            'pharmacies' => $pharmacy['name'] ? [$pharmacy['name']] : [],
+            'pharmacies' => $empty['pharmacy_names'],
             'total' => $byService['total'],
             'by_service' => $byService['rows'],
             'note' => $byService['note'],
@@ -739,43 +1003,45 @@ class PlatformInsightsService
      */
     private function resolvePharmacy(?int $pharmacyId): array
     {
-        if (! $pharmacyId || ! Schema::hasTable('pharmacies')) {
+        if (! $pharmacyId) {
             return ['id' => null, 'name' => null, 'created_by' => null];
         }
 
-        try {
-            $row = DB::table('pharmacies')->where('id', $pharmacyId)->first(['id', 'pharmacy_name', 'created_by']);
-            if (! $row) {
-                return ['id' => null, 'name' => null, 'created_by' => null];
-            }
+        $rows = $this->resolvePharmacies([$pharmacyId]);
 
-            return [
-                'id' => (int) $row->id,
-                'name' => (string) $row->pharmacy_name,
-                'created_by' => $row->created_by !== null ? (int) $row->created_by : null,
-            ];
-        } catch (Throwable $e) {
-            return ['id' => null, 'name' => null, 'created_by' => null];
-        }
+        return $rows[0] ?? ['id' => null, 'name' => null, 'created_by' => null];
     }
 
     /**
+     * @param  list<int>  $pharmacyIds
      * @return list<int>
      */
-    private function subscriptionIdsForPharmacy(int $pharmacyId): array
+    private function subscriptionIdsForPharmacies(array $pharmacyIds): array
     {
-        $pharmacy = $this->resolvePharmacy($pharmacyId);
-        if (! $pharmacy['created_by']
+        if ($pharmacyIds === []
             || ! Schema::hasTable('pharmacy_subscriptions')
             || ! Schema::hasColumn('pharmacy_subscriptions', 'user_id')) {
             return [];
         }
 
+        $ownerIds = [];
+        foreach ($this->resolvePharmacies($pharmacyIds) as $pharmacy) {
+            if (! empty($pharmacy['created_by'])) {
+                $ownerIds[(int) $pharmacy['created_by']] = (int) $pharmacy['created_by'];
+            }
+        }
+
+        if ($ownerIds === []) {
+            return [];
+        }
+
         try {
             return DB::table('pharmacy_subscriptions')
-                ->where('user_id', $pharmacy['created_by'])
+                ->whereIn('user_id', array_values($ownerIds))
                 ->pluck('id')
                 ->map(static fn ($id) => (int) $id)
+                ->unique()
+                ->values()
                 ->all();
         } catch (Throwable $e) {
             return [];
@@ -784,25 +1050,29 @@ class PlatformInsightsService
 
     /**
      * @param  \Illuminate\Database\Query\Builder  $query
+     * @param  list<int>  $pharmacyIds
      * @param  list<int>  $subscriptionIds
      */
-    private function applyPharmacyToParticipantForms($query, string $table, int $pharmacyId, array $subscriptionIds): void
+    private function applyPharmacyToParticipantForms($query, string $table, array $pharmacyIds, array $subscriptionIds): void
     {
-        $query->where(function ($outer) use ($table, $pharmacyId, $subscriptionIds) {
+        if ($pharmacyIds === []) {
+            return;
+        }
+
+        $query->where(function ($outer) use ($table, $pharmacyIds, $subscriptionIds) {
             if ($subscriptionIds !== [] && Schema::hasColumn($table, 'pharmacy_subscription_id')) {
                 $outer->orWhereIn($table . '.pharmacy_subscription_id', $subscriptionIds);
             }
 
-            // Match via opt-in assigned pharmacy when possible.
             if ($table === 'mvp_school_parent_forms'
                 && Schema::hasTable('mvp_school_opt_ins')
                 && Schema::hasColumn('mvp_school_opt_ins', 'assigned_pharmacy_id')
                 && Schema::hasColumn('mvp_school_parent_forms', 'school_registration_id')
                 && Schema::hasColumn('mvp_school_opt_ins', 'source_school_registration_id')) {
-                $outer->orWhereIn('mvp_school_parent_forms.school_registration_id', function ($sub) use ($pharmacyId) {
+                $outer->orWhereIn('mvp_school_parent_forms.school_registration_id', function ($sub) use ($pharmacyIds) {
                     $sub->select('source_school_registration_id')
                         ->from('mvp_school_opt_ins')
-                        ->where('assigned_pharmacy_id', $pharmacyId)
+                        ->whereIn('assigned_pharmacy_id', $pharmacyIds)
                         ->whereNotNull('source_school_registration_id');
                 });
             }
@@ -812,31 +1082,36 @@ class PlatformInsightsService
                     $table === 'mvp_school_parent_forms'
                     && Schema::hasTable('mvp_school_opt_ins')
                 )) {
-                // No reliable pharmacy link — force empty result rather than leaking all pharmacies.
                 $outer->orWhereRaw('1 = 0');
             }
         });
     }
 
     /**
+     * @param  list<int>  $pharmacyIds
      * @return \Illuminate\Database\Query\Builder
      */
-    private function appointmentsQuery(\DateTimeInterface $from, \DateTimeInterface $to, ?int $pharmacyId)
+    private function appointmentsQuery(\DateTimeInterface $from, \DateTimeInterface $to, array $pharmacyIds = [])
     {
         $query = DB::table('appointments')
             ->where('appointments.created_at', '>=', $from)
             ->where('appointments.created_at', '<=', $to);
 
-        if ($pharmacyId && Schema::hasTable('pharmacy_services')) {
-            $query->whereIn('appointments.service_id', function ($sub) use ($pharmacyId) {
+        if ($pharmacyIds !== [] && Schema::hasTable('pharmacy_services')) {
+            $query->whereIn('appointments.service_id', function ($sub) use ($pharmacyIds) {
                 $sub->select('service_id')
                     ->from('pharmacy_services')
-                    ->where('pharmacy_id', $pharmacyId);
+                    ->whereIn('pharmacy_id', $pharmacyIds);
             });
-        } elseif ($pharmacyId) {
-            $pharmacy = $this->resolvePharmacy($pharmacyId);
-            if ($pharmacy['created_by']) {
-                $query->where('appointments.customer_id', $pharmacy['created_by']);
+        } elseif ($pharmacyIds !== []) {
+            $ownerIds = [];
+            foreach ($this->resolvePharmacies($pharmacyIds) as $pharmacy) {
+                if (! empty($pharmacy['created_by'])) {
+                    $ownerIds[(int) $pharmacy['created_by']] = (int) $pharmacy['created_by'];
+                }
+            }
+            if ($ownerIds !== []) {
+                $query->whereIn('appointments.customer_id', array_values($ownerIds));
             } else {
                 $query->whereRaw('1 = 0');
             }
@@ -846,6 +1121,7 @@ class PlatformInsightsService
     }
 
     /**
+     * @param  list<int>|int|null  $pharmacyIds
      * @return array{
      *     title: string,
      *     total: int|null,
@@ -857,12 +1133,18 @@ class PlatformInsightsService
     public function bookingsByService(
         \DateTimeInterface $from,
         \DateTimeInterface $to,
-        ?int $pharmacyId = null,
+        array|int|null $pharmacyIds = null,
         ?string $pharmacyName = null
     ): array {
+        if (is_int($pharmacyIds)) {
+            $pharmacyIds = $pharmacyIds > 0 ? [$pharmacyIds] : [];
+        } elseif ($pharmacyIds === null) {
+            $pharmacyIds = [];
+        }
+
         $title = $pharmacyName
             ? ($pharmacyName . ' — by service')
-            : 'All pharmacies — by service';
+            : ($pharmacyIds === [] ? 'All pharmacies — by service' : 'Selected pharmacies — by service');
 
         $result = [
             'title' => $title,
@@ -883,16 +1165,21 @@ class PlatformInsightsService
                 ->where('a.created_at', '<=', $to)
                 ->whereNotIn('a.status', ['cancelled', 'waitlist']);
 
-            if ($pharmacyId && Schema::hasTable('pharmacy_services')) {
-                $query->whereIn('a.service_id', function ($sub) use ($pharmacyId) {
+            if ($pharmacyIds !== [] && Schema::hasTable('pharmacy_services')) {
+                $query->whereIn('a.service_id', function ($sub) use ($pharmacyIds) {
                     $sub->select('service_id')
                         ->from('pharmacy_services')
-                        ->where('pharmacy_id', $pharmacyId);
+                        ->whereIn('pharmacy_id', $pharmacyIds);
                 });
-            } elseif ($pharmacyId) {
-                $pharmacy = $this->resolvePharmacy($pharmacyId);
-                if ($pharmacy['created_by']) {
-                    $query->where('a.customer_id', $pharmacy['created_by']);
+            } elseif ($pharmacyIds !== []) {
+                $ownerIds = [];
+                foreach ($this->resolvePharmacies($pharmacyIds) as $pharmacy) {
+                    if (! empty($pharmacy['created_by'])) {
+                        $ownerIds[(int) $pharmacy['created_by']] = (int) $pharmacy['created_by'];
+                    }
+                }
+                if ($ownerIds !== []) {
+                    $query->whereIn('a.customer_id', array_values($ownerIds));
                 } else {
                     $query->whereRaw('1 = 0');
                 }
@@ -1006,7 +1293,11 @@ class PlatformInsightsService
         $lines[] = 'Generated: ' . (string) ($snapshot['generated_at'] ?? now()->format('M j, Y g:i A'));
         $lines[] = 'Period: ' . ($recent['period_label'] ?? 'Last 2 months')
             . ' (' . ($recent['from_label'] ?? '—') . ' – ' . ($recent['to_label'] ?? '—') . ')';
+        $lines[] = 'Organization: ' . ($recent['organization_name'] ?? 'All organizations');
         $lines[] = 'Pharmacy: ' . ($recent['pharmacy_name'] ?? 'All pharmacies');
+        foreach ($recent['pharmacy_names'] ?? [] as $name) {
+            $lines[] = '  - ' . $name;
+        }
         $lines[] = '';
         $lines[] = 'Appointments booked (portal + widgets + in-clinic combined)';
         $lines[] = '  Booked (excl. cancelled & waitlist): ' . $this->fmtNum($recent['appointments']['booked'] ?? null);
@@ -1105,7 +1396,7 @@ class PlatformInsightsService
     }
 
     /**
-     * @param  array{period?: string, from?: string|null, to?: string|null, pharmacy_id?: int|null}  $filters
+     * @param  array{period?: string, from?: string|null, to?: string|null, organization_id?: int|null, pharmacy_ids?: list<int>|int, pharmacy_id?: int|list<int>|null}  $filters
      * @return array<string, mixed>
      */
     public function snapshot(array $filters = []): array
@@ -1118,6 +1409,7 @@ class PlatformInsightsService
         $whatsapp = $this->whatsAppMessagesTotal();
         $mvpOptIns = $this->mvpOptIns();
         $mvpParticipants = $this->mvpParticipants();
+        $requestedPharmacyIds = $this->normalizePharmacyIds($filters);
         $recent = $this->recentWindowMetrics($filters);
 
         $errors = array_values(array_filter([
@@ -1160,8 +1452,11 @@ class PlatformInsightsService
                 'period' => $recent['period'],
                 'from' => $recent['from_input'],
                 'to' => $recent['to_input'],
-                'pharmacy_id' => $recent['pharmacy_id'],
+                'organization_id' => $recent['organization_id'] ?? null,
+                // Keep user-selected pharmacy checkboxes (not org-expanded scope).
+                'pharmacy_ids' => $requestedPharmacyIds,
             ],
+            'organization_options' => $this->organizationOptions(),
             'pharmacy_options' => $this->pharmacyOptions(),
             'period_options' => self::PERIOD_OPTIONS,
             'errors' => $errors,

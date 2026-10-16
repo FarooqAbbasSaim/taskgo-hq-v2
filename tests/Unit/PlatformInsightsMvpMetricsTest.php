@@ -37,6 +37,9 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString('15d', $service);
         $this->assertStringContainsString("'all' => 'All time'", $service);
         $this->assertStringContainsString('custom', $service);
+
+        $controller = file_get_contents(app_path('Http/Controllers/Admin/PlatformInsightsController.php'));
+        $this->assertStringContainsString('in:15d,30d,2m,3m,all,custom', $controller);
     }
 
     public function test_platform_insights_view_shows_mvp_and_top_reasons(): void

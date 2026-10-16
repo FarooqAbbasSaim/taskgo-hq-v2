@@ -822,7 +822,8 @@ class PlatformInsightsService
                 'total' => null,
                 'non_cancelled' => null,
                 'booked' => null,
-                'note' => 'Portal, widget, and in-clinic bookings are not stored as separate channels; figures are the combined total for the selected scope.',
+                'attended' => null,
+                'note' => 'Portal, widget, and in-clinic bookings are not stored as separate channels; figures are the combined total for the selected scope. Attended includes status claimed (and legacy attended).',
             ],
             'mvp_opt_ins' => ['schools' => null, 'corporates' => null, 'total' => null],
             'vaccinated' => [
@@ -848,6 +849,7 @@ class PlatformInsightsService
                     $empty['appointments']['total'] = 0;
                     $empty['appointments']['non_cancelled'] = 0;
                     $empty['appointments']['booked'] = 0;
+                    $empty['appointments']['attended'] = 0;
                 } else {
                     $base = $this->appointmentsQuery($from, $to, $pharmacyIds);
                     $empty['appointments']['total'] = (int) (clone $base)->count();
@@ -856,6 +858,10 @@ class PlatformInsightsService
                         ->count();
                     $empty['appointments']['booked'] = (int) (clone $base)
                         ->whereNotIn('appointments.status', ['cancelled', 'waitlist'])
+                        ->count();
+                    // CRM migrated attended → claimed; count both for legacy rows.
+                    $empty['appointments']['attended'] = (int) (clone $base)
+                        ->whereIn('appointments.status', ['claimed', 'attended'])
                         ->count();
                 }
             } catch (Throwable $e) {
@@ -1301,6 +1307,7 @@ class PlatformInsightsService
         $lines[] = '';
         $lines[] = 'Appointments booked (portal + widgets + in-clinic combined)';
         $lines[] = '  Booked (excl. cancelled & waitlist): ' . $this->fmtNum($recent['appointments']['booked'] ?? null);
+        $lines[] = '  Attended only (claimed + legacy attended): ' . $this->fmtNum($recent['appointments']['attended'] ?? null);
         $lines[] = '  Non-cancelled (incl. waitlist): ' . $this->fmtNum($recent['appointments']['non_cancelled'] ?? null);
         $lines[] = '  All statuses: ' . $this->fmtNum($recent['appointments']['total'] ?? null);
         if (! empty($recent['appointments']['note'])) {

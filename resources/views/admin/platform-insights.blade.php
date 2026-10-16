@@ -148,6 +148,13 @@
                                 @endif
                             </div>
                             <ul class="small text-muted mb-0 mt-2 ps-3">
+                                <li>Attended only:
+                                    @if(($recent['appointments']['attended'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['appointments']['attended']) }}
+                                    @endif
+                                </li>
                                 <li>Non-cancelled (incl. waitlist):
                                     @if(($recent['appointments']['non_cancelled'] ?? null) === null)
                                         N/A

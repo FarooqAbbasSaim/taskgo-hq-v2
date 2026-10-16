@@ -832,8 +832,12 @@ class PlatformInsightsService
             'mvp_registrations' => [
                 'schools' => null,
                 'corporates' => null,
+                'children' => null,
+                'teachers' => null,
+                'students' => null,
+                'employees' => null,
                 'total' => null,
-                'note' => 'Offsite My Vaccine Portal participant registrations (parent/employee forms) created in this window.',
+                'note' => 'Offsite My Vaccine Portal participant registrations created in this window (children, teachers, students 18+, employees).',
             ],
             'vaccinated' => [
                 'schools' => null,
@@ -935,6 +939,9 @@ class PlatformInsightsService
             try {
                 if ($forceEmptyScope) {
                     $empty['mvp_registrations']['schools'] = 0;
+                    $empty['mvp_registrations']['children'] = 0;
+                    $empty['mvp_registrations']['teachers'] = 0;
+                    $empty['mvp_registrations']['students'] = 0;
                 } else {
                     $q = DB::table('mvp_school_parent_forms')
                         ->where('created_at', '>=', $from)
@@ -942,7 +949,24 @@ class PlatformInsightsService
                     if ($pharmacyIds !== []) {
                         $this->applyPharmacyToParticipantForms($q, 'mvp_school_parent_forms', $pharmacyIds, $subscriptionIds);
                     }
-                    $empty['mvp_registrations']['schools'] = (int) $q->count();
+
+                    if (Schema::hasColumn('mvp_school_parent_forms', 'participant_type')) {
+                        $row = (clone $q)->selectRaw('COUNT(*) as total')
+                            ->selectRaw("SUM(CASE WHEN participant_type = 'teacher' THEN 1 ELSE 0 END) as teachers")
+                            ->selectRaw("SUM(CASE WHEN participant_type = 'student_18_plus' THEN 1 ELSE 0 END) as students")
+                            ->selectRaw("SUM(CASE WHEN participant_type IS NULL OR participant_type = '' OR participant_type = 'child' THEN 1 ELSE 0 END) as children")
+                            ->first();
+                        $empty['mvp_registrations']['schools'] = (int) ($row->total ?? 0);
+                        $empty['mvp_registrations']['teachers'] = (int) ($row->teachers ?? 0);
+                        $empty['mvp_registrations']['students'] = (int) ($row->students ?? 0);
+                        $empty['mvp_registrations']['children'] = (int) ($row->children ?? 0);
+                    } else {
+                        $schoolTotal = (int) $q->count();
+                        $empty['mvp_registrations']['schools'] = $schoolTotal;
+                        $empty['mvp_registrations']['children'] = $schoolTotal;
+                        $empty['mvp_registrations']['teachers'] = 0;
+                        $empty['mvp_registrations']['students'] = 0;
+                    }
                 }
             } catch (Throwable $e) {
                 Log::error('PlatformInsightsService::recentWindowMetrics school registrations failed', [
@@ -956,6 +980,7 @@ class PlatformInsightsService
             try {
                 if ($forceEmptyScope) {
                     $empty['mvp_registrations']['corporates'] = 0;
+                    $empty['mvp_registrations']['employees'] = 0;
                 } else {
                     $q = DB::table('mvp_corporate_employee_forms')
                         ->where('created_at', '>=', $from)
@@ -963,7 +988,9 @@ class PlatformInsightsService
                     if ($pharmacyIds !== []) {
                         $this->applyPharmacyToParticipantForms($q, 'mvp_corporate_employee_forms', $pharmacyIds, $subscriptionIds);
                     }
-                    $empty['mvp_registrations']['corporates'] = (int) $q->count();
+                    $employeeTotal = (int) $q->count();
+                    $empty['mvp_registrations']['corporates'] = $employeeTotal;
+                    $empty['mvp_registrations']['employees'] = $employeeTotal;
                 }
             } catch (Throwable $e) {
                 Log::error('PlatformInsightsService::recentWindowMetrics corporate registrations failed', [
@@ -973,10 +1000,17 @@ class PlatformInsightsService
             }
         }
 
-        $regParts = [$empty['mvp_registrations']['schools'], $empty['mvp_registrations']['corporates']];
+        $regParts = [
+            $empty['mvp_registrations']['children'],
+            $empty['mvp_registrations']['teachers'],
+            $empty['mvp_registrations']['students'],
+            $empty['mvp_registrations']['employees'],
+        ];
         if (array_filter($regParts, static fn ($v) => $v !== null) !== []) {
-            $empty['mvp_registrations']['total'] = (int) ($empty['mvp_registrations']['schools'] ?? 0)
-                + (int) ($empty['mvp_registrations']['corporates'] ?? 0);
+            $empty['mvp_registrations']['total'] = (int) ($empty['mvp_registrations']['children'] ?? 0)
+                + (int) ($empty['mvp_registrations']['teachers'] ?? 0)
+                + (int) ($empty['mvp_registrations']['students'] ?? 0)
+                + (int) ($empty['mvp_registrations']['employees'] ?? 0);
         }
 
         if (Schema::hasTable('mvp_school_parent_forms')
@@ -1376,10 +1410,14 @@ class PlatformInsightsService
         $lines[] = '  Corporates: ' . $this->fmtNum($recent['mvp_opt_ins']['corporates'] ?? null);
         $lines[] = '  Total: ' . $this->fmtNum($recent['mvp_opt_ins']['total'] ?? null);
         $lines[] = '';
-        $lines[] = 'Offsite vaccine portal registrations (parent/employee forms)';
-        $lines[] = '  Schools: ' . $this->fmtNum($recent['mvp_registrations']['schools'] ?? null);
-        $lines[] = '  Corporates: ' . $this->fmtNum($recent['mvp_registrations']['corporates'] ?? null);
+        $lines[] = 'Offsite vaccine portal registrations (participants)';
+        $lines[] = '  Children: ' . $this->fmtNum($recent['mvp_registrations']['children'] ?? null);
+        $lines[] = '  Teachers: ' . $this->fmtNum($recent['mvp_registrations']['teachers'] ?? null);
+        $lines[] = '  Students (18+): ' . $this->fmtNum($recent['mvp_registrations']['students'] ?? null);
+        $lines[] = '  Employees: ' . $this->fmtNum($recent['mvp_registrations']['employees'] ?? null);
         $lines[] = '  Total: ' . $this->fmtNum($recent['mvp_registrations']['total'] ?? null);
+        $lines[] = '  (School forms: ' . $this->fmtNum($recent['mvp_registrations']['schools'] ?? null)
+            . ' · Corporate forms: ' . $this->fmtNum($recent['mvp_registrations']['corporates'] ?? null) . ')';
         if (! empty($recent['mvp_registrations']['note'])) {
             $lines[] = '  Note: ' . $recent['mvp_registrations']['note'];
         }

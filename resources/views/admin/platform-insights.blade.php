@@ -210,14 +210,41 @@
                                 @endif
                             </div>
                             <ul class="small text-muted mb-0 mt-2 ps-3">
-                                <li>Schools:
+                                <li>Children:
+                                    @if(($recent['mvp_registrations']['children'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['children']) }}
+                                    @endif
+                                </li>
+                                <li>Teachers:
+                                    @if(($recent['mvp_registrations']['teachers'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['teachers']) }}
+                                    @endif
+                                </li>
+                                <li>Students (18+):
+                                    @if(($recent['mvp_registrations']['students'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['students']) }}
+                                    @endif
+                                </li>
+                                <li>Employees:
+                                    @if(($recent['mvp_registrations']['employees'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['employees']) }}
+                                    @endif
+                                </li>
+                                <li class="mt-1">School forms:
                                     @if(($recent['mvp_registrations']['schools'] ?? null) === null)
                                         N/A
                                     @else
                                         {{ number_format($recent['mvp_registrations']['schools']) }}
                                     @endif
-                                </li>
-                                <li>Corporates:
+                                    · Corporate forms:
                                     @if(($recent['mvp_registrations']['corporates'] ?? null) === null)
                                         N/A
                                     @else

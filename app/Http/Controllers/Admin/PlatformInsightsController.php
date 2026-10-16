@@ -14,11 +14,23 @@ class PlatformInsightsController extends Controller
     {
     }
 
-    public function index(): View
+    public function index(Request $request): View
     {
         abort_unless((bool) config('features.platform_insights', false), 404);
 
-        $data = $this->insights->snapshot();
+        $validated = $request->validate([
+            'period' => 'nullable|in:15d,30d,2m,3m,custom',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date',
+            'pharmacy_id' => 'nullable|integer|min:1',
+        ]);
+
+        $data = $this->insights->snapshot([
+            'period' => $validated['period'] ?? '2m',
+            'from' => $validated['from'] ?? null,
+            'to' => $validated['to'] ?? null,
+            'pharmacy_id' => isset($validated['pharmacy_id']) ? (int) $validated['pharmacy_id'] : null,
+        ]);
 
         return view('admin.platform-insights', [
             'title' => 'Platform Insights',

@@ -826,6 +826,12 @@ class PlatformInsightsService
                 'note' => 'Portal, widget, and in-clinic bookings are not stored as separate channels; figures are the combined total for the selected scope. Attended includes status claimed (and legacy attended).',
             ],
             'mvp_opt_ins' => ['schools' => null, 'corporates' => null, 'total' => null],
+            'mvp_registrations' => [
+                'schools' => null,
+                'corporates' => null,
+                'total' => null,
+                'note' => 'Offsite My Vaccine Portal participant registrations (parent/employee forms) created in this window.',
+            ],
             'vaccinated' => [
                 'schools' => null,
                 'corporates' => null,
@@ -921,6 +927,54 @@ class PlatformInsightsService
         }
 
         $subscriptionIds = $pharmacyIds !== [] ? $this->subscriptionIdsForPharmacies($pharmacyIds) : [];
+
+        if (Schema::hasTable('mvp_school_parent_forms')) {
+            try {
+                if ($forceEmptyScope) {
+                    $empty['mvp_registrations']['schools'] = 0;
+                } else {
+                    $q = DB::table('mvp_school_parent_forms')
+                        ->where('created_at', '>=', $from)
+                        ->where('created_at', '<=', $to);
+                    if ($pharmacyIds !== []) {
+                        $this->applyPharmacyToParticipantForms($q, 'mvp_school_parent_forms', $pharmacyIds, $subscriptionIds);
+                    }
+                    $empty['mvp_registrations']['schools'] = (int) $q->count();
+                }
+            } catch (Throwable $e) {
+                Log::error('PlatformInsightsService::recentWindowMetrics school registrations failed', [
+                    'exception' => $e->getMessage(),
+                ]);
+                $errors[] = 'Could not load recent school vaccine portal registrations.';
+            }
+        }
+
+        if (Schema::hasTable('mvp_corporate_employee_forms')) {
+            try {
+                if ($forceEmptyScope) {
+                    $empty['mvp_registrations']['corporates'] = 0;
+                } else {
+                    $q = DB::table('mvp_corporate_employee_forms')
+                        ->where('created_at', '>=', $from)
+                        ->where('created_at', '<=', $to);
+                    if ($pharmacyIds !== []) {
+                        $this->applyPharmacyToParticipantForms($q, 'mvp_corporate_employee_forms', $pharmacyIds, $subscriptionIds);
+                    }
+                    $empty['mvp_registrations']['corporates'] = (int) $q->count();
+                }
+            } catch (Throwable $e) {
+                Log::error('PlatformInsightsService::recentWindowMetrics corporate registrations failed', [
+                    'exception' => $e->getMessage(),
+                ]);
+                $errors[] = 'Could not load recent corporate vaccine portal registrations.';
+            }
+        }
+
+        $regParts = [$empty['mvp_registrations']['schools'], $empty['mvp_registrations']['corporates']];
+        if (array_filter($regParts, static fn ($v) => $v !== null) !== []) {
+            $empty['mvp_registrations']['total'] = (int) ($empty['mvp_registrations']['schools'] ?? 0)
+                + (int) ($empty['mvp_registrations']['corporates'] ?? 0);
+        }
 
         if (Schema::hasTable('mvp_school_parent_forms')
             && Schema::hasColumn('mvp_school_parent_forms', 'vaccination_outcome')) {
@@ -1318,6 +1372,14 @@ class PlatformInsightsService
         $lines[] = '  Schools: ' . $this->fmtNum($recent['mvp_opt_ins']['schools'] ?? null);
         $lines[] = '  Corporates: ' . $this->fmtNum($recent['mvp_opt_ins']['corporates'] ?? null);
         $lines[] = '  Total: ' . $this->fmtNum($recent['mvp_opt_ins']['total'] ?? null);
+        $lines[] = '';
+        $lines[] = 'Offsite vaccine portal registrations (parent/employee forms)';
+        $lines[] = '  Schools: ' . $this->fmtNum($recent['mvp_registrations']['schools'] ?? null);
+        $lines[] = '  Corporates: ' . $this->fmtNum($recent['mvp_registrations']['corporates'] ?? null);
+        $lines[] = '  Total: ' . $this->fmtNum($recent['mvp_registrations']['total'] ?? null);
+        if (! empty($recent['mvp_registrations']['note'])) {
+            $lines[] = '  Note: ' . $recent['mvp_registrations']['note'];
+        }
         $lines[] = '';
         $lines[] = 'Participants vaccinated';
         $lines[] = '  Schools: ' . $this->fmtNum($recent['vaccinated']['schools'] ?? null);

@@ -55,6 +55,8 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString('Participants vaccinated', $view);
         $this->assertStringContainsString('Attended only:', $view);
         $this->assertStringContainsString("appointments']['attended']", $view);
+        $this->assertStringContainsString('Offsite vaccine portal registrations', $view);
+        $this->assertStringContainsString("mvp_registrations']['total']", $view);
         $this->assertStringContainsString('platformInsightsCopyRecentBtn', $view);
         $this->assertStringContainsString('platformInsightsCopyAllTimeBtn', $view);
         $this->assertStringContainsString('Copy period as text', $view);
@@ -124,6 +126,12 @@ class PlatformInsightsMvpMetricsTest extends TestCase
                     'note' => 'Combined total.',
                 ],
                 'mvp_opt_ins' => ['schools' => 3, 'corporates' => 2, 'total' => 5],
+                'mvp_registrations' => [
+                    'schools' => 20,
+                    'corporates' => 8,
+                    'total' => 28,
+                    'note' => 'Offsite registrations.',
+                ],
                 'vaccinated' => [
                     'schools' => 1,
                     'corporates' => 4,
@@ -163,6 +171,8 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString('Drinagh Pharmacy, Bantry', $recent);
         $this->assertStringContainsString('Booked (excl. cancelled & waitlist): 10', $recent);
         $this->assertStringContainsString('Attended only (claimed + legacy attended): 7', $recent);
+        $this->assertStringContainsString('Offsite vaccine portal registrations', $recent);
+        $this->assertStringContainsString('Total: 28', $recent);
         $this->assertStringContainsString('Flu Vaccination', $recent);
         $this->assertStringNotContainsString('All-time snapshot', $recent);
 

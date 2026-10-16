@@ -138,7 +138,7 @@
                     </style>
 
                     <div class="row g-3 mb-3">
-                        <div class="col-md-4">
+                        <div class="col-lg-3 col-md-6">
                             <div class="text-muted small mb-1">Appointments booked</div>
                             <div class="fs-3 fw-semibold">
                                 @if(($recent['appointments']['booked'] ?? null) === null)
@@ -174,7 +174,7 @@
                                 <div class="text-muted small mt-2">{{ $recent['appointments']['note'] }}</div>
                             @endif
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-lg-3 col-md-6">
                             <div class="text-muted small mb-1">School / corporate opt-ins</div>
                             <div class="fs-3 fw-semibold">
                                 @if(($recent['mvp_opt_ins']['total'] ?? null) === null)
@@ -200,7 +200,36 @@
                                 </li>
                             </ul>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-lg-3 col-md-6">
+                            <div class="text-muted small mb-1">Offsite vaccine portal registrations</div>
+                            <div class="fs-3 fw-semibold">
+                                @if(($recent['mvp_registrations']['total'] ?? null) === null)
+                                    <span class="text-muted">N/A</span>
+                                @else
+                                    {{ number_format($recent['mvp_registrations']['total']) }}
+                                @endif
+                            </div>
+                            <ul class="small text-muted mb-0 mt-2 ps-3">
+                                <li>Schools:
+                                    @if(($recent['mvp_registrations']['schools'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['schools']) }}
+                                    @endif
+                                </li>
+                                <li>Corporates:
+                                    @if(($recent['mvp_registrations']['corporates'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['corporates']) }}
+                                    @endif
+                                </li>
+                            </ul>
+                            @if(!empty($recent['mvp_registrations']['note']))
+                                <div class="text-muted small mt-2">{{ $recent['mvp_registrations']['note'] }}</div>
+                            @endif
+                        </div>
+                        <div class="col-lg-3 col-md-6">
                             <div class="text-muted small mb-1">Participants vaccinated</div>
                             <div class="fs-3 fw-semibold">
                                 @if(($recent['vaccinated']['total'] ?? null) === null)

@@ -117,21 +117,20 @@ class PharmacyInvestigationController extends Controller
                 ->where('created_by', $customerId)
                 ->pluck('pharmacy_name', 'id');
 
-            $sopStats = ['total' => 0, 'read' => 0, 'complete' => 0];
-            if (Schema::hasTable('sops_users')) {
-                $sopRows = DB::table('sops_users')->where('user_id', $userId)->get();
-                $sopStats['total'] = $sopRows->count();
-                $sopStats['read'] = $sopRows->whereIn('status', ['read', 'complete'])->count();
-                $sopStats['complete'] = $sopRows->where('status', 'complete')->count();
+            $pharmacyIds = array_values(array_unique(array_filter(array_map(
+                'intval',
+                $member['pharmacy_ids'] ?? []
+            ))));
+            if ($pharmacyIds === [] && ! empty($user->user_pharmacy)) {
+                $pharmacyIds = [(int) $user->user_pharmacy];
             }
 
-            $policyStats = ['total' => 0, 'read' => 0, 'complete' => 0];
-            if (Schema::hasTable('policies_users')) {
-                $policyRows = DB::table('policies_users')->where('user_id', $userId)->get();
-                $policyStats['total'] = $policyRows->count();
-                $policyStats['read'] = $policyRows->whereIn('status', ['read', 'complete'])->count();
-                $policyStats['complete'] = $policyRows->where('status', 'complete')->count();
-            }
+            $docStats = $this->staffApplicableDocumentStats(
+                (int) $customerId,
+                (int) $userId,
+                (string) ($user->user_type ?? ''),
+                $pharmacyIds
+            );
 
             $authEvents = $this->authEventsForUser($userId);
 
@@ -167,16 +166,7 @@ class PharmacyInvestigationController extends Controller
                         'archive_reason' => $user->archive_reason,
                         'healthmail_enabled' => (bool) ($user->healthmail_enabled ?? false),
                     ],
-                    'stats' => [
-                        'sops' => $sopStats,
-                        'policies' => $policyStats,
-                        'sop_read_pct' => $sopStats['total'] > 0
-                            ? round(($sopStats['read'] / $sopStats['total']) * 100)
-                            : null,
-                        'policy_read_pct' => $policyStats['total'] > 0
-                            ? round(($policyStats['read'] / $policyStats['total']) * 100)
-                            : null,
-                    ],
+                    'stats' => $docStats,
                     'auth_events' => $authEvents,
                 ],
             ]);
@@ -851,6 +841,160 @@ class PharmacyInvestigationController extends Controller
         return collect(explode('_', $role))
             ->map(fn ($part) => ucfirst($part))
             ->implode(' ');
+    }
+
+    /**
+     * Applicable SOP/policy progress for a staff member (matches CRM reminder eligibility),
+     * not raw pivot-row counts. Avoids HQ showing Policies 0/0 when unread policies exist.
+     *
+     * @param  array<int, int>  $pharmacyIds
+     * @return array{
+     *   sops: array{total:int,read:int,unread:int,unread_ids:list<int>},
+     *   policies: array{total:int,read:int,unread:int,unread_ids:list<int>,unread_names:list<string>},
+     *   sop_read_pct: ?int,
+     *   policy_read_pct: ?int,
+     *   needs_reminder: bool
+     * }
+     */
+    private function staffApplicableDocumentStats(
+        int $organizationId,
+        int $userId,
+        string $userType,
+        array $pharmacyIds
+    ): array {
+        $applicableSopIds = $this->applicablePublishedDocIds(
+            'sops',
+            'sop_pharmacy',
+            'sop_id',
+            'sop_user_type',
+            $organizationId,
+            $userType,
+            $pharmacyIds
+        );
+        $applicablePolicyIds = $this->applicablePublishedDocIds(
+            'policies',
+            'policy_pharmacy',
+            'policy_id',
+            'policy_user_type',
+            $organizationId,
+            $userType,
+            $pharmacyIds
+        );
+
+        $readSopIds = [];
+        if ($applicableSopIds !== [] && Schema::hasTable('sops_users')) {
+            $readSopIds = DB::table('sops_users')
+                ->where('user_id', $userId)
+                ->whereIn('status', ['read', 'complete'])
+                ->whereIn('sop_id', $applicableSopIds)
+                ->pluck('sop_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        }
+
+        $readPolicyIds = [];
+        if ($applicablePolicyIds !== [] && Schema::hasTable('policies_users')) {
+            $readPolicyIds = DB::table('policies_users')
+                ->where('user_id', $userId)
+                ->whereIn('status', ['read', 'complete'])
+                ->whereIn('policy_id', $applicablePolicyIds)
+                ->pluck('policy_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        }
+
+        $unreadSopIds = array_values(array_diff($applicableSopIds, $readSopIds));
+        $unreadPolicyIds = array_values(array_diff($applicablePolicyIds, $readPolicyIds));
+
+        $unreadPolicyNames = [];
+        if ($unreadPolicyIds !== [] && Schema::hasTable('policies') && Schema::hasColumn('policies', 'policy_name')) {
+            $unreadPolicyNames = DB::table('policies')
+                ->whereIn('id', $unreadPolicyIds)
+                ->orderBy('policy_name')
+                ->pluck('policy_name')
+                ->map(fn ($name) => (string) $name)
+                ->values()
+                ->all();
+        }
+
+        $sopTotal = count($applicableSopIds);
+        $sopRead = count(array_intersect($applicableSopIds, $readSopIds));
+        $policyTotal = count($applicablePolicyIds);
+        $policyRead = count(array_intersect($applicablePolicyIds, $readPolicyIds));
+
+        return [
+            'sops' => [
+                'total' => $sopTotal,
+                'read' => $sopRead,
+                'unread' => count($unreadSopIds),
+                'unread_ids' => $unreadSopIds,
+            ],
+            'policies' => [
+                'total' => $policyTotal,
+                'read' => $policyRead,
+                'unread' => count($unreadPolicyIds),
+                'unread_ids' => $unreadPolicyIds,
+                'unread_names' => $unreadPolicyNames,
+            ],
+            'sop_read_pct' => $sopTotal > 0 ? (int) round(($sopRead / $sopTotal) * 100) : null,
+            'policy_read_pct' => $policyTotal > 0 ? (int) round(($policyRead / $policyTotal) * 100) : null,
+            'needs_reminder' => $unreadSopIds !== [] || $unreadPolicyIds !== [],
+        ];
+    }
+
+    /**
+     * @param  array<int, int>  $pharmacyIds
+     * @return list<int>
+     */
+    private function applicablePublishedDocIds(
+        string $docsTable,
+        string $pharmacyPivotTable,
+        string $docFk,
+        string $userTypePivotTable,
+        int $organizationId,
+        string $userType,
+        array $pharmacyIds
+    ): array {
+        if (! Schema::hasTable($docsTable)) {
+            return [];
+        }
+
+        $query = DB::table($docsTable)
+            ->where('created_by', $organizationId)
+            ->where('status', 'published');
+
+        if ($pharmacyIds !== [] && Schema::hasTable($pharmacyPivotTable)) {
+            $query->whereIn('id', function ($sub) use ($pharmacyPivotTable, $docFk, $pharmacyIds) {
+                $sub->select($docFk)
+                    ->from($pharmacyPivotTable)
+                    ->whereIn('pharmacy_id', $pharmacyIds);
+            });
+        }
+
+        $allIds = $query->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($allIds === []) {
+            return [];
+        }
+
+        if ($userType === '' || ! Schema::hasTable($userTypePivotTable)) {
+            return array_values(array_unique($allIds));
+        }
+
+        $withTypes = DB::table($userTypePivotTable)
+            ->whereIn($docFk, $allIds)
+            ->pluck($docFk)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->all();
+        $withoutTypes = array_values(array_diff($allIds, $withTypes));
+        $assignedToUser = DB::table($userTypePivotTable)
+            ->whereIn($docFk, $allIds)
+            ->where('user_type', $userType)
+            ->pluck($docFk)
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return array_values(array_unique(array_merge($withoutTypes, $assignedToUser)));
     }
 
     private function notFound(string $message)

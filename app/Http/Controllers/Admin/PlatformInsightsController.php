@@ -19,7 +19,7 @@ class PlatformInsightsController extends Controller
         abort_unless((bool) config('features.platform_insights', false), 404);
 
         $validated = $request->validate([
-            'period' => 'nullable|in:15d,30d,2m,3m,custom',
+            'period' => 'nullable|in:15d,30d,2m,3m,all,custom',
             'from' => 'nullable|date',
             'to' => 'nullable|date',
             'organization_id' => 'nullable|integer|min:1',

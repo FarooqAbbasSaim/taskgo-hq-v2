@@ -20,6 +20,8 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString('function formatAllTimeCopyText', $service);
         $this->assertStringContainsString('function resolvePeriod', $service);
         $this->assertStringContainsString('function pharmacyOptions', $service);
+        $this->assertStringContainsString('function organizationOptions', $service);
+        $this->assertStringContainsString('function pharmacyIdsForOrganization', $service);
         $this->assertStringContainsString("'mvp_opt_ins'", $service);
         $this->assertStringContainsString("'mvp_participants'", $service);
         $this->assertStringContainsString("'dispensing_error_top_reasons'", $service);
@@ -53,10 +55,30 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString('platformInsightsCopyAllTimeBtn', $view);
         $this->assertStringContainsString('Copy period as text', $view);
         $this->assertStringContainsString('Copy all-time as text', $view);
-        $this->assertStringContainsString('insightsPharmacy', $view);
+        $this->assertStringContainsString('insightsOrganization', $view);
+        $this->assertStringContainsString('organization_id', $view);
+        $this->assertStringContainsString('data-organization-id', $view);
+        $this->assertStringContainsString('filterPharmaciesByOrganization', $view);
+        $this->assertStringContainsString('pharmacy_ids[]', $view);
+        $this->assertStringContainsString('insights-pharmacy-check', $view);
+        $this->assertStringContainsString('insightsPharmacySelectAll', $view);
+        $this->assertStringContainsString('insightsPharmacyClear', $view);
         $this->assertStringContainsString('insightsPeriod', $view);
         $this->assertStringContainsString('insights-custom-dates', $view);
         $this->assertStringContainsString('by_service', $view);
+    }
+
+    public function test_normalize_pharmacy_ids_supports_multi_and_legacy_single(): void
+    {
+        $service = new PlatformInsightsService();
+
+        $this->assertSame([12, 34], $service->normalizePharmacyIds([
+            'pharmacy_ids' => ['12', 34, 0, 'x'],
+        ]));
+        $this->assertSame([9], $service->normalizePharmacyIds([
+            'pharmacy_id' => 9,
+        ]));
+        $this->assertSame([], $service->normalizePharmacyIds([]));
     }
 
     public function test_resolve_period_presets_and_custom(): void
@@ -87,7 +109,9 @@ class PlatformInsightsMvpMetricsTest extends TestCase
                 'period_label' => 'Last 2 months',
                 'from_label' => 'Aug 16, 2026',
                 'to_label' => 'Oct 16, 2026',
-                'pharmacy_name' => 'Drinagh Pharmacy, Dunmanway',
+                'pharmacy_name' => '2 pharmacies selected',
+                'pharmacy_names' => ['Drinagh Pharmacy, Dunmanway', 'Drinagh Pharmacy, Bantry'],
+                'pharmacy_ids' => [213, 215],
                 'appointments' => [
                     'booked' => 10,
                     'non_cancelled' => 12,
@@ -130,7 +154,8 @@ class PlatformInsightsMvpMetricsTest extends TestCase
 
         $this->assertStringContainsString('Period stats', $recent);
         $this->assertStringContainsString('Last 2 months', $recent);
-        $this->assertStringContainsString('Drinagh Pharmacy, Dunmanway', $recent);
+        $this->assertStringContainsString('2 pharmacies selected', $recent);
+        $this->assertStringContainsString('Drinagh Pharmacy, Bantry', $recent);
         $this->assertStringContainsString('Booked (excl. cancelled & waitlist): 10', $recent);
         $this->assertStringContainsString('Flu Vaccination', $recent);
         $this->assertStringNotContainsString('All-time snapshot', $recent);

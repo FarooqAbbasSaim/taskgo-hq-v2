@@ -61,6 +61,9 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString("appointments']['attended']", $view);
         $this->assertStringContainsString('Offsite vaccine portal registrations', $view);
         $this->assertStringContainsString("mvp_registrations']['total']", $view);
+        $this->assertStringContainsString("mvp_registrations']['children']", $view);
+        $this->assertStringContainsString("mvp_registrations']['teachers']", $view);
+        $this->assertStringContainsString("mvp_registrations']['employees']", $view);
         $this->assertStringContainsString('platformInsightsCopyRecentBtn', $view);
         $this->assertStringContainsString('platformInsightsCopyAllTimeBtn', $view);
         $this->assertStringContainsString('Copy period as text', $view);
@@ -138,6 +141,10 @@ class PlatformInsightsMvpMetricsTest extends TestCase
                 'mvp_registrations' => [
                     'schools' => 20,
                     'corporates' => 8,
+                    'children' => 15,
+                    'teachers' => 3,
+                    'students' => 2,
+                    'employees' => 8,
                     'total' => 28,
                     'note' => 'Offsite registrations.',
                 ],
@@ -181,6 +188,10 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString('Booked (excl. cancelled & waitlist): 10', $recent);
         $this->assertStringContainsString('Attended only (claimed + legacy attended): 7', $recent);
         $this->assertStringContainsString('Offsite vaccine portal registrations', $recent);
+        $this->assertStringContainsString('Children: 15', $recent);
+        $this->assertStringContainsString('Teachers: 3', $recent);
+        $this->assertStringContainsString('Students (18+): 2', $recent);
+        $this->assertStringContainsString('Employees: 8', $recent);
         $this->assertStringContainsString('Total: 28', $recent);
         $this->assertStringContainsString('Flu Vaccination', $recent);
         $this->assertStringNotContainsString('All-time snapshot', $recent);

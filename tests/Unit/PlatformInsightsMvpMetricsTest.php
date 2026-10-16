@@ -35,6 +35,7 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString('mvp_corporate_employee_forms', $service);
         $this->assertStringContainsString('vaccination_outcome', $service);
         $this->assertStringContainsString('15d', $service);
+        $this->assertStringContainsString("'all' => 'All time'", $service);
         $this->assertStringContainsString('custom', $service);
     }
 
@@ -94,6 +95,11 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $twoMonths = $service->resolvePeriod(['period' => '2m']);
         $this->assertSame('2m', $twoMonths['period']);
         $this->assertSame('Last 2 months', $twoMonths['period_label']);
+
+        $allTime = $service->resolvePeriod(['period' => 'all']);
+        $this->assertSame('all', $allTime['period']);
+        $this->assertSame('All time', $allTime['period_label']);
+        $this->assertSame('2000-01-01', $allTime['from_input']);
 
         $custom = $service->resolvePeriod([
             'period' => 'custom',

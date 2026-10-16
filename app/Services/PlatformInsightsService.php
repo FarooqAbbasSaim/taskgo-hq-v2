@@ -456,6 +456,7 @@ class PlatformInsightsService
         '30d' => 'Last 30 days',
         '2m' => 'Last 2 months',
         '3m' => 'Last 3 months',
+        'all' => 'All time',
         'custom' => 'Custom range',
     ];
 
@@ -661,6 +662,8 @@ class PlatformInsightsService
             $from = now()->subMonths(2)->startOfDay();
         } elseif ($period === '3m') {
             $from = now()->subMonths(3)->startOfDay();
+        } elseif ($period === 'all') {
+            $from = \Carbon\Carbon::create(2000, 1, 1, 0, 0, 0, config('app.timezone'))->startOfDay();
         } elseif ($period === 'custom') {
             try {
                 $fromRaw = trim((string) ($filters['from'] ?? ''));

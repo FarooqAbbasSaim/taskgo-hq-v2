@@ -68,6 +68,10 @@
                 </div></div>
             </div>
         </div>
+        <div id="staffDocReminderAlert" class="alert alert-warning d-none mb-4" role="alert">
+            <div class="fw-semibold mb-1">Would receive SOP/Policy reminders</div>
+            <div class="small mb-0" id="staffDocReminderDetail"></div>
+        </div>
 
         <div class="card">
             <div class="card-header">
@@ -297,9 +301,35 @@ class StaffViewManager {
         const sop = stats.sops || {};
         const pol = stats.policies || {};
         document.getElementById('statSopRead').textContent = `${sop.read || 0}/${sop.total || 0}`;
-        document.getElementById('statSopPct').textContent = stats.sop_read_pct !== null ? `${stats.sop_read_pct}%` : '—';
+        document.getElementById('statSopPct').textContent = stats.sop_read_pct !== null && stats.sop_read_pct !== undefined
+            ? `${stats.sop_read_pct}%`
+            : '—';
         document.getElementById('statPolicyRead').textContent = `${pol.read || 0}/${pol.total || 0}`;
-        document.getElementById('statPolicyPct').textContent = stats.policy_read_pct !== null ? `${stats.policy_read_pct}%` : '—';
+        document.getElementById('statPolicyPct').textContent = stats.policy_read_pct !== null && stats.policy_read_pct !== undefined
+            ? `${stats.policy_read_pct}%`
+            : '—';
+
+        const reminderAlert = document.getElementById('staffDocReminderAlert');
+        const reminderDetail = document.getElementById('staffDocReminderDetail');
+        if (reminderAlert && reminderDetail) {
+            if (stats.needs_reminder) {
+                const parts = [];
+                if ((sop.unread || 0) > 0) {
+                    parts.push(`${sop.unread} unread SOP(s)`);
+                }
+                if ((pol.unread || 0) > 0) {
+                    const names = Array.isArray(pol.unread_names) && pol.unread_names.length
+                        ? `: ${pol.unread_names.join('; ')}`
+                        : '';
+                    parts.push(`${pol.unread} unread polic${pol.unread === 1 ? 'y' : 'ies'}${names}`);
+                }
+                reminderDetail.textContent = parts.join(' · ') || 'Outstanding documents remain.';
+                reminderAlert.classList.remove('d-none');
+            } else {
+                reminderAlert.classList.add('d-none');
+                reminderDetail.textContent = '';
+            }
+        }
 
         const authLink = document.getElementById('authLogLink');
         if (authLink) authLink.href = `/admin/crm-auth-events?user_id=${user.id}`;

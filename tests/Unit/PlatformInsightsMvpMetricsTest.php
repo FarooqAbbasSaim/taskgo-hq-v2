@@ -26,6 +26,8 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString("'mvp_participants'", $service);
         $this->assertStringContainsString("'dispensing_error_top_reasons'", $service);
         $this->assertStringContainsString("'recent'", $service);
+        $this->assertStringContainsString("'attended'", $service);
+        $this->assertStringContainsString("whereIn('appointments.status', ['claimed', 'attended'])", $service);
         $this->assertStringContainsString("'copy_text_recent'", $service);
         $this->assertStringContainsString("'copy_text_all_time'", $service);
         $this->assertStringContainsString("participant_type', 'teacher'", $service);
@@ -51,6 +53,8 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString("mvp_participants']['employees']", $view);
         $this->assertStringContainsString('dispensing_error_top_reasons', $view);
         $this->assertStringContainsString('Participants vaccinated', $view);
+        $this->assertStringContainsString('Attended only:', $view);
+        $this->assertStringContainsString("appointments']['attended']", $view);
         $this->assertStringContainsString('platformInsightsCopyRecentBtn', $view);
         $this->assertStringContainsString('platformInsightsCopyAllTimeBtn', $view);
         $this->assertStringContainsString('Copy period as text', $view);
@@ -114,6 +118,7 @@ class PlatformInsightsMvpMetricsTest extends TestCase
                 'pharmacy_ids' => [213, 215],
                 'appointments' => [
                     'booked' => 10,
+                    'attended' => 7,
                     'non_cancelled' => 12,
                     'total' => 15,
                     'note' => 'Combined total.',
@@ -157,6 +162,7 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString('2 pharmacies selected', $recent);
         $this->assertStringContainsString('Drinagh Pharmacy, Bantry', $recent);
         $this->assertStringContainsString('Booked (excl. cancelled & waitlist): 10', $recent);
+        $this->assertStringContainsString('Attended only (claimed + legacy attended): 7', $recent);
         $this->assertStringContainsString('Flu Vaccination', $recent);
         $this->assertStringNotContainsString('All-time snapshot', $recent);
 

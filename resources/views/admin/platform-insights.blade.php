@@ -3,6 +3,17 @@
 @section('content')
     <div class="row mt-4">
         <div class="col-12">
+            @php
+                $recent = $insights['recent'] ?? [];
+                $filters = $insights['filters'] ?? [];
+                $periodOptions = $insights['period_options'] ?? [];
+                $organizationOptions = $insights['organization_options'] ?? [];
+                $pharmacyOptions = $insights['pharmacy_options'] ?? [];
+                $selectedPeriod = $filters['period'] ?? ($recent['period'] ?? '2m');
+                $selectedOrganizationId = $filters['organization_id'] ?? ($recent['organization_id'] ?? null);
+                $selectedPharmacyIds = array_map('intval', $filters['pharmacy_ids'] ?? ($recent['pharmacy_ids'] ?? []));
+            @endphp
+
             <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                 <div>
                     <h4 class="mb-0">Platform Insights</h4>
@@ -19,6 +30,316 @@
             @if(!empty($error))
                 <div class="alert alert-danger">{{ $error }}</div>
             @endif
+
+            <div class="card mb-4 border-primary-subtle">
+                <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div>
+                        <h5 class="card-title mb-0">{{ $recent['period_label'] ?? 'Last 2 months' }}</h5>
+                        <div class="text-muted small">
+                            {{ $recent['from_label'] ?? '—' }} – {{ $recent['to_label'] ?? '—' }}
+                            · {{ $recent['organization_name'] ?? 'All organizations' }}
+                            · {{ $recent['pharmacy_name'] ?? 'All pharmacies' }}
+                        </div>
+                    </div>
+                    <button type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        id="platformInsightsCopyRecentBtn">
+                        <i class="ti ti-copy me-1"></i>
+                        <span class="platform-insights-copy-recent-label">Copy period as text</span>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{{ route('admin.platform-insights') }}" class="mb-4" id="platformInsightsFilterForm">
+                        <div class="row g-3 align-items-start">
+                            <div class="col-lg-3 col-md-6">
+                                <label for="insightsOrganization" class="form-label small text-muted mb-1 insights-filter-label">Organization</label>
+                                <select name="organization_id" id="insightsOrganization" class="form-select form-select-sm">
+                                    <option value="">All organizations</option>
+                                    @foreach($organizationOptions as $organization)
+                                        <option value="{{ $organization['id'] }}" @selected((int) $selectedOrganizationId === (int) $organization['id'])>
+                                            {{ $organization['name'] }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <div class="form-label small text-muted mb-1 insights-filter-label d-flex align-items-center justify-content-between gap-2">
+                                    <span>Pharmacies</span>
+                                    <span class="fw-normal text-nowrap">
+                                        <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="insightsPharmacySelectAll">Select all</button>
+                                        <span class="text-muted">·</span>
+                                        <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="insightsPharmacyClear">Clear</button>
+                                    </span>
+                                </div>
+                                <div class="border rounded bg-body-tertiary px-2 py-1 insights-pharmacy-list" id="insightsPharmacyList">
+                                    @forelse($pharmacyOptions as $pharmacy)
+                                        <div class="form-check mb-1 insights-pharmacy-item"
+                                            data-organization-id="{{ $pharmacy['organization_id'] ?? '' }}">
+                                            <input class="form-check-input insights-pharmacy-check"
+                                                type="checkbox"
+                                                name="pharmacy_ids[]"
+                                                id="insightsPharmacy{{ $pharmacy['id'] }}"
+                                                value="{{ $pharmacy['id'] }}"
+                                                @checked(in_array((int) $pharmacy['id'], $selectedPharmacyIds, true))>
+                                            <label class="form-check-label small" for="insightsPharmacy{{ $pharmacy['id'] }}">
+                                                {{ $pharmacy['name'] }}
+                                            </label>
+                                        </div>
+                                    @empty
+                                        <div class="text-muted small py-1">No pharmacies found.</div>
+                                    @endforelse
+                                    <div class="text-muted small d-none py-1" id="insightsPharmacyEmptyOrg">No pharmacies for this organization.</div>
+                                </div>
+                            </div>
+                            <div class="col-lg-2 col-md-4">
+                                <label for="insightsPeriod" class="form-label small text-muted mb-1 insights-filter-label">Time period</label>
+                                <select name="period" id="insightsPeriod" class="form-select form-select-sm">
+                                    @foreach($periodOptions as $value => $label)
+                                        <option value="{{ $value }}" @selected($selectedPeriod === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-lg-2 col-md-4 insights-custom-dates {{ $selectedPeriod === 'custom' ? '' : 'd-none' }}">
+                                <label for="insightsFrom" class="form-label small text-muted mb-1 insights-filter-label">From</label>
+                                <input type="date" name="from" id="insightsFrom" class="form-control form-control-sm"
+                                    value="{{ $filters['from'] ?? ($recent['from_input'] ?? '') }}">
+                            </div>
+                            <div class="col-lg-2 col-md-4 insights-custom-dates {{ $selectedPeriod === 'custom' ? '' : 'd-none' }}">
+                                <label for="insightsTo" class="form-label small text-muted mb-1 insights-filter-label">To</label>
+                                <input type="date" name="to" id="insightsTo" class="form-control form-control-sm"
+                                    value="{{ $filters['to'] ?? ($recent['to_input'] ?? '') }}">
+                            </div>
+                            <div class="col-lg-auto col-md-4">
+                                <label class="form-label small text-muted mb-1 insights-filter-label d-block">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                            </div>
+                        </div>
+                        <div class="text-muted small mt-2">
+                            Pick an organization to narrow pharmacies. Leave pharmacies empty for all in scope.
+                        </div>
+                    </form>
+
+                    <style>
+                        #platformInsightsFilterForm .insights-filter-label {
+                            min-height: 1.25rem;
+                            line-height: 1.25rem;
+                            margin-bottom: 0.25rem;
+                        }
+                        #platformInsightsFilterForm .insights-pharmacy-list {
+                            min-height: calc(1.5em + 0.5rem + 2px); /* match form-select-sm */
+                            max-height: 8.5rem;
+                            overflow: auto;
+                        }
+                        #platformInsightsFilterForm .form-select-sm,
+                        #platformInsightsFilterForm .form-control-sm,
+                        #platformInsightsFilterForm .btn-sm {
+                            min-height: calc(1.5em + 0.5rem + 2px);
+                        }
+                    </style>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-lg-3 col-md-6">
+                            <div class="text-muted small mb-1">Appointments booked</div>
+                            <div class="fs-3 fw-semibold">
+                                @if(($recent['appointments']['booked'] ?? null) === null)
+                                    <span class="text-muted">N/A</span>
+                                @else
+                                    {{ number_format($recent['appointments']['booked']) }}
+                                @endif
+                            </div>
+                            <ul class="small text-muted mb-0 mt-2 ps-3">
+                                <li>Attended only:
+                                    @if(($recent['appointments']['attended'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['appointments']['attended']) }}
+                                    @endif
+                                </li>
+                                <li>Non-cancelled (incl. waitlist):
+                                    @if(($recent['appointments']['non_cancelled'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['appointments']['non_cancelled']) }}
+                                    @endif
+                                </li>
+                                <li>All statuses:
+                                    @if(($recent['appointments']['total'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['appointments']['total']) }}
+                                    @endif
+                                </li>
+                            </ul>
+                            @if(!empty($recent['appointments']['note']))
+                                <div class="text-muted small mt-2">{{ $recent['appointments']['note'] }}</div>
+                            @endif
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <div class="text-muted small mb-1">School / corporate opt-ins</div>
+                            <div class="fs-3 fw-semibold">
+                                @if(($recent['mvp_opt_ins']['total'] ?? null) === null)
+                                    <span class="text-muted">N/A</span>
+                                @else
+                                    {{ number_format($recent['mvp_opt_ins']['total']) }}
+                                @endif
+                            </div>
+                            <ul class="small text-muted mb-0 mt-2 ps-3">
+                                <li>Schools:
+                                    @if(($recent['mvp_opt_ins']['schools'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_opt_ins']['schools']) }}
+                                    @endif
+                                </li>
+                                <li>Corporates:
+                                    @if(($recent['mvp_opt_ins']['corporates'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_opt_ins']['corporates']) }}
+                                    @endif
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <div class="text-muted small mb-1">Offsite vaccine portal registrations</div>
+                            <div class="fs-3 fw-semibold">
+                                @if(($recent['mvp_registrations']['total'] ?? null) === null)
+                                    <span class="text-muted">N/A</span>
+                                @else
+                                    {{ number_format($recent['mvp_registrations']['total']) }}
+                                @endif
+                            </div>
+                            <ul class="small text-muted mb-0 mt-2 ps-3">
+                                <li>Children:
+                                    @if(($recent['mvp_registrations']['children'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['children']) }}
+                                    @endif
+                                </li>
+                                <li>Teachers:
+                                    @if(($recent['mvp_registrations']['teachers'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['teachers']) }}
+                                    @endif
+                                </li>
+                                <li>Students (18+):
+                                    @if(($recent['mvp_registrations']['students'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['students']) }}
+                                    @endif
+                                </li>
+                                <li>Employees:
+                                    @if(($recent['mvp_registrations']['employees'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['employees']) }}
+                                    @endif
+                                </li>
+                                <li class="mt-1">School forms:
+                                    @if(($recent['mvp_registrations']['schools'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['schools']) }}
+                                    @endif
+                                    · Corporate forms:
+                                    @if(($recent['mvp_registrations']['corporates'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['mvp_registrations']['corporates']) }}
+                                    @endif
+                                </li>
+                            </ul>
+                            @if(!empty($recent['mvp_registrations']['note']))
+                                <div class="text-muted small mt-2">{{ $recent['mvp_registrations']['note'] }}</div>
+                            @endif
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <div class="text-muted small mb-1">Participants vaccinated</div>
+                            <div class="fs-3 fw-semibold">
+                                @if(($recent['vaccinated']['total'] ?? null) === null)
+                                    <span class="text-muted">N/A</span>
+                                @else
+                                    {{ number_format($recent['vaccinated']['total']) }}
+                                @endif
+                            </div>
+                            <ul class="small text-muted mb-0 mt-2 ps-3">
+                                <li>Schools:
+                                    @if(($recent['vaccinated']['schools'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['vaccinated']['schools']) }}
+                                    @endif
+                                </li>
+                                <li>Corporates:
+                                    @if(($recent['vaccinated']['corporates'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($recent['vaccinated']['corporates']) }}
+                                    @endif
+                                </li>
+                            </ul>
+                            @if(!empty($recent['vaccinated']['note']))
+                                <div class="text-muted small mt-2">{{ $recent['vaccinated']['note'] }}</div>
+                            @endif
+                        </div>
+                    </div>
+
+                    @php $byService = $recent['by_service'] ?? []; @endphp
+                    <div class="border-top pt-3">
+                        <div class="d-flex align-items-baseline justify-content-between flex-wrap gap-2 mb-2">
+                            <div>
+                                <div class="fw-semibold">{{ $byService['title'] ?? 'By service' }}</div>
+                                <div class="text-muted small">
+                                    Total booked:
+                                    @if(($byService['total'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($byService['total']) }}
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Service</th>
+                                        <th class="text-end" style="width: 8rem;">Bookings</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($byService['rows'] ?? [] as $row)
+                                        <tr>
+                                            <td>{{ $row['name'] }}</td>
+                                            <td class="text-end">{{ number_format($row['count']) }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="2" class="text-muted text-center py-3">No bookings in this window for the selected scope.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                        @if(!empty($byService['note']))
+                            <div class="text-muted small mt-2">{{ $byService['note'] }}</div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <h5 class="mb-0">All-time snapshot</h5>
+                <button type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    id="platformInsightsCopyAllTimeBtn">
+                    <i class="ti ti-copy me-1"></i>
+                    <span class="platform-insights-copy-all-time-label">Copy all-time as text</span>
+                </button>
+            </div>
 
             <div class="row g-3 mb-4">
                 <div class="col-md-4">
@@ -47,7 +368,16 @@
                                     {{ number_format($insights['dispensing_error_logs_total']) }}
                                 @endif
                             </div>
-                            <div class="text-muted small mt-2">All records in dispensing_error_logs.</div>
+                            @if(!empty($insights['dispensing_error_top_reasons']))
+                                <div class="text-muted small mt-2 mb-1">Top 3 reasons (dropdown type)</div>
+                                <ul class="small text-muted mb-0 ps-3">
+                                    @foreach($insights['dispensing_error_top_reasons'] as $row)
+                                        <li>{{ $row['name'] }}: {{ number_format((int) ($row['count'] ?? 0)) }}</li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <div class="text-muted small mt-2">All records in dispensing_error_logs.</div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -72,6 +402,89 @@
                             @if(!empty($insights['whatsapp']['note']))
                                 <div class="text-muted small mt-2">{{ $insights['whatsapp']['note'] }}</div>
                             @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small mb-1">MVP opt-ins (all time)</div>
+                            <div class="fs-3 fw-semibold">
+                                @if(($insights['mvp_opt_ins']['total'] ?? null) === null)
+                                    <span class="text-muted">N/A</span>
+                                @else
+                                    {{ number_format($insights['mvp_opt_ins']['total']) }}
+                                @endif
+                            </div>
+                            <ul class="small text-muted mb-0 mt-2 ps-3">
+                                <li>
+                                    Schools:
+                                    @if(($insights['mvp_opt_ins']['schools'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_opt_ins']['schools']) }}
+                                    @endif
+                                </li>
+                                <li>
+                                    Corporates:
+                                    @if(($insights['mvp_opt_ins']['corporates'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_opt_ins']['corporates']) }}
+                                    @endif
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small mb-1">MVP registered participants (all time)</div>
+                            <div class="fs-3 fw-semibold">
+                                @if(($insights['mvp_participants']['total'] ?? null) === null)
+                                    <span class="text-muted">N/A</span>
+                                @else
+                                    {{ number_format($insights['mvp_participants']['total']) }}
+                                @endif
+                            </div>
+                            <ul class="small text-muted mb-0 mt-2 ps-3">
+                                <li>
+                                    Children:
+                                    @if(($insights['mvp_participants']['children'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_participants']['children']) }}
+                                    @endif
+                                </li>
+                                <li>
+                                    Teachers:
+                                    @if(($insights['mvp_participants']['teachers'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_participants']['teachers']) }}
+                                    @endif
+                                </li>
+                                <li>
+                                    Students (18+):
+                                    @if(($insights['mvp_participants']['students'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_participants']['students']) }}
+                                    @endif
+                                </li>
+                                <li>
+                                    Employees:
+                                    @if(($insights['mvp_participants']['employees'] ?? null) === null)
+                                        N/A
+                                    @else
+                                        {{ number_format($insights['mvp_participants']['employees']) }}
+                                    @endif
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>
@@ -229,10 +642,136 @@
 (function () {
     const ordersUrl = @json(route('admin.platform-insights.medication-orders'));
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const insightsCopyRecent = @json($insights['copy_text_recent'] ?? '');
+    const insightsCopyAllTime = @json($insights['copy_text_all_time'] ?? '');
+    const periodSelect = document.getElementById('insightsPeriod');
+    const customDateFields = document.querySelectorAll('.insights-custom-dates');
 
     let currentMedication = '';
     let currentPage = 1;
     let lastPage = 1;
+
+    function toggleCustomDates() {
+        const isCustom = periodSelect && periodSelect.value === 'custom';
+        customDateFields.forEach((el) => {
+            el.classList.toggle('d-none', !isCustom);
+        });
+    }
+
+    if (periodSelect) {
+        periodSelect.addEventListener('change', toggleCustomDates);
+        toggleCustomDates();
+    }
+
+    const organizationSelect = document.getElementById('insightsOrganization');
+    const pharmacyItems = () => Array.from(document.querySelectorAll('.insights-pharmacy-item'));
+    const visiblePharmacyChecks = () => pharmacyItems()
+        .filter((item) => !item.classList.contains('d-none'))
+        .map((item) => item.querySelector('.insights-pharmacy-check'))
+        .filter(Boolean);
+    const pharmacyEmptyOrg = document.getElementById('insightsPharmacyEmptyOrg');
+
+    function filterPharmaciesByOrganization() {
+        const orgId = organizationSelect ? String(organizationSelect.value || '') : '';
+        let visibleCount = 0;
+
+        pharmacyItems().forEach((item) => {
+            const itemOrg = String(item.getAttribute('data-organization-id') || '');
+            const matches = orgId === '' || itemOrg === orgId;
+            item.classList.toggle('d-none', !matches);
+            const check = item.querySelector('.insights-pharmacy-check');
+            if (!matches && check) {
+                check.checked = false;
+            }
+            if (matches) {
+                visibleCount += 1;
+            }
+        });
+
+        if (pharmacyEmptyOrg) {
+            pharmacyEmptyOrg.classList.toggle('d-none', orgId === '' || visibleCount > 0);
+        }
+    }
+
+    organizationSelect?.addEventListener('change', filterPharmaciesByOrganization);
+    filterPharmaciesByOrganization();
+
+    document.getElementById('insightsPharmacySelectAll')?.addEventListener('click', () => {
+        visiblePharmacyChecks().forEach((el) => { el.checked = true; });
+    });
+    document.getElementById('insightsPharmacyClear')?.addEventListener('click', () => {
+        visiblePharmacyChecks().forEach((el) => { el.checked = false; });
+    });
+
+    document.getElementById('platformInsightsFilterForm')?.addEventListener('submit', () => {
+        // Don't submit hidden (out-of-org) pharmacy checkboxes.
+        pharmacyItems().forEach((item) => {
+            if (item.classList.contains('d-none')) {
+                const check = item.querySelector('.insights-pharmacy-check');
+                if (check) {
+                    check.disabled = true;
+                }
+            }
+        });
+    });
+
+    async function copyTextToClipboard(text, labelEl, idleLabel) {
+        if (!String(text || '').trim()) {
+            return;
+        }
+
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.setAttribute('readonly', '');
+                textarea.style.position = 'absolute';
+                textarea.style.left = '-9999px';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+
+            if (labelEl) {
+                labelEl.textContent = 'Copied';
+                setTimeout(() => {
+                    if (labelEl) labelEl.textContent = idleLabel;
+                }, 1500);
+            }
+        } catch (err) {
+            console.error('Copy platform insights failed:', err);
+            if (labelEl) {
+                labelEl.textContent = 'Copy failed';
+                setTimeout(() => {
+                    if (labelEl) labelEl.textContent = idleLabel;
+                }, 2000);
+            }
+        }
+    }
+
+    const copyRecentBtn = document.getElementById('platformInsightsCopyRecentBtn');
+    const copyAllTimeBtn = document.getElementById('platformInsightsCopyAllTimeBtn');
+    if (copyRecentBtn) {
+        copyRecentBtn.addEventListener('click', () => {
+            copyTextToClipboard(
+                insightsCopyRecent,
+                copyRecentBtn.querySelector('.platform-insights-copy-recent-label'),
+                'Copy period as text'
+            );
+        });
+    }
+    if (copyAllTimeBtn) {
+        copyAllTimeBtn.addEventListener('click', () => {
+            copyTextToClipboard(
+                insightsCopyAllTime,
+                copyAllTimeBtn.querySelector('.platform-insights-copy-all-time-label'),
+                'Copy all-time as text'
+            );
+        });
+    }
 
     function getModal(id) {
         if (typeof window.bootstrap === 'undefined') {

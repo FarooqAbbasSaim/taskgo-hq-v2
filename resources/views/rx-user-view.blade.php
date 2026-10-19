@@ -13,8 +13,17 @@
                             <h4 class="mb-1" id="userFullName">Loading...</h4>
                             <p class="text-muted mb-0" id="userEmail">Loading...</p>
                         </div>
-                        <div class="text-end">
+                        <div class="text-end d-flex align-items-center gap-2">
                             <span class="badge bg-primary" id="userStatus">Active</span>
+                            @if(config('features.rx_user_hard_delete'))
+                                <button type="button"
+                                    class="btn btn-outline-danger btn-sm"
+                                    id="rxUserHardDeleteBtn"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#rxUserHardDeleteModal">
+                                    <i class="ti ti-trash me-1"></i>Delete patient
+                                </button>
+                            @endif
                         </div>
                     </div>
                     <div class="row mt-3">
@@ -427,6 +436,55 @@
         </div>
     </div>
 </div>
+
+@if(config('features.rx_user_hard_delete'))
+<div class="modal fade" id="rxUserHardDeleteModal" tabindex="-1" aria-labelledby="rxUserHardDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger" id="rxUserHardDeleteModalLabel">Delete patient permanently?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Review everything that will be permanently deleted:</p>
+                <div id="rxUserHardDeletePreviewLoading" class="text-muted small py-3">
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Loading related data…
+                </div>
+                <div id="rxUserHardDeletePreviewError" class="alert alert-danger d-none mb-0"></div>
+                <div id="rxUserHardDeletePreviewContent" class="d-none">
+                    <div class="border rounded p-3 mb-3 bg-light">
+                        <div class="fw-semibold mb-1">Patient profile</div>
+                        <div id="rxUserHardDeletePreviewUser" class="small"></div>
+                    </div>
+                    <div class="row g-2 mb-3" id="rxUserHardDeletePreviewCounts"></div>
+                    <div class="mb-3">
+                        <div class="fw-semibold mb-2">Orders to delete</div>
+                        <div id="rxUserHardDeletePreviewOrders" class="small"></div>
+                    </div>
+                    <div class="mb-0">
+                        <div class="fw-semibold mb-2">Appointments to delete</div>
+                        <div id="rxUserHardDeletePreviewAppointments" class="small"></div>
+                    </div>
+                </div>
+                <p class="mb-0 text-muted small mt-3">This cannot be undone. Soft-delete / archive will come later.</p>
+                <div class="alert alert-warning mt-3 mb-0 d-none" id="rxUserHardDeleteSummary"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary me-auto" id="rxUserHardDeleteCopyBtn" disabled>
+                    <i class="ti ti-copy me-1"></i>
+                    <span class="rx-copy-label">Copy as text</span>
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="rxUserHardDeleteConfirmBtn" disabled>
+                    <span class="rx-delete-label">Delete permanently</span>
+                    <span class="rx-delete-spinner spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 @endsection
 
@@ -981,6 +1039,315 @@ class RxUserViewManager {
         const bsToast = new bootstrap.Toast(toast);
         bsToast.show();
     }
+
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    resetHardDeletePreviewUi() {
+        this.hardDeletePreviewData = null;
+        const loading = document.getElementById('rxUserHardDeletePreviewLoading');
+        const error = document.getElementById('rxUserHardDeletePreviewError');
+        const content = document.getElementById('rxUserHardDeletePreviewContent');
+        const summaryEl = document.getElementById('rxUserHardDeleteSummary');
+        const confirmBtn = document.getElementById('rxUserHardDeleteConfirmBtn');
+        const copyBtn = document.getElementById('rxUserHardDeleteCopyBtn');
+        const label = confirmBtn ? confirmBtn.querySelector('.rx-delete-label') : null;
+        const copyLabel = copyBtn ? copyBtn.querySelector('.rx-copy-label') : null;
+        const spinner = confirmBtn ? confirmBtn.querySelector('.rx-delete-spinner') : null;
+
+        if (loading) loading.classList.remove('d-none');
+        if (error) {
+            error.classList.add('d-none');
+            error.textContent = '';
+        }
+        if (content) content.classList.add('d-none');
+        if (summaryEl) {
+            summaryEl.classList.add('d-none');
+            summaryEl.textContent = '';
+        }
+        if (confirmBtn) confirmBtn.disabled = true;
+        if (copyBtn) copyBtn.disabled = true;
+        if (label) label.textContent = 'Delete permanently';
+        if (copyLabel) copyLabel.textContent = 'Copy as text';
+        if (spinner) spinner.classList.add('d-none');
+    }
+
+    formatHardDeletePreviewText(data) {
+        const user = data.user || {};
+        const counts = data.counts || {};
+        const orders = Array.isArray(data.orders) ? data.orders : [];
+        const appointments = Array.isArray(data.appointments) ? data.appointments : [];
+        const lines = [];
+
+        lines.push('Patient hard-delete preview');
+        lines.push('===========================');
+        lines.push('');
+        lines.push('Patient profile');
+        lines.push(`- Name: ${user.full_name || 'Unknown'}`);
+        lines.push(`- Email: ${user.email || '—'}`);
+        lines.push(`- Phone: ${user.phone || '—'}`);
+        lines.push(`- PPS: ${user.pps_no || '—'}`);
+        lines.push(`- ID: ${user.id ?? '—'}`);
+        lines.push('');
+        lines.push('Counts');
+        lines.push(`- Orders: ${counts.orders ?? 0}`);
+        lines.push(`- Order items: ${counts.order_medicines ?? 0}`);
+        lines.push(`- Appointments: ${counts.appointments ?? 0}`);
+        lines.push(`- Reminder confirmations: ${counts.reminder_confirmations ?? 0}`);
+        lines.push('');
+        lines.push('Orders to delete');
+        if (orders.length === 0) {
+            lines.push('- None');
+        } else {
+            orders.forEach((order) => {
+                const date = order.created_at ? this.formatDateTime(order.created_at) : '—';
+                lines.push(
+                    `- RX-${order.id} | status: ${order.status || '—'} | items: ${order.item_count ?? 0} | pharmacy: ${order.nominated_pharmacy || '—'} | created: ${date}`
+                );
+            });
+        }
+        lines.push('');
+        lines.push('Appointments to delete');
+        if (appointments.length === 0) {
+            lines.push('- None');
+        } else {
+            appointments.forEach((booking) => {
+                lines.push(
+                    `- #${booking.id} | service: ${booking.service || '—'} | date: ${booking.date || '—'} | time: ${booking.start_time || '—'} | status: ${booking.status || '—'}`
+                );
+            });
+        }
+
+        return lines.join('\n');
+    }
+
+    async copyHardDeletePreview() {
+        const copyBtn = document.getElementById('rxUserHardDeleteCopyBtn');
+        const copyLabel = copyBtn ? copyBtn.querySelector('.rx-copy-label') : null;
+
+        if (!this.hardDeletePreviewData) {
+            this.showErrorToast('Nothing to copy yet.');
+            return;
+        }
+
+        const text = this.formatHardDeletePreviewText(this.hardDeletePreviewData);
+
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.setAttribute('readonly', '');
+                textarea.style.position = 'absolute';
+                textarea.style.left = '-9999px';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+
+            if (copyLabel) {
+                copyLabel.textContent = 'Copied';
+                setTimeout(() => {
+                    if (copyLabel) copyLabel.textContent = 'Copy as text';
+                }, 1500);
+            }
+            this.showSuccessToast('Delete preview copied to clipboard.');
+        } catch (err) {
+            console.error('Copy delete preview failed:', err);
+            this.showErrorToast('Failed to copy preview text.');
+        }
+    }
+
+    renderHardDeletePreview(data) {
+        this.hardDeletePreviewData = data;
+        const user = data.user || {};
+        const counts = data.counts || {};
+        const orders = Array.isArray(data.orders) ? data.orders : [];
+        const appointments = Array.isArray(data.appointments) ? data.appointments : [];
+
+        const userEl = document.getElementById('rxUserHardDeletePreviewUser');
+        if (userEl) {
+            userEl.innerHTML = [
+                `<div><strong>${this.escapeHtml(user.full_name || 'Unknown')}</strong></div>`,
+                `<div>Email: ${this.escapeHtml(user.email || '—')}</div>`,
+                `<div>Phone: ${this.escapeHtml(user.phone || '—')}</div>`,
+                `<div>PPS: ${this.escapeHtml(user.pps_no || '—')}</div>`,
+                `<div>ID: ${this.escapeHtml(user.id)}</div>`,
+            ].join('');
+        }
+
+        const countsEl = document.getElementById('rxUserHardDeletePreviewCounts');
+        if (countsEl) {
+            const items = [
+                ['Orders', counts.orders ?? 0],
+                ['Order items', counts.order_medicines ?? 0],
+                ['Appointments', counts.appointments ?? 0],
+                ['Reminder confirmations', counts.reminder_confirmations ?? 0],
+            ];
+            countsEl.innerHTML = items.map(([label, value]) => `
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-2 text-center">
+                        <div class="fw-semibold">${this.escapeHtml(value)}</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">${this.escapeHtml(label)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        const ordersEl = document.getElementById('rxUserHardDeletePreviewOrders');
+        if (ordersEl) {
+            if (orders.length === 0) {
+                ordersEl.innerHTML = '<div class="text-muted">No orders.</div>';
+            } else {
+                const rows = orders.map((order) => {
+                    const date = order.created_at ? this.formatDateTime(order.created_at) : '—';
+                    return `<tr>
+                        <td>RX-${this.escapeHtml(order.id)}</td>
+                        <td>${this.escapeHtml(order.status || '—')}</td>
+                        <td>${this.escapeHtml(order.item_count ?? 0)}</td>
+                        <td>${this.escapeHtml(order.nominated_pharmacy || '—')}</td>
+                        <td>${this.escapeHtml(date)}</td>
+                    </tr>`;
+                }).join('');
+                ordersEl.innerHTML = `<div class="table-responsive" style="max-height: 220px; overflow:auto;">
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead><tr><th>Order</th><th>Status</th><th>Items</th><th>Pharmacy</th><th>Created</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+            }
+        }
+
+        const appointmentsEl = document.getElementById('rxUserHardDeletePreviewAppointments');
+        if (appointmentsEl) {
+            if (appointments.length === 0) {
+                appointmentsEl.innerHTML = '<div class="text-muted">No appointments.</div>';
+            } else {
+                const rows = appointments.map((booking) => {
+                    const time = booking.start_time || '—';
+                    return `<tr>
+                        <td>#${this.escapeHtml(booking.id)}</td>
+                        <td>${this.escapeHtml(booking.service || '—')}</td>
+                        <td>${this.escapeHtml(booking.date || '—')}</td>
+                        <td>${this.escapeHtml(time)}</td>
+                        <td>${this.escapeHtml(booking.status || '—')}</td>
+                    </tr>`;
+                }).join('');
+                appointmentsEl.innerHTML = `<div class="table-responsive" style="max-height: 220px; overflow:auto;">
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Time</th><th>Status</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+            }
+        }
+    }
+
+    async loadHardDeletePreview() {
+        this.resetHardDeletePreviewUi();
+
+        const loading = document.getElementById('rxUserHardDeletePreviewLoading');
+        const error = document.getElementById('rxUserHardDeletePreviewError');
+        const content = document.getElementById('rxUserHardDeletePreviewContent');
+        const confirmBtn = document.getElementById('rxUserHardDeleteConfirmBtn');
+
+        try {
+            const response = await fetch(`/api/rx-users/${this.userId}/delete-preview`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                }
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || `Preview failed (${response.status})`);
+            }
+
+            this.renderHardDeletePreview(result.data || {});
+            if (loading) loading.classList.add('d-none');
+            if (content) content.classList.remove('d-none');
+            if (confirmBtn) confirmBtn.disabled = false;
+            const copyBtn = document.getElementById('rxUserHardDeleteCopyBtn');
+            if (copyBtn) copyBtn.disabled = false;
+        } catch (err) {
+            console.error('Hard delete preview failed:', err);
+            if (loading) loading.classList.add('d-none');
+            if (error) {
+                error.classList.remove('d-none');
+                error.textContent = err.message || 'Failed to load delete preview.';
+            }
+            if (confirmBtn) confirmBtn.disabled = true;
+            const copyBtn = document.getElementById('rxUserHardDeleteCopyBtn');
+            if (copyBtn) copyBtn.disabled = true;
+        }
+    }
+
+    async hardDeletePatient() {
+        const confirmBtn = document.getElementById('rxUserHardDeleteConfirmBtn');
+        const label = confirmBtn ? confirmBtn.querySelector('.rx-delete-label') : null;
+        const spinner = confirmBtn ? confirmBtn.querySelector('.rx-delete-spinner') : null;
+        const summaryEl = document.getElementById('rxUserHardDeleteSummary');
+
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+        }
+        if (label) {
+            label.textContent = 'Deleting...';
+        }
+        if (spinner) {
+            spinner.classList.remove('d-none');
+        }
+
+        try {
+            const response = await fetch(`/api/rx-users/${this.userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                }
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || `Delete failed (${response.status})`);
+            }
+
+            const data = result.data || {};
+            if (summaryEl) {
+                summaryEl.classList.remove('d-none');
+                summaryEl.textContent = `Deleted orders: ${data.orders_deleted ?? 0}, appointments: ${data.appointments_deleted ?? 0}.`;
+            }
+
+            this.showSuccessToast(result.message || 'Patient deleted.');
+            setTimeout(() => {
+                window.location.href = @json(route('admin.rx-users'));
+            }, 800);
+        } catch (error) {
+            console.error('Hard delete failed:', error);
+            this.showErrorToast(error.message || 'Failed to delete patient.');
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+            }
+            if (label) {
+                label.textContent = 'Delete permanently';
+            }
+            if (spinner) {
+                spinner.classList.add('d-none');
+            }
+        }
+    }
 }
 
 // Global functions
@@ -1190,6 +1557,33 @@ document.addEventListener('DOMContentLoaded', function() {
             window.rxUserViewManager.loadTimeline();
         }
     });
+
+    const hardDeleteModal = document.getElementById('rxUserHardDeleteModal');
+    if (hardDeleteModal) {
+        hardDeleteModal.addEventListener('show.bs.modal', function() {
+            if (window.rxUserViewManager) {
+                window.rxUserViewManager.loadHardDeletePreview();
+            }
+        });
+    }
+
+    const hardDeleteCopyBtn = document.getElementById('rxUserHardDeleteCopyBtn');
+    if (hardDeleteCopyBtn) {
+        hardDeleteCopyBtn.addEventListener('click', function() {
+            if (window.rxUserViewManager) {
+                window.rxUserViewManager.copyHardDeletePreview();
+            }
+        });
+    }
+
+    const hardDeleteConfirmBtn = document.getElementById('rxUserHardDeleteConfirmBtn');
+    if (hardDeleteConfirmBtn) {
+        hardDeleteConfirmBtn.addEventListener('click', function() {
+            if (window.rxUserViewManager) {
+                window.rxUserViewManager.hardDeletePatient();
+            }
+        });
+    }
 });
 </script>
 @endsection

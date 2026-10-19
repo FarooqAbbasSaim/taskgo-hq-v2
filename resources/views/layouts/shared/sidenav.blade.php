@@ -53,6 +53,15 @@
                 </a>
             </li>
 
+            @if(config('features.ccs_form_templates'))
+                <li class="side-nav-item">
+                    <a href="{{ route('admin.ccs-form-templates') }}" class="side-nav-link">
+                        <span class="menu-icon"><i data-lucide="clipboard-list"></i></span>
+                        <span class="menu-text">CCS Form Templates</span>
+                    </a>
+                </li>
+            @endif
+
             <li class="side-nav-item">
                 <a href="{{ route('admin.support.index') }}" class="side-nav-link">
                     <span class="menu-icon"><i data-lucide="life-buoy"></i></span>

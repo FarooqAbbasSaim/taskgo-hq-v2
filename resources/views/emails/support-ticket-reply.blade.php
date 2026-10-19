@@ -8,7 +8,7 @@
         <p>There is an update on ticket <strong>{{ $ticket->reference }}</strong>.</p>
         <div style="margin:16px 0;padding:16px;background:#f3f4f6;border:1px solid #d9dde3;border-radius:6px;">
             <div style="margin-bottom:8px;"><strong>Subject:</strong> {{ $ticket->subject }}</div>
-            <div style="white-space:pre-wrap"><strong>Message:</strong><br>{{ $ticketMessage->body }}</div>
+            <div><strong>Message:</strong><br>{!! \App\Support\SupportMessageBody::render($ticketMessage->body) !!}</div>
         </div>
         <p>You can view the ticket and add more information from My Support Tickets in Taskgo.</p>
         <p>Current status: {{ ucwords(str_replace('_', ' ', $ticket->status)) }}</p>

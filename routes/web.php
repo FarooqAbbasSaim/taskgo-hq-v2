@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\DisposableEmailAuditLogsController;
 use App\Http\Controllers\Admin\CrmAuthEventsController;
 use App\Http\Controllers\Admin\PatientAuthEventsController;
 use App\Http\Controllers\Admin\PlatformInsightsController;
+use App\Http\Controllers\Admin\CcsFormTemplatesController;
 use App\Http\Controllers\Admin\SopCatalogController;
 use App\Http\Controllers\Admin\SupportTicketController;
 use App\Http\Controllers\Admin\SupportViewSessionsController;
@@ -139,6 +140,13 @@ Route::prefix('api/rx-users')->group(function () {
     Route::get('/bookings/{bookingId}', [\App\Http\Controllers\Api\RxUserController::class, 'getBookingDetails']);
 });
 
+Route::middleware(['auth:hq'])->prefix('api/rx-users')->group(function () {
+    Route::get('/{id}/delete-preview', [\App\Http\Controllers\Api\RxUserController::class, 'deletePreview'])
+        ->name('api.rx-users.delete-preview');
+    Route::delete('/{id}', [\App\Http\Controllers\Api\RxUserController::class, 'destroy'])
+        ->name('api.rx-users.destroy');
+});
+
 // Announcement API route (for taskgo-rx to fetch announcements)
 Route::get('/api/announcements', [\App\Http\Controllers\Admin\AnnouncementController::class, 'getAnnouncement']);
 Route::get('/rx-users/email-change/verify/{id}/{token}', [\App\Http\Controllers\Api\RxUserController::class, 'verifyPendingEmailChange'])
@@ -181,6 +189,11 @@ Route::middleware(['auth:hq'])->prefix('admin')->group(function () {
     Route::put('/announcements', [\App\Http\Controllers\Admin\AnnouncementController::class, 'update'])->name('admin.announcements.update');
 
     Route::get('/sop-catalog', [SopCatalogController::class, 'index'])->name('admin.sop-catalog');
+    Route::get('/ccs-form-templates', [CcsFormTemplatesController::class, 'index'])->name('admin.ccs-form-templates');
+    Route::post('/ccs-form-templates/download-selected', [CcsFormTemplatesController::class, 'downloadSelected'])
+        ->name('admin.ccs-form-templates.download-selected');
+    Route::get('/ccs-form-templates/{key}/download', [CcsFormTemplatesController::class, 'download'])
+        ->name('admin.ccs-form-templates.download');
     Route::get('/support', [SupportTicketController::class, 'index'])->name('admin.support.index');
     Route::get('/support/attachments/{attachment}', [SupportTicketController::class, 'attachment'])->name('admin.support.attachments');
     Route::get('/support/{ticket}', [SupportTicketController::class, 'show'])->name('admin.support.show');

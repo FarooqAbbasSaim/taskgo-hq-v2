@@ -10,5 +10,7 @@ return [
     'support_investigation' => env('HQ_SUPPORT_INVESTIGATION_ENABLED', true),
     'support_search' => env('HQ_SUPPORT_SEARCH_ENABLED', true),
     'customer_mvp' => env('HQ_CUSTOMER_MVP_ENABLED', false),
+    'rx_user_hard_delete' => env('HQ_RX_USER_HARD_DELETE_ENABLED', false),
+    'ccs_form_templates' => env('HQ_CCS_FORM_TEMPLATES_ENABLED', false),
 ];
 

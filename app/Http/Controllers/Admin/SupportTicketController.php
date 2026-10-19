@@ -56,8 +56,6 @@ class SupportTicketController extends Controller
         return view('admin.support.show', [
             'title' => $ticket->reference,
             'ticket' => $ticket->load('messages.attachments'),
-            'hqUsers' => HqUser::where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']),
-            'statuses' => SupportTicket::STATUSES,
         ]);
     }
 

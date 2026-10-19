@@ -862,6 +862,14 @@ class PharmacyInvestigationController extends Controller
         string $userType,
         array $pharmacyIds
     ): array {
+        // Match CRM queryApplicableSopsForUser / queryApplicablePolicies:
+        // - admin / locum: all published org docs (no pharmacy / role filter)
+        // - pharmacist: pharmacy only (supervising pharmacists are not role-scoped)
+        // - everyone else: pharmacy + user-type assignment
+        $orgWideTypes = ['admin', 'locum_pharmacist'];
+        $applyPharmacyFilter = ! in_array($userType, $orgWideTypes, true);
+        $applyUserTypeFilter = $applyPharmacyFilter && $userType !== 'pharmacist';
+
         $applicableSopIds = $this->applicablePublishedDocIds(
             'sops',
             'sop_pharmacy',
@@ -869,7 +877,9 @@ class PharmacyInvestigationController extends Controller
             'sop_user_type',
             $organizationId,
             $userType,
-            $pharmacyIds
+            $pharmacyIds,
+            $applyPharmacyFilter,
+            $applyUserTypeFilter
         );
         $applicablePolicyIds = $this->applicablePublishedDocIds(
             'policies',
@@ -878,7 +888,9 @@ class PharmacyInvestigationController extends Controller
             'policy_user_type',
             $organizationId,
             $userType,
-            $pharmacyIds
+            $pharmacyIds,
+            $applyPharmacyFilter,
+            $applyUserTypeFilter
         );
 
         $readSopIds = [];
@@ -953,9 +965,16 @@ class PharmacyInvestigationController extends Controller
         string $userTypePivotTable,
         int $organizationId,
         string $userType,
-        array $pharmacyIds
+        array $pharmacyIds,
+        bool $applyPharmacyFilter = true,
+        bool $applyUserTypeFilter = true
     ): array {
         if (! Schema::hasTable($docsTable)) {
+            return [];
+        }
+
+        // CRM returns an empty applicable set when pharmacy-scoped roles have no pharmacy.
+        if ($applyPharmacyFilter && $pharmacyIds === []) {
             return [];
         }
 
@@ -963,7 +982,7 @@ class PharmacyInvestigationController extends Controller
             ->where('created_by', $organizationId)
             ->where('status', 'published');
 
-        if ($pharmacyIds !== [] && Schema::hasTable($pharmacyPivotTable)) {
+        if ($applyPharmacyFilter && Schema::hasTable($pharmacyPivotTable)) {
             $query->whereIn('id', function ($sub) use ($pharmacyPivotTable, $docFk, $pharmacyIds) {
                 $sub->select($docFk)
                     ->from($pharmacyPivotTable)
@@ -976,7 +995,7 @@ class PharmacyInvestigationController extends Controller
             return [];
         }
 
-        if ($userType === '' || ! Schema::hasTable($userTypePivotTable)) {
+        if (! $applyUserTypeFilter || $userType === '' || ! Schema::hasTable($userTypePivotTable)) {
             return array_values(array_unique($allIds));
         }
 

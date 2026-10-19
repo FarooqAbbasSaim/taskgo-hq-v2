@@ -15,6 +15,11 @@ class StaffSopPolicyStatsTest extends TestCase
         $this->assertStringContainsString('applicablePublishedDocIds', $controller);
         $this->assertStringContainsString('needs_reminder', $controller);
         $this->assertStringContainsString('unread_names', $controller);
+        // CRM parity: pharmacists are pharmacy-scoped only; admin/locum are org-wide.
+        $this->assertStringContainsString("\$userType !== 'pharmacist'", $controller);
+        $this->assertStringContainsString("'locum_pharmacist'", $controller);
+        $this->assertStringContainsString('applyPharmacyFilter', $controller);
+        $this->assertStringContainsString('applyUserTypeFilter', $controller);
         $this->assertStringNotContainsString("\$sopStats['total'] = \$sopRows->count()", $controller);
         $this->assertStringNotContainsString("\$policyStats['total'] = \$policyRows->count()", $controller);
 

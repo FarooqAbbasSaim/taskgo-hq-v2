@@ -85,6 +85,106 @@ class PlatformInsightsService
         }
     }
 
+    /**
+     * Top pharmacies by service-booking volume (all appointment statuses) in a window.
+     *
+     * @param  list<int>  $pharmacyIds
+     * @return array{
+     *     data: list<array<string, mixed>>,
+     *     date_range: string,
+     *     from_label: string,
+     *     to_label: string,
+     *     note: string|null,
+     *     error: string|null
+     * }
+     */
+    public function topPharmaciesByAppointments(
+        \DateTimeInterface $from,
+        \DateTimeInterface $to,
+        array $pharmacyIds = [],
+        int $limit = 5
+    ): array {
+        $fromLabel = \Carbon\Carbon::parse($from)->format('d M Y');
+        $toLabel = \Carbon\Carbon::parse($to)->format('d M Y');
+        $result = [
+            'data' => [],
+            'date_range' => $fromLabel . ' – ' . $toLabel,
+            'from_label' => $fromLabel,
+            'to_label' => $toLabel,
+            'note' => 'All statuses. Ranked by total appointments created in this period. Pharmacy is the booking location (appointments.pharmacy_id).',
+            'error' => null,
+        ];
+
+        if (! Schema::hasTable('appointments')) {
+            return $result;
+        }
+
+        $statusKeys = ['confirmed', 'claimed', 'attended', 'completed', 'waitlist', 'unattended', 'cancelled'];
+
+        try {
+            $query = DB::table('appointments as a')
+                ->leftJoin('pharmacies as p', 'p.id', '=', 'a.pharmacy_id')
+                ->where('a.created_at', '>=', $from)
+                ->where('a.created_at', '<=', $to)
+                ->whereNotNull('a.pharmacy_id');
+
+            if ($pharmacyIds !== []) {
+                $query->whereIn('a.pharmacy_id', $pharmacyIds);
+            }
+
+            $rows = $query
+                ->select([
+                    'a.pharmacy_id',
+                    DB::raw('COALESCE(MAX(p.pharmacy_name), CONCAT(\'Pharmacy \', a.pharmacy_id)) as pharmacy_name'),
+                    DB::raw('COUNT(*) as total'),
+                    DB::raw("SUM(CASE WHEN a.status = 'confirmed' THEN 1 ELSE 0 END) as st_confirmed"),
+                    DB::raw("SUM(CASE WHEN a.status = 'claimed' THEN 1 ELSE 0 END) as st_claimed"),
+                    DB::raw("SUM(CASE WHEN a.status = 'attended' THEN 1 ELSE 0 END) as st_attended"),
+                    DB::raw("SUM(CASE WHEN a.status = 'completed' THEN 1 ELSE 0 END) as st_completed"),
+                    DB::raw("SUM(CASE WHEN a.status = 'waitlist' THEN 1 ELSE 0 END) as st_waitlist"),
+                    DB::raw("SUM(CASE WHEN a.status = 'unattended' THEN 1 ELSE 0 END) as st_unattended"),
+                    DB::raw("SUM(CASE WHEN a.status = 'cancelled' THEN 1 ELSE 0 END) as st_cancelled"),
+                    DB::raw("SUM(CASE WHEN a.status IS NULL OR a.status NOT IN ('confirmed','claimed','attended','completed','waitlist','unattended','cancelled') THEN 1 ELSE 0 END) as st_other"),
+                ])
+                ->groupBy('a.pharmacy_id')
+                ->orderByDesc('total')
+                ->limit($limit)
+                ->get();
+
+            $result['data'] = $rows->values()->map(static function ($row, int $index) use ($statusKeys, $fromLabel, $toLabel) {
+                $statuses = [];
+                foreach ($statusKeys as $status) {
+                    $count = (int) ($row->{'st_' . $status} ?? 0);
+                    if ($count > 0) {
+                        $statuses[$status] = $count;
+                    }
+                }
+                $other = (int) ($row->st_other ?? 0);
+                if ($other > 0) {
+                    $statuses['other'] = $other;
+                }
+
+                return [
+                    'rank' => $index + 1,
+                    'pharmacy_id' => (int) $row->pharmacy_id,
+                    'pharmacy_name' => (string) ($row->pharmacy_name ?: ('Pharmacy ' . $row->pharmacy_id)),
+                    'date_range' => $fromLabel . ' – ' . $toLabel,
+                    'total' => (int) $row->total,
+                    'statuses' => $statuses,
+                ];
+            })->all();
+
+            return $result;
+        } catch (Throwable $e) {
+            Log::error('PlatformInsightsService::topPharmaciesByAppointments failed', [
+                'exception' => $e->getMessage(),
+            ]);
+            $result['error'] = 'Could not load top pharmacies by appointments.';
+
+            return $result;
+        }
+    }
+
     /** @return array{value: int|null, error: string|null} */
     public function ccsBookingsTotal(): array
     {
@@ -851,6 +951,14 @@ class PlatformInsightsService
                 'rows' => [],
                 'note' => null,
             ],
+            'top_pharmacies' => [
+                'data' => [],
+                'date_range' => $period['from_label'] . ' – ' . $period['to_label'],
+                'from_label' => $period['from_label'],
+                'to_label' => $period['to_label'],
+                'note' => null,
+                'error' => null,
+            ],
             'error' => null,
         ];
 
@@ -863,6 +971,7 @@ class PlatformInsightsService
                     $empty['appointments']['non_cancelled'] = 0;
                     $empty['appointments']['booked'] = 0;
                     $empty['appointments']['attended'] = 0;
+                    $empty['top_pharmacies']['data'] = [];
                 } else {
                     $base = $this->appointmentsQuery($from, $to, $pharmacyIds);
                     $empty['appointments']['total'] = (int) (clone $base)->count();
@@ -882,6 +991,14 @@ class PlatformInsightsService
                     'exception' => $e->getMessage(),
                 ]);
                 $errors[] = 'Could not load recent appointment totals.';
+            }
+
+            if (! $forceEmptyScope) {
+                $topPharmacies = $this->topPharmaciesByAppointments($from, $to, $pharmacyIds, 5);
+                $empty['top_pharmacies'] = $topPharmacies;
+                if (! empty($topPharmacies['error'])) {
+                    $errors[] = $topPharmacies['error'];
+                }
             }
         }
 
@@ -1436,6 +1553,21 @@ class PlatformInsightsService
             $lines[] = '  - ' . $this->fmtNum($row['count'] ?? 0) . '  ' . ($row['name'] ?? 'Unknown');
         }
         if (($by['rows'] ?? []) === [] && ($by['total'] ?? null) === 0) {
+            $lines[] = '  (none in this window)';
+        }
+        $lines[] = '';
+        $topPharmacies = $recent['top_pharmacies'] ?? [];
+        $lines[] = 'Top 5 pharmacies by appointments (' . ($topPharmacies['date_range'] ?? ($recent['from_label'] ?? '—') . ' – ' . ($recent['to_label'] ?? '—')) . ')';
+        foreach ($topPharmacies['data'] ?? [] as $row) {
+            $statusParts = [];
+            foreach ($row['statuses'] ?? [] as $status => $count) {
+                $statusParts[] = str_replace('_', ' ', (string) $status) . ' ' . $this->fmtNum($count);
+            }
+            $lines[] = '  #' . ($row['rank'] ?? '') . ' ' . ($row['pharmacy_name'] ?? 'Unknown')
+                . ' — total ' . $this->fmtNum($row['total'] ?? 0)
+                . ($statusParts !== [] ? ' (' . implode(', ', $statusParts) . ')' : '');
+        }
+        if (($topPharmacies['data'] ?? []) === []) {
             $lines[] = '  (none in this window)';
         }
 

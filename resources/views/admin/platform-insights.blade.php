@@ -328,6 +328,63 @@
                             <div class="text-muted small mt-2">{{ $byService['note'] }}</div>
                         @endif
                     </div>
+
+                    @php $topPharmacies = $recent['top_pharmacies'] ?? []; @endphp
+                    <div class="border-top pt-3 mt-3">
+                        <div class="d-flex align-items-baseline justify-content-between flex-wrap gap-2 mb-2">
+                            <div>
+                                <div class="fw-semibold">Top 5 pharmacies by appointments</div>
+                                <div class="text-muted small">
+                                    {{ $topPharmacies['date_range'] ?? (($recent['from_label'] ?? '—') . ' – ' . ($recent['to_label'] ?? '—')) }}
+                                    · all statuses · highest total first
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 2.5rem;">#</th>
+                                        <th>Date range</th>
+                                        <th>Pharmacy name</th>
+                                        <th class="text-end">Total appointments</th>
+                                        <th>Appointments status breakdown</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($topPharmacies['data'] ?? [] as $row)
+                                        <tr>
+                                            <td>{{ $row['rank'] }}</td>
+                                            <td class="text-nowrap">{{ $row['date_range'] ?? ($topPharmacies['date_range'] ?? '—') }}</td>
+                                            <td>{{ $row['pharmacy_name'] }}</td>
+                                            <td class="text-end fw-semibold">{{ number_format($row['total']) }}</td>
+                                            <td>
+                                                @if(empty($row['statuses']))
+                                                    <span class="text-muted">—</span>
+                                                @else
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        @foreach($row['statuses'] as $status => $count)
+                                                            <span class="badge text-bg-light border">{{ str_replace('_', ' ', $status) }}: {{ number_format($count) }}</span>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="text-muted text-center py-3">No pharmacy appointment data in this window for the selected scope.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                        @if(!empty($topPharmacies['note']))
+                            <div class="text-muted small mt-2">{{ $topPharmacies['note'] }}</div>
+                        @endif
+                        @if(!empty($topPharmacies['error']))
+                            <div class="text-danger small mt-2">{{ $topPharmacies['error'] }}</div>
+                        @endif
+                    </div>
                 </div>
             </div>
 

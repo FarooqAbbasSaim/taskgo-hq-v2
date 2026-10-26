@@ -16,6 +16,8 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString('function topDispensingErrorReasons', $service);
         $this->assertStringContainsString('function recentWindowMetrics', $service);
         $this->assertStringContainsString('function bookingsByService', $service);
+        $this->assertStringContainsString('function topPharmaciesByAppointments', $service);
+        $this->assertStringContainsString("'top_pharmacies'", $service);
         $this->assertStringContainsString('function formatRecentCopyText', $service);
         $this->assertStringContainsString('function formatAllTimeCopyText', $service);
         $this->assertStringContainsString('function resolvePeriod', $service);
@@ -76,6 +78,9 @@ class PlatformInsightsMvpMetricsTest extends TestCase
         $this->assertStringContainsString('insights-pharmacy-check', $view);
         $this->assertStringContainsString('insightsPharmacySelectAll', $view);
         $this->assertStringContainsString('insightsPharmacyClear', $view);
+        $this->assertStringContainsString('Top 5 pharmacies by appointments', $view);
+        $this->assertStringContainsString('Appointments status breakdown', $view);
+        $this->assertStringContainsString("top_pharmacies'] ?? []", $view);
         $this->assertStringContainsString('insightsPeriod', $view);
         $this->assertStringContainsString('insights-custom-dates', $view);
         $this->assertStringContainsString('by_service', $view);

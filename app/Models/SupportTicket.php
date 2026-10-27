@@ -24,6 +24,21 @@ class SupportTicket extends Model
 
     public function messages()
     {
-        return $this->hasMany(SupportTicketMessage::class)->orderBy('created_at')->orderBy('id');
+        // Order by id (insert order). Do not sort by created_at alone: CRM uses
+        // Europe/Dublin and HQ may use UTC against the same DB, so wall-clock
+        // timestamps from each app can interleave incorrectly.
+        return $this->hasMany(SupportTicketMessage::class)->orderBy('id');
+    }
+
+    public function inboundReplyAddress(): ?string
+    {
+        $domain = trim((string) config('support.inbound_reply_domain'));
+        $token = trim((string) $this->public_token);
+        if ($domain === '' || $token === '') {
+            return null;
+        }
+        $local = trim((string) config('support.inbound_reply_local', 'support')) ?: 'support';
+
+        return sprintf('%s+%s@%s', $local, $token, $domain);
     }
 }

@@ -65,7 +65,8 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Match CRM (Europe/Dublin) when writing shared support_ticket timestamps.
+    'timezone' => env('APP_TIMEZONE', 'Europe/Dublin'),
 
     /*
     |--------------------------------------------------------------------------

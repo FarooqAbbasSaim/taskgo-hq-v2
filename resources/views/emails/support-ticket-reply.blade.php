@@ -10,7 +10,7 @@
             <div style="margin-bottom:8px;"><strong>Subject:</strong> {{ $ticket->subject }}</div>
             <div><strong>Message:</strong><br>{!! \App\Support\SupportMessageBody::render($ticketMessage->body) !!}</div>
         </div>
-        <p>You can view the ticket and add more information from My Support Tickets in Taskgo.</p>
+        <p>You can reply to this email to continue the conversation, or open My Support Tickets in Taskgo.</p>
         <p>Current status: {{ ucwords(str_replace('_', ' ', $ticket->status)) }}</p>
     </div>
     <div style="text-align:center;font-size:12px;color:#888;margin-top:20px">&copy; {{ date('Y') }} Taskgo. All rights reserved.</div>

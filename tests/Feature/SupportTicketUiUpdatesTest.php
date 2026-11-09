@@ -64,4 +64,19 @@ class SupportTicketUiUpdatesTest extends TestCase
         $this->assertStringNotContainsString('onclick', $html);
         $this->assertStringNotContainsString('<img', $html);
     }
+
+    public function test_hq_support_replies_cc_info_and_set_reply_to(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Admin/SupportTicketController.php'));
+        $config = file_get_contents(config_path('support.php'));
+        $app = file_get_contents(config_path('app.php'));
+        $model = file_get_contents(app_path('Models/SupportTicket.php'));
+
+        $this->assertStringContainsString('SupportMail::applyCc', $controller);
+        $this->assertStringContainsString('SupportMail::applyReplyTo', $controller);
+        $this->assertStringContainsString("env('SUPPORT_CC_EMAIL', 'info@taskgo.ie')", $config);
+        $this->assertStringContainsString('inboundReplyAddress', $model);
+        $this->assertStringContainsString("orderBy('id')", $model);
+        $this->assertStringContainsString("env('APP_TIMEZONE', 'Europe/Dublin')", $app);
+    }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\HqUser;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketAttachment;
+use App\Support\SupportMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -151,6 +152,8 @@ class SupportTicketController extends Controller
                 Mail::send('emails.support-ticket-reply', compact('ticket', 'ticketMessage'), function ($mail) use ($ticket) {
                     $mail->to($ticket->requester_email, $ticket->requester_name)
                         ->subject("Update on {$ticket->reference}: {$ticket->subject}");
+                    SupportMail::applyCc($mail, $ticket->requester_email);
+                    SupportMail::applyReplyTo($mail, $ticket->inboundReplyAddress());
                 });
             } catch (\Throwable $exception) {
                 report($exception);
@@ -176,6 +179,8 @@ class SupportTicketController extends Controller
             Mail::send('emails.support-ticket-status', compact('ticket'), function ($mail) use ($ticket) {
                 $mail->to($ticket->requester_email, $ticket->requester_name)
                     ->subject("Status update for {$ticket->reference}: " . ucwords(str_replace('_', ' ', $ticket->status)));
+                SupportMail::applyCc($mail, $ticket->requester_email);
+                SupportMail::applyReplyTo($mail, $ticket->inboundReplyAddress());
             });
             return true;
         } catch (\Throwable $exception) {

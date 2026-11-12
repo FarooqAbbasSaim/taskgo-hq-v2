@@ -3,22 +3,9 @@
     "file": "assets/_commonjsHelpers-D6-XlEtG.js",
     "name": "_commonjsHelpers"
   },
-  "_analytics-yP6R08zC.js": {
-    "file": "assets/analytics-yP6R08zC.js",
-    "name": "analytics",
-    "imports": [
-      "__commonjsHelpers-D6-XlEtG.js",
-      "_index-BEKk9TLb.js",
-      "_isObjectLike-mqpIr8Ea.js"
-    ]
-  },
-  "_app-CDfrXvgj.js": {
-    "file": "assets/app-CDfrXvgj.js",
-    "name": "app",
-    "imports": [
-      "_jquery-NjmgXMI-.js",
-      "_analytics-yP6R08zC.js"
-    ]
+  "_choices-BgrVbzTe.js": {
+    "file": "assets/choices-BgrVbzTe.js",
+    "name": "choices"
   },
   "_dataTables.bootstrap5-DXX-FjKl.js": {
     "file": "assets/dataTables.bootstrap5-DXX-FjKl.js",
@@ -113,17 +100,17 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-BA0UNDpR.js",
+    "file": "assets/app-zo02u8dJ.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
       "_jquery-NjmgXMI-.js",
-      "_analytics-yP6R08zC.js",
       "__commonjsHelpers-D6-XlEtG.js",
-      "_jquery-BQXThELV.js",
       "_index-BEKk9TLb.js",
-      "_isObjectLike-mqpIr8Ea.js"
+      "_isObjectLike-mqpIr8Ea.js",
+      "_choices-BgrVbzTe.js",
+      "_jquery-BQXThELV.js"
     ]
   },
   "resources/js/config.js": {
@@ -220,78 +207,78 @@
     ]
   },
   "resources/js/pages/chart-area.js": {
-    "file": "assets/chart-area-o3BWUjaV.js",
+    "file": "assets/chart-area-C4JNZIu1.js",
     "name": "chart-area",
     "src": "resources/js/pages/chart-area.js",
     "isEntry": true,
     "imports": [
-      "_app-CDfrXvgj.js",
+      "resources/js/app.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
-      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
-      "_isObjectLike-mqpIr8Ea.js"
+      "_isObjectLike-mqpIr8Ea.js",
+      "_choices-BgrVbzTe.js"
     ]
   },
   "resources/js/pages/chart-bar.js": {
-    "file": "assets/chart-bar-B9-rO8gM.js",
+    "file": "assets/chart-bar-BmBQVFU4.js",
     "name": "chart-bar",
     "src": "resources/js/pages/chart-bar.js",
     "isEntry": true,
     "imports": [
-      "_app-CDfrXvgj.js",
+      "resources/js/app.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
-      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
-      "_isObjectLike-mqpIr8Ea.js"
+      "_isObjectLike-mqpIr8Ea.js",
+      "_choices-BgrVbzTe.js"
     ]
   },
   "resources/js/pages/chart-line.js": {
-    "file": "assets/chart-line-CW7T8-ip.js",
+    "file": "assets/chart-line-DEPYfGmV.js",
     "name": "chart-line",
     "src": "resources/js/pages/chart-line.js",
     "isEntry": true,
     "imports": [
-      "_app-CDfrXvgj.js",
+      "resources/js/app.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
-      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
-      "_isObjectLike-mqpIr8Ea.js"
+      "_isObjectLike-mqpIr8Ea.js",
+      "_choices-BgrVbzTe.js"
     ]
   },
   "resources/js/pages/chart-other.js": {
-    "file": "assets/chart-other-BHOj1lew.js",
+    "file": "assets/chart-other-CNf9OizG.js",
     "name": "chart-other",
     "src": "resources/js/pages/chart-other.js",
     "isEntry": true,
     "imports": [
-      "_app-CDfrXvgj.js",
+      "resources/js/app.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
-      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
-      "_isObjectLike-mqpIr8Ea.js"
+      "_isObjectLike-mqpIr8Ea.js",
+      "_choices-BgrVbzTe.js"
     ]
   },
   "resources/js/pages/dashboard.js": {
-    "file": "assets/dashboard-Tn3aaqac.js",
+    "file": "assets/dashboard-CDE6-ES1.js",
     "name": "dashboard",
     "src": "resources/js/pages/dashboard.js",
     "isEntry": true,
     "imports": [
-      "_app-CDfrXvgj.js",
+      "resources/js/app.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
-      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
-      "_isObjectLike-mqpIr8Ea.js"
+      "_isObjectLike-mqpIr8Ea.js",
+      "_choices-BgrVbzTe.js"
     ]
   },
   "resources/js/pages/datatables-ajax.js": {
@@ -409,10 +396,13 @@
     "isEntry": true
   },
   "resources/js/pages/form-choice.js": {
-    "file": "assets/form-choice-DOLufkiq.js",
+    "file": "assets/form-choice-BmURcZBd.js",
     "name": "form-choice",
     "src": "resources/js/pages/form-choice.js",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_choices-BgrVbzTe.js"
+    ]
   },
   "resources/js/pages/form-fileupload.js": {
     "file": "assets/form-fileupload-DqB_bETy.js",
@@ -456,18 +446,18 @@
     ]
   },
   "resources/js/pages/maps-vector.js": {
-    "file": "assets/maps-vector-REJc2wfQ.js",
+    "file": "assets/maps-vector-CfDiZ_CO.js",
     "name": "maps-vector",
     "src": "resources/js/pages/maps-vector.js",
     "isEntry": true,
     "imports": [
-      "_app-CDfrXvgj.js",
+      "resources/js/app.js",
       "_jquery-NjmgXMI-.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_jquery-BQXThELV.js",
-      "_analytics-yP6R08zC.js",
       "_index-BEKk9TLb.js",
-      "_isObjectLike-mqpIr8Ea.js"
+      "_isObjectLike-mqpIr8Ea.js",
+      "_choices-BgrVbzTe.js"
     ]
   },
   "resources/js/pages/ui-interactive.js": {

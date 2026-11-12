@@ -13,328 +13,132 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    // Add a small delay to ensure DOM is fully ready
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Get CSRF token once for all API calls
     const csrfToken = document
         .querySelector('meta[name="csrf-token"]')
         ?.getAttribute("content");
+    const jsonHeaders = {
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": csrfToken || "",
+        Accept: "application/json",
+    };
 
-    // Fetch appointments data
-    let appointmentsData = null;
-    try {
-        console.log("Fetching appointments data from API...");
-
-        const response = await fetch("/api/dashboard/appointments", {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": csrfToken || "",
-                Accept: "application/json",
-            },
-        });
-
+    const fetchDashboardJson = async (url) => {
+        const response = await fetch(url, { method: "GET", headers: jsonHeaders });
         if (!response.ok) {
-            throw new Error(
-                `API request failed with status ${response.status}`
-            );
+            throw new Error(`API request failed with status ${response.status}`);
         }
+        return response.json();
+    };
 
-        const result = await response.json();
-        console.log("Appointments API Response:", result);
+    // Load widgets in parallel — serial awaits previously summed all API latencies.
+    const [appointmentsResult, rxOrdersResult, rxUsersResult, totalPharmaciesResult] =
+        await Promise.all([
+            fetchDashboardJson("/api/dashboard/appointments").catch((error) => {
+                console.error("Error fetching appointments data:", error);
+                return null;
+            }),
+            fetchDashboardJson("/api/dashboard/rx-orders").catch((error) => {
+                console.error("Error fetching Rx Orders data:", error);
+                return null;
+            }),
+            fetchDashboardJson("/api/dashboard/rx-users").catch((error) => {
+                console.error("Error fetching Rx Users data:", error);
+                return null;
+            }),
+            fetchDashboardJson("/api/dashboard/total-pharmacies").catch((error) => {
+                console.error("Error fetching Total Pharmacies data:", error);
+                return null;
+            }),
+        ]);
 
-        if (result.success) {
-            appointmentsData = result.data;
-            console.log("Appointments data loaded:", appointmentsData);
-
-            const thisMonthElement = document.getElementById(
-                "appointmentsThisMonth"
-            );
-            const lastMonthElement = document.getElementById(
-                "appointmentsLastMonth"
-            );
-            const revenuePercentageElement = document.getElementById(
-                "appointmentsRevenueChange"
-            );
-
-            console.log("Updating DOM elements with data:", {
-                this_month: result.data.this_month,
-                last_month: result.data.last_month,
-                revenue_change_percentage:
-                    result.data.revenue_change_percentage,
-            });
-
-            if (thisMonthElement) {
-                thisMonthElement.textContent = result.data.this_month;
-                console.log("Updated this month element:", thisMonthElement);
-            } else {
-                console.error("This month element not found");
-            }
-            if (lastMonthElement) {
-                lastMonthElement.textContent = result.data.last_month;
-                console.log("Updated last month element:", lastMonthElement);
-            } else {
-                console.error("Last month element not found");
-            }
-            if (revenuePercentageElement) {
-                revenuePercentageElement.textContent =
-                    result.data.revenue_change_percentage;
-                console.log(
-                    "Updated revenue percentage element:",
-                    revenuePercentageElement
-                );
-            } else {
-                console.error("Revenue percentage element not found");
-            }
-
-            // Create the chart
-            createAppointmentsChart(appointmentsData);
-        }
-    } catch (error) {
-        console.error("Error fetching appointments data:", error);
-    }
-
-    // Fetch Rx Orders data
-    let rxOrdersData = null;
-    try {
-        console.log("Fetching Rx Orders data from API...");
-
-        const rxResponse = await fetch("/api/dashboard/rx-orders", {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": csrfToken || "",
-                Accept: "application/json",
-            },
-        });
-
-        if (!rxResponse.ok) {
-            throw new Error(
-                `Rx Orders API request failed with status ${rxResponse.status}`
-            );
-        }
-
-        const rxResult = await rxResponse.json();
-        console.log("Rx Orders API Response:", rxResult);
-
-        if (rxResult.success) {
-            rxOrdersData = rxResult.data;
-            console.log("Rx Orders data loaded:", rxOrdersData);
-
-            // Update the display values
-            const processedElement =
-                document.querySelector('[data-target="78"]');
-            const pendingElement = document.querySelector('[data-target="22"]');
-            const totalOrdersElement = document.querySelector(
-                '[data-target="2389"]'
-            );
-
-            console.log("Found elements:", {
-                processedElement: !!processedElement,
-                pendingElement: !!pendingElement,
-                totalOrdersElement: !!totalOrdersElement,
-            });
-
-            // Debug: Log the actual elements found
-            console.log("Element details:", {
-                processedElement: processedElement,
-                pendingElement: pendingElement,
-                totalOrdersElement: totalOrdersElement,
-            });
-
-            if (processedElement) {
-                console.log(
-                    "Updating processed from",
-                    processedElement.textContent,
-                    "to",
-                    rxResult.data.processed_percentage
-                );
-                processedElement.textContent =
-                    rxResult.data.processed_percentage;
-            }
-            if (pendingElement) {
-                console.log(
-                    "Updating pending from",
-                    pendingElement.textContent,
-                    "to",
-                    rxResult.data.pending_percentage
-                );
-                pendingElement.textContent = rxResult.data.pending_percentage;
-            }
-            if (totalOrdersElement) {
-                console.log(
-                    "Updating total orders from",
-                    totalOrdersElement.textContent,
-                    "to",
-                    rxResult.data.total_orders_this_month.toLocaleString()
-                );
-                totalOrdersElement.textContent =
-                    rxResult.data.total_orders_this_month.toLocaleString();
-            } else {
-                // Fallback: try to find the element by text content
-                console.log(
-                    "totalOrdersElement not found, trying fallback selector..."
-                );
-                const fallbackElement = document.querySelector(
-                    'span[data-target="2389"]'
-                );
-                if (fallbackElement) {
-                    console.log("Found fallback element:", fallbackElement);
-                    fallbackElement.textContent =
-                        rxResult.data.total_orders_this_month.toLocaleString();
-                } else {
-                    console.log("Fallback element also not found");
-                }
-            }
-
-            // Update progress bars
-            const processedProgressBar = document.getElementById(
-                "processedProgressBar"
-            );
-            const pendingProgressBar =
-                document.getElementById("pendingProgressBar");
-
-            console.log("Found progress bars:", {
-                processedProgressBar: !!processedProgressBar,
-                pendingProgressBar: !!pendingProgressBar,
-            });
-
-            if (processedProgressBar) {
-                console.log(
-                    "Updating processed progress bar to",
-                    rxResult.data.processed_percentage + "%"
-                );
-                processedProgressBar.style.width =
-                    rxResult.data.processed_percentage + "%";
-            }
-            if (pendingProgressBar) {
-                console.log(
-                    "Updating pending progress bar to",
-                    rxResult.data.pending_percentage + "%"
-                );
-                pendingProgressBar.style.width =
-                    rxResult.data.pending_percentage + "%";
-            }
-
-            console.log("Updated Rx Orders data:", {
-                processed: rxResult.data.processed_percentage,
-                pending: rxResult.data.pending_percentage,
-                total: rxResult.data.total_orders_this_month,
-            });
-        }
-    } catch (error) {
-        console.error("Error fetching Rx Orders data:", error);
-    }
-
-    // Fetch Rx Users data
-    let rxUsersData = null;
-    try {
-        console.log("Fetching Rx Users data from API...");
-
-        const rxUsersResponse = await fetch("/api/dashboard/rx-users", {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": csrfToken || "",
-                Accept: "application/json",
-            },
-        });
-
-        if (!rxUsersResponse.ok) {
-            throw new Error(
-                `Rx Users API request failed with status ${rxUsersResponse.status}`
-            );
-        }
-
-        const rxUsersResult = await rxUsersResponse.json();
-        console.log("Rx Users API Response:", rxUsersResult);
-
-        if (rxUsersResult.success) {
-            rxUsersData = rxUsersResult.data;
-            console.log("Rx Users data loaded:", rxUsersData);
-
-            // Update the display values in footnote
-            const totalUsersElement = document.querySelector(
-                '[data-target="2000"]'
-            );
-            const malePercentageElement =
-                document.querySelector('[data-target="90"]');
-            const femalePercentageElement =
-                document.querySelector('[data-target="10"]');
-
-            if (totalUsersElement) {
-                totalUsersElement.textContent =
-                    rxUsersResult.data.total_users.toLocaleString();
-            }
-            if (malePercentageElement) {
-                malePercentageElement.textContent =
-                    rxUsersResult.data.male_percentage;
-            }
-            if (femalePercentageElement) {
-                femalePercentageElement.textContent =
-                    rxUsersResult.data.female_percentage;
-            }
-
-            // Create the age group pie chart
-            createRxUsersChart(rxUsersData);
-        }
-    } catch (error) {
-        console.error("Error fetching Rx Users data:", error);
-    }
-
-    let totalPharmaciesData = null;
-    try {
-        console.log("Fetching Total Pharmacies data from API...");
-
-        const totalPharmaciesResponse = await fetch(
-            "/api/dashboard/total-pharmacies",
-            {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": csrfToken || "",
-                    Accept: "application/json",
-                },
-            }
+    if (appointmentsResult?.success) {
+        const thisMonthElement = document.getElementById("appointmentsThisMonth");
+        const lastMonthElement = document.getElementById("appointmentsLastMonth");
+        const revenuePercentageElement = document.getElementById(
+            "appointmentsRevenueChange"
         );
 
-        if (!totalPharmaciesResponse.ok) {
-            throw new Error(
-                `Total Pharmacies API request failed with status ${totalPharmaciesResponse.status}`
-            );
+        if (thisMonthElement) {
+            thisMonthElement.textContent = appointmentsResult.data.this_month;
+        }
+        if (lastMonthElement) {
+            lastMonthElement.textContent = appointmentsResult.data.last_month;
+        }
+        if (revenuePercentageElement) {
+            revenuePercentageElement.textContent =
+                appointmentsResult.data.revenue_change_percentage;
         }
 
-        const totalPharmaciesResult = await totalPharmaciesResponse.json();
-        console.log(
-            "Total Pharmacies API Response:",
-            totalPharmaciesResult
+        createAppointmentsChart(appointmentsResult.data);
+    }
+
+    if (rxOrdersResult?.success) {
+        const processedElement = document.querySelector('[data-target="78"]');
+        const pendingElement = document.querySelector('[data-target="22"]');
+        const totalOrdersElement =
+            document.querySelector('[data-target="2389"]') ||
+            document.querySelector('span[data-target="2389"]');
+        const processedProgressBar = document.getElementById("processedProgressBar");
+        const pendingProgressBar = document.getElementById("pendingProgressBar");
+
+        if (processedElement) {
+            processedElement.textContent = rxOrdersResult.data.processed_percentage;
+        }
+        if (pendingElement) {
+            pendingElement.textContent = rxOrdersResult.data.pending_percentage;
+        }
+        if (totalOrdersElement) {
+            totalOrdersElement.textContent =
+                rxOrdersResult.data.total_orders_this_month.toLocaleString();
+        }
+        if (processedProgressBar) {
+            processedProgressBar.style.width =
+                rxOrdersResult.data.processed_percentage + "%";
+        }
+        if (pendingProgressBar) {
+            pendingProgressBar.style.width =
+                rxOrdersResult.data.pending_percentage + "%";
+        }
+    }
+
+    if (rxUsersResult?.success) {
+        const totalUsersElement = document.querySelector('[data-target="2000"]');
+        const malePercentageElement = document.querySelector('[data-target="90"]');
+        const femalePercentageElement = document.querySelector('[data-target="10"]');
+
+        if (totalUsersElement) {
+            totalUsersElement.textContent =
+                rxUsersResult.data.total_users.toLocaleString();
+        }
+        if (malePercentageElement) {
+            malePercentageElement.textContent = rxUsersResult.data.male_percentage;
+        }
+        if (femalePercentageElement) {
+            femalePercentageElement.textContent =
+                rxUsersResult.data.female_percentage;
+        }
+
+        createRxUsersChart(rxUsersResult.data);
+    }
+
+    if (totalPharmaciesResult?.success) {
+        const currentTotalElement = document.getElementById(
+            "totalPharmaciesCurrentTotal"
+        );
+        const currentMonthNewElement = document.getElementById(
+            "totalPharmaciesCurrentMonthNew"
         );
 
-        if (totalPharmaciesResult.success) {
-            totalPharmaciesData = totalPharmaciesResult.data;
-
-            const currentTotalElement = document.getElementById(
-                "totalPharmaciesCurrentTotal"
-            );
-            const currentMonthNewElement = document.getElementById(
-                "totalPharmaciesCurrentMonthNew"
-            );
-
-            if (currentTotalElement) {
-                currentTotalElement.textContent =
-                    totalPharmaciesResult.data.current_total.toLocaleString();
-            }
-
-            if (currentMonthNewElement) {
-                currentMonthNewElement.textContent =
-                    totalPharmaciesResult.data.current_month_new.toLocaleString();
-            }
-
-            createTotalPharmaciesChart(totalPharmaciesData);
+        if (currentTotalElement) {
+            currentTotalElement.textContent =
+                totalPharmaciesResult.data.current_total.toLocaleString();
         }
-    } catch (error) {
-        console.error("Error fetching Total Pharmacies data:", error);
+        if (currentMonthNewElement) {
+            currentMonthNewElement.textContent =
+                totalPharmaciesResult.data.current_month_new.toLocaleString();
+        }
+
+        createTotalPharmaciesChart(totalPharmaciesResult.data);
     }
 
     function createAppointmentsChart(data) {
